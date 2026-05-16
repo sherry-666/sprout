@@ -19,6 +19,8 @@ async def connect_to_mongo():
     await db.db.users.create_index("username", sparse=True)
     await db.db.users.create_index("email", sparse=True)
     await db.db.institutions.create_index("status")
+    await db.db.invitations.create_index("token", unique=True)
+    await db.db.invitations.create_index("expires_at", expireAfterSeconds=0)
     print("Indexes ensured.")
 
 async def close_mongo_connection():

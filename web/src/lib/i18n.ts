@@ -65,7 +65,15 @@ const resources = {
         province: "Province / State",
         provincePlaceholder: "e.g. ON",
         active: "active",
-        inactive: "inactive"
+        inactive: "inactive",
+        adminSection: "Institution Administrator",
+        adminSectionDesc: "An activation email will be sent to the admin to set up their account.",
+        adminFirstName: "Admin First Name",
+        adminFirstNamePlaceholder: "e.g. Jane",
+        adminLastName: "Admin Last Name",
+        adminLastNamePlaceholder: "e.g. Smith",
+        adminEmail: "Admin Email",
+        adminEmailPlaceholder: "e.g. jane@sunrise.com"
       },
       classes: {
         classManagement: "Class Management",
@@ -94,6 +102,23 @@ const resources = {
         activeClasses: "Active Classes",
         teachers: "Teachers",
         createClass: "Create Class"
+      },
+      activate: {
+        validating: "Validating your invitation...",
+        welcome: "Welcome, {{name}}!",
+        invitedTo: "You've been invited to manage {{institution}} on Sprout.",
+        emailLabel: "Email",
+        newPassword: "New Password",
+        confirmPassword: "Confirm Password",
+        activateButton: "Activate Account",
+        activating: "Activating...",
+        success: "Account activated successfully! Redirecting to login...",
+        redirecting: "You will be redirected shortly.",
+        invalidToken: "This invitation link is invalid or has expired.",
+        passwordMismatch: "Passwords do not match.",
+        passwordTooShort: "Password must be at least 6 characters.",
+        failed: "Failed to activate account.",
+        goToLogin: "Go to Login"
       }
     }
   },
@@ -159,7 +184,15 @@ const resources = {
         province: "省份 / 州",
         provincePlaceholder: "例如：安大略",
         active: "活跃",
-        inactive: "非活跃"
+        inactive: "非活跃",
+        adminSection: "机构管理员",
+        adminSectionDesc: "将向管理员发送激活邮件以设置其账户。",
+        adminFirstName: "管理员名字",
+        adminFirstNamePlaceholder: "例如：小明",
+        adminLastName: "管理员姓氏",
+        adminLastNamePlaceholder: "例如：张",
+        adminEmail: "管理员邮箱",
+        adminEmailPlaceholder: "例如：jane@sunrise.com"
       },
       classes: {
         classManagement: "班级管理",
@@ -188,6 +221,23 @@ const resources = {
         activeClasses: "活跃班级",
         teachers: "教师",
         createClass: "创建班级"
+      },
+      activate: {
+        validating: "正在验证您的邀请...",
+        welcome: "欢迎，{{name}}！",
+        invitedTo: "您已被邀请在 Sprout 上管理 {{institution}}。",
+        emailLabel: "电子邮件",
+        newPassword: "新密码",
+        confirmPassword: "确认密码",
+        activateButton: "激活账户",
+        activating: "激活中...",
+        success: "账户激活成功！正在跳转到登录页面...",
+        redirecting: "您将很快被重定向。",
+        invalidToken: "此邀请链接无效或已过期。",
+        passwordMismatch: "两次输入的密码不一致。",
+        passwordTooShort: "密码至少需要6个字符。",
+        failed: "账户激活失败。",
+        goToLogin: "前往登录"
       }
     }
   },
@@ -253,7 +303,15 @@ const resources = {
         province: "Province / État",
         provincePlaceholder: "ex: ON",
         active: "actif",
-        inactive: "inactif"
+        inactive: "inactif",
+        adminSection: "Administrateur de l'institution",
+        adminSectionDesc: "Un email d'activation sera envoyé à l'administrateur pour configurer son compte.",
+        adminFirstName: "Prénom de l'admin",
+        adminFirstNamePlaceholder: "ex: Jeanne",
+        adminLastName: "Nom de l'admin",
+        adminLastNamePlaceholder: "ex: Dupont",
+        adminEmail: "Email de l'admin",
+        adminEmailPlaceholder: "ex: jane@sunrise.com"
       },
       classes: {
         classManagement: "Gestion des classes",
@@ -282,6 +340,23 @@ const resources = {
         activeClasses: "Classes actives",
         teachers: "Éducateurs",
         createClass: "Créer une classe"
+      },
+      activate: {
+        validating: "Validation de votre invitation...",
+        welcome: "Bienvenue, {{name}} !",
+        invitedTo: "Vous avez été invité(e) à gérer {{institution}} sur Sprout.",
+        emailLabel: "Email",
+        newPassword: "Nouveau mot de passe",
+        confirmPassword: "Confirmer le mot de passe",
+        activateButton: "Activer le compte",
+        activating: "Activation...",
+        success: "Compte activé avec succès ! Redirection vers la connexion...",
+        redirecting: "Vous serez redirigé(e) sous peu.",
+        invalidToken: "Ce lien d'invitation est invalide ou a expiré.",
+        passwordMismatch: "Les mots de passe ne correspondent pas.",
+        passwordTooShort: "Le mot de passe doit contenir au moins 6 caractères.",
+        failed: "Échec de l'activation du compte.",
+        goToLogin: "Aller à la connexion"
       }
     }
   }

@@ -54,8 +54,19 @@ These are first-class, native features of Sprout that differentiate it from comp
 ### Journey 1: Platform Scaling (System Admin)
 1. System Admin logs into the Web Portal.
 2. Navigates to **Day Cares** and clicks **+ Add Day Care**.
-3. Fills in the details for "Sunshine Daycare".
-4. The system provisions the institution and creates an admin account for the day care director.
+3. Fills in the details for "Sunshine Daycare" and the admin's name and email.
+4. The system provisions the institution, creates a **pending** admin user account (no password), and sends an **activation email** to the admin's email address.
+5. The activation email contains a secure, time-limited link (72-hour expiry).
+
+### Journey 1b: Admin Account Activation (Institution Admin)
+**Purpose:** Allow an invited admin to securely set their password and gain access.
+1. Institution Admin receives the "You've been invited to Sprout" email.
+2. Clicks the **"Activate Your Account"** button in the email.
+3. Is directed to the public **Account Activation page** (`/activate?token=xxx`).
+4. The page validates the token and displays the admin's name, email, and institution name.
+5. Admin enters and confirms a new password.
+6. On submit, the account status changes from `pending` → `active`, and the admin is redirected to the **Login** page.
+7. Admin logs in with their email and new password.
 
 ### Journey 2: Day Care Setup (Institution Admin)
 1. Institution Admin logs in with their newly created credentials.
@@ -79,7 +90,8 @@ These are first-class, native features of Sprout that differentiate it from comp
 
 ## 7. Technical & Non-Functional Requirements
 - **Architecture**: FastAPI backend (Python), React frontend (Vite/TS), MongoDB Atlas database.
-- **Authentication**: JWT-based session management.
+- **Authentication**: JWT-based session management. Account activation via secure, time-limited invitation tokens.
+- **Email**: Transactional emails via SendGrid. Dev environment uses an email whitelist with Gmail alias normalization to prevent accidental sends.
 - **Performance**: Millisecond response times for logging to ensure educators aren't waiting on spinners.
 - **Security & Privacy**: Face embeddings stored securely and used exclusively for internal kid identification. Strict COPPA compliance considerations. Parents must explicitly consent to face recognition during onboarding.
 - **Scalability**: Designed with a multi-tenant database strategy using `institution_id` indexing to cleanly separate data across hundreds of day cares.

@@ -17,6 +17,9 @@ const NewInstitution = () => {
     province: '',
     phone: '',
     email: '',
+    admin_first_name: '',
+    admin_last_name: '',
+    admin_email: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,6 +75,7 @@ const NewInstitution = () => {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Institution Details */}
           <div className="form-group">
             <label htmlFor="name">{t('institutions.name')}</label>
             <input
@@ -123,6 +127,42 @@ const NewInstitution = () => {
                 type="text" id="province" name="province" className="input-field"
                 value={formData.province} onChange={handleChange}
                 placeholder={t('institutions.provincePlaceholder')}
+              />
+            </div>
+          </div>
+
+          {/* Admin Invitation Section */}
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
+            <h3 style={{ marginBottom: '4px' }}>{t('institutions.adminSection')}</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px' }}>
+              {t('institutions.adminSectionDesc')}
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div className="form-group">
+                <label htmlFor="admin_first_name">{t('institutions.adminFirstName')}</label>
+                <input
+                  type="text" id="admin_first_name" name="admin_first_name" className="input-field"
+                  value={formData.admin_first_name} onChange={handleChange}
+                  placeholder={t('institutions.adminFirstNamePlaceholder')}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="admin_last_name">{t('institutions.adminLastName')}</label>
+                <input
+                  type="text" id="admin_last_name" name="admin_last_name" className="input-field"
+                  value={formData.admin_last_name} onChange={handleChange}
+                  placeholder={t('institutions.adminLastNamePlaceholder')}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="admin_email">{t('institutions.adminEmail')}</label>
+              <input
+                type="email" id="admin_email" name="admin_email" className="input-field"
+                value={formData.admin_email} onChange={handleChange}
+                placeholder={t('institutions.adminEmailPlaceholder')}
               />
             </div>
           </div>

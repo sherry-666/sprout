@@ -63,15 +63,17 @@ sprout/
 
 ### 4.1 Users Collection
 - `_id`: ObjectId
-- `role`: Enum ('super_admin', 'school_admin', 'teacher', 'parent')
-- `email`: String (unique)
-- `passwordHash`: String
+- `role`: Enum ('super_admin', 'admin', 'educator', 'parent')
+- `email`: String (unique, sparse)
+- `username`: String (unique, sparse)
+- `passwordHash`: String (nullable — null for pending users)
+- `status`: Enum ('active', 'pending') — pending until account is activated
 - `profile`: Object
   - `firstName`: String
   - `lastName`: String
   - `phone`: String (optional)
   - `avatarUrl`: String (optional)
-- `schoolId`: ObjectId
+- `institution_id`: ObjectId (FK → institutions._id, null for super_admin)
 - `createdAt`: Date
 - `updatedAt`: Date
 
@@ -80,8 +82,9 @@ sprout/
 - `firstName`: String
 - `lastName`: String
 - `dateOfBirth`: Date
-- `parents`: Array of User ObjectIds
-- `classId`: ObjectId
+- `parent_user_ids`: Array of User ObjectIds
+- `class_id`: ObjectId
+- `institution_id`: ObjectId (FK → institutions._id)
 - `faceEmbedding`: Binary (128-d vector for face recognition, encrypted at rest)
 - `profilePhotoUrl`: String (optional)
 - `createdAt`: Date
@@ -89,16 +92,16 @@ sprout/
 ### 4.3 Classes Collection
 - `_id`: ObjectId
 - `name`: String
-- `schoolId`: ObjectId
-- `teachers`: Array of User ObjectIds
-- `kids`: Array of Kid ObjectIds
+- `institution_id`: ObjectId (FK → institutions._id)
+- `educator_user_ids`: Array of User ObjectIds
+- `kid_ids`: Array of Kid ObjectIds
 - `createdAt`: Date
 
 ### 4.4 Updates/Activities Collection
 - `_id`: ObjectId
-- `kidId`: ObjectId (or Array for group updates)
-- `teacherId`: ObjectId
-- `classId`: ObjectId
+- `kid_id`: ObjectId (or Array for group updates)
+- `educator_user_id`: ObjectId
+- `class_id`: ObjectId
 - `type`: Enum ('meal', 'nap', 'activity', 'photo', 'daily_summary')
 - `content`: String (teacher's raw input or AI-generated text)
 - `aiGeneratedContent`: String (optional, LLM-drafted parent-friendly message)
@@ -106,19 +109,34 @@ sprout/
 - `detectedKidIds`: Array of ObjectIds (auto-detected kids from photos)
 - `timestamp`: Date
 
-### 4.5 Schools Collection
+### 4.5 Institutions Collection
 - `_id`: ObjectId
 - `name`: String
-- `address`: String
-- `adminIds`: Array of User ObjectIds
+- `address`: String (optional)
+- `city`: String (optional)
+- `province`: String (optional)
+- `phone`: String (optional)
+- `email`: String (optional)
+- `status`: Enum ('active', 'inactive')
 - `createdAt`: Date
+
+### 4.6 Invitations Collection
+- `token`: String (unique index, secure random token)
+- `user_id`: ObjectId (FK → users._id)
+- `institution_id`: ObjectId (FK → institutions._id)
+- `role`: Enum ('admin', 'educator', 'parent')
+- `expires_at`: Date (TTL index, default: 72 hours)
+- `used`: Boolean (default: false)
+- `created_at`: Date
 
 ## 5. API Endpoints (REST)
 
 ### Auth APIs
 - `POST /api/auth/register` — Register a new user (admin-initiated invite flow).
-- `POST /api/auth/login` — Login and receive JWT token.
+- `POST /api/auth/login` — Login and receive JWT token. Rejects pending users.
 - `POST /api/auth/refresh` — Refresh an expired token.
+- `GET /api/auth/validate-token/{token}` — Validate an invitation token and return user/institution info.
+- `POST /api/auth/activate` — Activate a pending account (set password via invitation token).
 
 ### Admin APIs
 - `POST /api/admin/invite` — Invite a user (teacher or parent) via email.

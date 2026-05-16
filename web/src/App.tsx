@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Institutions from './pages/Institutions';
 import NewInstitution from './pages/NewInstitution';
 import Settings from './pages/Settings';
+import ActivateAccount from './pages/ActivateAccount';
 import Users from './pages/Users';
 import Classes from './pages/Classes';
 
@@ -12,6 +13,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/activate" element={<ActivateAccount />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/institutions" element={<Institutions />} />
         <Route path="/institutions/new" element={<NewInstitution />} />

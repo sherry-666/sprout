@@ -1,9 +1,23 @@
 from typing import Optional, List, Any
+from enum import Enum
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from bson import ObjectId
 
 from pydantic_core import core_schema
+
+
+class UserRole(str, Enum):
+    super_admin = "super_admin"
+    admin = "admin"
+    educator = "educator"
+    parent = "parent"
+
+
+class UserStatus(str, Enum):
+    active = "active"
+    pending = "pending"
+
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -36,25 +50,20 @@ class UserProfile(BaseModel):
     phone: Optional[str] = None
     avatarUrl: Optional[str] = None
 
-# Roles:
-# - super_admin : platform-level admin, no institutionId (created via seed script)
-# - admin       : institution-level admin, has institutionId
-# - educator    : teacher/educator, has institutionId
-# - parent      : parent, has institutionId
-
 class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     username: Optional[str] = None
-    role: str = Field(..., pattern="^(super_admin|admin|educator|parent)$")
+    role: UserRole
     profile: UserProfile
     institution_id: Optional[PyObjectId] = None  # FK → institutions._id (null for super_admin)
+    status: UserStatus = UserStatus.active
 
 class UserCreate(UserBase):
     password: str
 
 class UserInDB(UserBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    passwordHash: str
+    passwordHash: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.utcnow)
     updatedAt: datetime = Field(default_factory=datetime.utcnow)
 

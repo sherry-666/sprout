@@ -1,8 +1,15 @@
 from typing import Optional, Any
+from enum import Enum
 from pydantic import BaseModel, Field
 from datetime import datetime
 from bson import ObjectId
 from app.models.user import PyObjectId
+
+
+class InstitutionStatus(str, Enum):
+    active = "active"
+    inactive = "inactive"
+
 
 class InstitutionBase(BaseModel):
     name: str
@@ -11,7 +18,7 @@ class InstitutionBase(BaseModel):
     province: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
-    status: str = Field(default="active", pattern="^(active|inactive)$")
+    status: InstitutionStatus = InstitutionStatus.active
 
 class InstitutionCreate(InstitutionBase):
     pass
