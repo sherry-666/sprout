@@ -1,17 +1,18 @@
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
+from bson import ObjectId
 from app.models.user import PyObjectId
 
 class UpdateBase(BaseModel):
-    kidId: Optional[str] = None # Optional if it's a group update (multiple detectedKidIds)
-    teacherId: str
-    classId: str
+    kid_id: Optional[PyObjectId] = None           # Optional: null = group update
+    educator_user_id: PyObjectId
+    class_id: PyObjectId
     type: str = Field(..., pattern="^(meal|nap|activity|photo|daily_summary)$")
     content: str
     aiGeneratedContent: Optional[str] = None
     mediaUrls: List[str] = []
-    detectedKidIds: List[str] = []
+    detected_kid_ids: List[PyObjectId] = []
 
 class UpdateCreate(UpdateBase):
     pass

@@ -1,15 +1,34 @@
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
+from bson import ObjectId
 
-class PyObjectId(str):
+from pydantic_core import core_schema
+
+class PyObjectId(ObjectId):
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: Any
+    ) -> core_schema.CoreSchema:
+        return core_schema.json_or_python_schema(
+            json_schema=core_schema.str_schema(),
+            python_schema=core_schema.union_schema([
+                core_schema.is_instance_schema(ObjectId),
+                core_schema.chain_schema([
+                    core_schema.str_schema(),
+                    core_schema.no_info_plain_validator_function(cls.validate),
+                ])
+            ]),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                lambda x: str(x)
+            ),
+        )
 
     @classmethod
-    def validate(cls, v, *args, **kwargs):
-        return str(v)
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid ObjectId")
+        return ObjectId(v)
 
 class UserProfile(BaseModel):
     firstName: str
@@ -17,11 +36,18 @@ class UserProfile(BaseModel):
     phone: Optional[str] = None
     avatarUrl: Optional[str] = None
 
+# Roles:
+# - super_admin : platform-level admin, no institutionId (created via seed script)
+# - admin       : institution-level admin, has institutionId
+# - educator    : teacher/educator, has institutionId
+# - parent      : parent, has institutionId
+
 class UserBase(BaseModel):
-    email: EmailStr
-    role: str = Field(..., pattern="^(super_admin|school_admin|teacher|parent)$")
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
+    role: str = Field(..., pattern="^(super_admin|admin|educator|parent)$")
     profile: UserProfile
-    schoolId: Optional[str] = None
+    institution_id: Optional[PyObjectId] = None  # FK → institutions._id (null for super_admin)
 
 class UserCreate(UserBase):
     password: str
@@ -36,7 +62,13 @@ class UserInDB(UserBase):
         populate_by_name = True
 
 class UserResponse(UserBase):
-    id: str
+    id: str = Field(alias="_id")
 
     class Config:
         populate_by_name = True
+
+    @classmethod
+    def from_mongo(cls, data: dict):
+        data = dict(data)
+        data["id"] = str(data.get("_id", ""))
+        return cls(**data)

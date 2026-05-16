@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Environment variables
+.env
+backend/.env
+
+# Node
+node_modules/
+web/node_modules/
+mobile/node_modules/
+
+# Vite
+web/dist/
+
+# Expo
+mobile/.expo/
+mobile/android/
+mobile/ios/
+
+# macOS
+.DS_Store

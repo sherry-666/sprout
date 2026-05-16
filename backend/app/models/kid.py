@@ -1,14 +1,16 @@
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
+from bson import ObjectId
 from app.models.user import PyObjectId
 
 class KidBase(BaseModel):
     firstName: str
     lastName: str
     dateOfBirth: Optional[datetime] = None
-    parents: List[str] = [] # List of parent User IDs
-    classId: Optional[str] = None
+    parent_user_ids: List[PyObjectId] = []
+    class_id: Optional[PyObjectId] = None
+    institution_id: Optional[PyObjectId] = None
     profilePhotoUrl: Optional[str] = None
 
 class KidCreate(KidBase):
@@ -16,7 +18,7 @@ class KidCreate(KidBase):
 
 class KidInDB(KidBase):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    faceEmbedding: Optional[bytes] = None # Binary 128-d vector
+    faceEmbedding: Optional[bytes] = None  # Binary 128-d vector
     createdAt: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:

@@ -7,7 +7,7 @@ from app.models.user import UserCreate, UserInDB, UserResponse
 router = APIRouter()
 
 class LoginRequest(BaseModel):
-    email: str
+    login: str  # accepts either username or email
     password: str
 
 @router.post("/register", response_model=UserResponse)
@@ -29,18 +29,24 @@ async def register_user(user_in: UserCreate):
     
     # Fetch created user
     created_user = await db.users.find_one({"_id": result.inserted_id})
-    return UserResponse(**created_user)
+    return UserResponse.from_mongo(created_user)
 
 @router.post("/login")
 async def login(login_req: LoginRequest):
     db = get_database()
-    user = await db.users.find_one({"email": login_req.email})
+    # Support login by username or email
+    user = await db.users.find_one({
+        "$or": [
+            {"email": login_req.login},
+            {"username": login_req.login},
+        ]
+    })
     
     if not user or not verify_password(login_req.password, user["passwordHash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect username/email or password",
         )
         
     access_token = create_access_token(data={"sub": str(user["_id"]), "role": user["role"]})
-    return {"access_token": access_token, "token_type": "bearer", "user": UserResponse(**user)}
+    return {"access_token": access_token, "token_type": "bearer", "user": UserResponse.from_mongo(user)}

@@ -1,0 +1,74 @@
+import React from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, School, Users, BookOpen, Settings, LogOut } from 'lucide-react';
+import { clearSession, getUser } from '../lib/api';
+
+const Layout = ({ children }: { children: React.ReactNode }) => {
+  const navigate = useNavigate();
+  const user = getUser();
+  const isSuperAdmin = user?.role === 'super_admin';
+
+  const handleSignOut = () => {
+    clearSession();
+    navigate('/login');
+  };
+
+  return (
+    <div className="dashboard-layout">
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <span style={{ fontSize: '24px' }}>🌱</span> Sprout
+        </div>
+
+        <nav className="nav-links">
+          <NavLink to="/dashboard" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+            <LayoutDashboard size={20} /> Dashboard
+          </NavLink>
+
+          {isSuperAdmin ? (
+            /* System Admin nav */
+            <NavLink to="/institutions" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              <School size={20} /> Day Cares
+            </NavLink>
+          ) : (
+            /* School Admin nav */
+            <>
+              <NavLink to="/classes" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                <BookOpen size={20} /> Classes
+              </NavLink>
+              <NavLink to="/users" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                <Users size={20} /> Users
+              </NavLink>
+            </>
+          )}
+
+          <NavLink to="/settings" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+            <Settings size={20} /> Settings
+          </NavLink>
+        </nav>
+
+        <div style={{ marginTop: 'auto' }}>
+          <div style={{ padding: '12px 16px', marginBottom: '8px', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+              {user?.profile?.firstName} {user?.profile?.lastName}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {user?.role === 'super_admin' ? 'System Admin' : 'School Admin'}
+            </div>
+          </div>
+          <button className="nav-link"
+            style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}
+            onClick={handleSignOut}>
+            <LogOut size={20} /> Sign Out
+          </button>
+        </div>
+      </aside>
+
+      <main className="main-content">
+        {children}
+      </main>
+    </div>
+  );
+};
+
+export default Layout;
