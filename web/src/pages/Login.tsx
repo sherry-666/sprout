@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { apiLogin, saveSession } from '../lib/api';
 
 const Login = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,7 +20,7 @@ const Login = () => {
       saveSession(data.access_token, data.user);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || t('auth.invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -28,7 +30,7 @@ const Login = () => {
     <div className="auth-container">
       <div className="glass-card auth-box">
         <h1>🌱 Sprout</h1>
-        <p>Welcome back! Please enter your details.</p>
+        <p>{t('auth.subtitle')}</p>
 
         {error && (
           <div style={{
@@ -42,7 +44,7 @@ const Login = () => {
 
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label htmlFor="login">Username or Email</label>
+            <label htmlFor="login">{t('auth.usernameOrEmail')}</label>
             <input
               type="text" id="login" className="input-field"
               placeholder="sprout_admin"
@@ -50,7 +52,7 @@ const Login = () => {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">{t('auth.password')}</label>
             <input
               type="password" id="password" className="input-field"
               placeholder="••••••••"
@@ -59,7 +61,7 @@ const Login = () => {
           </div>
           <button type="submit" className="btn-primary" id="login-btn"
             style={{ width: '100%', marginTop: '8px' }} disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? t('auth.signingIn') : t('auth.signIn')}
           </button>
         </form>
       </div>

@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Institutions from './pages/Institutions';
 import NewInstitution from './pages/NewInstitution';
+import Settings from './pages/Settings';
 import Users from './pages/Users';
 import Classes from './pages/Classes';
 
@@ -14,6 +15,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/institutions" element={<Institutions />} />
         <Route path="/institutions/new" element={<NewInstitution />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Users />} />
         <Route path="/classes" element={<Classes />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

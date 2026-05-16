@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { School, ChevronRight, UserCheck, MapPin, Loader } from 'lucide-react';
 import { authFetch } from '../lib/api';
 
 const SuperAdminDashboard = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +22,7 @@ const SuperAdminDashboard = () => {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', gap: '12px' }}>
         <Loader size={24} style={{ animation: 'spin 1s linear infinite' }} />
-        <span style={{ color: 'var(--text-secondary)' }}>Loading day cares...</span>
+        <span style={{ color: 'var(--text-secondary)' }}>{t('institutions.loading')}</span>
       </div>
     );
   }
@@ -28,7 +30,7 @@ const SuperAdminDashboard = () => {
   if (error) {
     return (
       <div className="glass-card" style={{ color: '#dc2626', textAlign: 'center' }}>
-        ⚠️ Failed to load day cares: {error}
+        ⚠️ {t('institutions.failedToLoad', { error })}
       </div>
     );
   }
@@ -37,13 +39,13 @@ const SuperAdminDashboard = () => {
     <div>
       <div className="page-header">
         <div>
-          <h1>System Overview</h1>
+          <h1>{t('dashboard.systemOverview')}</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Managing {schools.length} day care{schools.length !== 1 ? 's' : ''} on the Sprout platform.
+            {t('dashboard.managingDayCares', { count: schools.length })}
           </p>
         </div>
         <button className="btn-primary" id="add-daycare-btn" onClick={() => navigate('/institutions')}>
-          + Add Day Care
+          + {t('institutions.addDayCare')}
         </button>
       </div>
 
@@ -54,7 +56,7 @@ const SuperAdminDashboard = () => {
             <School size={24} color="var(--primary-color)" />
           </div>
           <div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Total Day Cares</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('dashboard.totalDayCares')}</div>
             <div style={{ fontSize: '2rem', fontWeight: 700 }}>{schools.length}</div>
           </div>
         </div>
@@ -63,7 +65,7 @@ const SuperAdminDashboard = () => {
             <UserCheck size={24} color="#10b981" />
           </div>
           <div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Total Kids Enrolled</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('dashboard.totalKidsEnrolled')}</div>
             <div style={{ fontSize: '2rem', fontWeight: 700 }}>
               {schools.reduce((sum: number, s: any) => sum + (s.kidCount || 0), 0)}
             </div>
@@ -74,7 +76,7 @@ const SuperAdminDashboard = () => {
             <MapPin size={24} color="#f59e0b" />
           </div>
           <div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Active Day Cares</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('dashboard.activeDayCares')}</div>
             <div style={{ fontSize: '2rem', fontWeight: 700 }}>
               {schools.filter((s: any) => s.status === 'active').length}
             </div>
@@ -83,12 +85,12 @@ const SuperAdminDashboard = () => {
       </div>
 
       {/* School List */}
-      <h2 style={{ marginBottom: '16px' }}>Day Cares</h2>
+      <h2 style={{ marginBottom: '16px' }}>{t('nav.dayCares')}</h2>
 
       {schools.length === 0 ? (
         <div className="glass-card" style={{ textAlign: 'center', padding: '48px' }}>
           <School size={48} style={{ margin: '0 auto 16px', display: 'block', opacity: 0.3 }} />
-          <p style={{ color: 'var(--text-secondary)' }}>No day cares yet. Click "+ Add Day Care" to get started.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>{t('institutions.noDayCaresAdded')}. {t('institutions.clickToAdd')}</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -125,7 +127,7 @@ const SuperAdminDashboard = () => {
                         🏫 {school.classCount ?? 0} classes
                       </span>
                       <span style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '2px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 500 }}>
-                        ✅ {school.status}
+                        ✅ {t(`institutions.${school.status}`)}
                       </span>
                     </div>
                   </div>
@@ -133,7 +135,7 @@ const SuperAdminDashboard = () => {
 
                 {/* School Admin */}
                 <div style={{ textAlign: 'right', marginRight: '8px' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>School Admin</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('roles.schoolAdmin')}</div>
                   {school.adminInfo ? (
                     <>
                       <div style={{ fontWeight: 600 }}>{school.adminInfo.name}</div>

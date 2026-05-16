@@ -1,9 +1,11 @@
-import React from 'react';
+
 import { Users, BookOpen, Baby } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { getUser } from '../lib/api';
 
 const SchoolAdminDashboard = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const user = getUser();
 
@@ -11,13 +13,13 @@ const SchoolAdminDashboard = () => {
     <div>
       <div className="page-header">
         <div>
-          <h1>Good morning, {user?.profile?.firstName}!</h1>
+          <h1>{t('schoolAdmin.greeting', { name: user?.profile?.firstName })}</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Here's what's happening at your school today.
+            {t('schoolAdmin.subtitle')}
           </p>
         </div>
         <button className="btn-primary" id="create-class-btn" onClick={() => navigate('/classes')}>
-          + Create Class
+          + {t('schoolAdmin.createClass')}
         </button>
       </div>
 
@@ -29,7 +31,7 @@ const SchoolAdminDashboard = () => {
               <Baby size={24} color="var(--primary-color)" />
             </div>
             <div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Total Kids</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('schoolAdmin.totalKids')}</div>
               <div style={{ fontSize: '2rem', fontWeight: 700 }}>0</div>
             </div>
           </div>
@@ -42,7 +44,7 @@ const SchoolAdminDashboard = () => {
               <BookOpen size={24} color="#10b981" />
             </div>
             <div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Active Classes</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('schoolAdmin.activeClasses')}</div>
               <div style={{ fontSize: '2rem', fontWeight: 700 }}>0</div>
             </div>
           </div>
@@ -55,7 +57,7 @@ const SchoolAdminDashboard = () => {
               <Users size={24} color="#f59e0b" />
             </div>
             <div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Teachers</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('schoolAdmin.teachers')}</div>
               <div style={{ fontSize: '2rem', fontWeight: 700 }}>0</div>
             </div>
           </div>

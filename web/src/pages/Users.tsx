@@ -1,20 +1,22 @@
-import React from 'react';
+
 import Layout from '../components/Layout';
 import { Users as UsersIcon, Mail } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Users = () => {
+  const { t } = useTranslation();
   return (
     <Layout>
       <div className="page-header">
         <div>
-          <h1>User Management</h1>
+          <h1>{t('users.userManagement')}</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Invite and manage teachers and parents.
+            {t('users.manageEducators')}
           </p>
         </div>
         <button className="btn-primary" id="invite-user-btn">
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Mail size={16} /> Invite User
+            <Mail size={16} /> {t('users.inviteUser')}
           </span>
         </button>
       </div>
@@ -34,7 +36,7 @@ const Users = () => {
             <tr>
               <td colSpan={5} style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 <UsersIcon size={40} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.4 }} />
-                No users yet. Invite a teacher or parent to get started.
+                {t('users.noUsers')}. {t('users.clickToInvite')}
               </td>
             </tr>
           </tbody>

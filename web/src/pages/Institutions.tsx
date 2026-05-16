@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { School, Plus, ChevronRight, Loader } from 'lucide-react';
+import { School, Plus, Loader } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { authFetch } from '../lib/api';
 
 const Institutions = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,14 +23,14 @@ const Institutions = () => {
     <Layout>
       <div className="page-header">
         <div>
-          <h1>Day Care Management</h1>
+          <h1>{t('institutions.dayCareManagement')}</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Onboard and manage day care centers on the Sprout platform.
+            {t('institutions.onboardSubtext')}
           </p>
         </div>
         <button className="btn-primary" id="add-school-btn" onClick={() => navigate('/institutions/new')}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Plus size={16} /> Add Day Care
+            <Plus size={16} /> {t('institutions.addDayCare')}
           </span>
         </button>
       </div>
@@ -36,11 +38,11 @@ const Institutions = () => {
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', gap: '12px' }}>
           <Loader size={24} style={{ animation: 'spin 1s linear infinite' }} />
-          <span style={{ color: 'var(--text-secondary)' }}>Loading day cares...</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{t('institutions.loading')}</span>
         </div>
       ) : error ? (
         <div className="glass-card" style={{ color: '#dc2626', textAlign: 'center' }}>
-          ⚠️ Failed to load day cares: {error}
+          ⚠️ {t('institutions.failedToLoad', { error })}
         </div>
       ) : institutions.length === 0 ? (
         <div className="glass-card" style={{
@@ -48,11 +50,11 @@ const Institutions = () => {
           justifyContent: 'center', minHeight: '300px', gap: '16px'
         }}>
           <School size={48} color="var(--text-secondary)" />
-          <h3 style={{ color: 'var(--text-secondary)' }}>No day cares added yet</h3>
+          <h3 style={{ color: 'var(--text-secondary)' }}>{t('institutions.noDayCaresAdded')}</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Click "Add Day Care" to onboard your first school.
+            {t('institutions.clickToAdd')}
           </p>
-          <button className="btn-primary" onClick={() => navigate('/institutions/new')}>+ Add Day Care</button>
+          <button className="btn-primary" onClick={() => navigate('/institutions/new')}>+ {t('institutions.addDayCare')}</button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -83,7 +85,7 @@ const Institutions = () => {
                 </div>
                 <div style={{ textAlign: 'right', marginRight: '8px' }}>
                   <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 500 }}>
-                    {inst.status}
+                    {t(`institutions.${inst.status}`)}
                   </span>
                 </div>
               </div>

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Layout from '../components/Layout';
 import { authFetch } from '../lib/api';
 
 const NewInstitution = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -48,13 +50,13 @@ const NewInstitution = () => {
     <Layout>
       <div className="page-header">
         <div>
-          <h1>Add Day Care</h1>
+          <h1>{t('institutions.addTitle')}</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Register a new day care on the Sprout platform.
+            {t('institutions.addSubtitle')}
           </p>
         </div>
         <button className="btn-secondary" onClick={() => navigate('/institutions')}>
-          Cancel
+          {t('institutions.cancel')}
         </button>
       </div>
 
@@ -71,63 +73,63 @@ const NewInstitution = () => {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div className="form-group">
-            <label htmlFor="name">Day Care Name *</label>
+            <label htmlFor="name">{t('institutions.name')}</label>
             <input
               type="text" id="name" name="name" className="input-field" required
               value={formData.name} onChange={handleChange}
-              placeholder="e.g. Sunrise Early Learning Center"
+              placeholder={t('institutions.namePlaceholder')}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="email">Contact Email</label>
+            <label htmlFor="email">{t('institutions.email')}</label>
             <input
               type="email" id="email" name="email" className="input-field"
               value={formData.email} onChange={handleChange}
-              placeholder="e.g. contact@sunrise.com"
+              placeholder={t('institutions.emailPlaceholder')}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="phone">Phone Number</label>
+            <label htmlFor="phone">{t('institutions.phone')}</label>
             <input
               type="text" id="phone" name="phone" className="input-field"
               value={formData.phone} onChange={handleChange}
-              placeholder="e.g. 416-555-1234"
+              placeholder={t('institutions.phonePlaceholder')}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="address">Street Address</label>
+            <label htmlFor="address">{t('institutions.address')}</label>
             <input
               type="text" id="address" name="address" className="input-field"
               value={formData.address} onChange={handleChange}
-              placeholder="e.g. 123 Main St"
+              placeholder={t('institutions.addressPlaceholder')}
             />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="form-group">
-              <label htmlFor="city">City</label>
+              <label htmlFor="city">{t('institutions.city')}</label>
               <input
                 type="text" id="city" name="city" className="input-field"
                 value={formData.city} onChange={handleChange}
-                placeholder="e.g. Toronto"
+                placeholder={t('institutions.cityPlaceholder')}
               />
             </div>
             <div className="form-group">
-              <label htmlFor="province">Province / State</label>
+              <label htmlFor="province">{t('institutions.province')}</label>
               <input
                 type="text" id="province" name="province" className="input-field"
                 value={formData.province} onChange={handleChange}
-                placeholder="e.g. ON"
+                placeholder={t('institutions.provincePlaceholder')}
               />
             </div>
           </div>
 
           <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Day Care'}
+              {loading ? t('institutions.creating') : t('institutions.createDayCare')}
             </button>
           </div>
         </form>

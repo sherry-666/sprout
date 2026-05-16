@@ -1,20 +1,22 @@
-import React from 'react';
+
 import Layout from '../components/Layout';
-import { BookOpen, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Classes = () => {
+  const { t } = useTranslation();
   return (
     <Layout>
       <div className="page-header">
         <div>
-          <h1>Class Management</h1>
+          <h1>{t('classes.classManagement')}</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Create classes and assign teachers and kids.
+            {t('classes.viewAndManage')}
           </p>
         </div>
         <button className="btn-primary" id="create-class-btn">
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Plus size={16} /> Create Class
+            <Plus size={16} /> {t('classes.addClass')}
           </span>
         </button>
       </div>
@@ -27,7 +29,7 @@ const Classes = () => {
         }}>
           <Plus size={32} color="var(--text-secondary)" />
           <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontWeight: 500 }}>
-            Create your first class
+            {t('classes.clickToAdd')}
           </p>
         </div>
       </div>
