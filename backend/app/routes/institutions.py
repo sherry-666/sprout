@@ -25,7 +25,7 @@ class InstitutionCreateRequest(InstitutionCreate):
 async def list_institutions():
     """List all institutions with their admin user and stats."""
     db = get_database()
-    institutions = await db.institutions.find().to_list(length=100)
+    institutions = await db.institutions.find({"status": {"$ne": "deleted"}}).to_list(length=100)
 
     results = []
     for inst in institutions:
@@ -126,14 +126,28 @@ async def create_institution(req: InstitutionCreateRequest):
     return inst_response
 
 
+@router.delete("/{institution_id}")
+async def delete_institution(institution_id: str):
+    """Soft-delete an institution by marking it as deleted."""
+    db = get_database()
+
+    inst = await db.institutions.find_one({"_id": institution_id, "status": {"$ne": "deleted"}})
+    if not inst:
+        raise HTTPException(status_code=404, detail="Institution not found")
+
+    await db.institutions.update_one(
+        {"_id": institution_id},
+        {"$set": {"status": "deleted"}}
+    )
+
+    return {"success": True}
+
+
 @router.get("/{institution_id}", response_model=dict)
 async def get_institution(institution_id: str):
     """Get a single institution with full details."""
     db = get_database()
-    try:
-        inst = await db.institutions.find_one({"_id": ObjectId(institution_id)})
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid institution ID")
+    inst = await db.institutions.find_one({"_id": institution_id})
     if not inst:
         raise HTTPException(status_code=404, detail="Institution not found")
 

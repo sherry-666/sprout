@@ -9,6 +9,7 @@ from app.models.user import PyObjectId
 class InstitutionStatus(str, Enum):
     active = "active"
     inactive = "inactive"
+    deleted = "deleted"
 
 
 class InstitutionBase(BaseModel):

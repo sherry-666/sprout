@@ -10,13 +10,14 @@ Sprout is an AI-native day care management system designed to streamline communi
 - **Parent (parent)**: Guardians who receive real-time updates, photos, and daily summaries about their children's activities and well-being.
 
 ## 3. Web Admin Portal (Platform Management)
-The Web Portal is a React-based application designed for System and Institution Administrators. It features a premium, glassmorphism-inspired design with a focus on speed and usability.
+The Web Portal is a React-based application designed for System and Institution Administrators. It features a premium, glassmorphism-inspired design with a focus on speed and usability. The interface supports English, Chinese (Simplified), and French via i18n.
 
 ### 3.1 System Admin Experience
 **Purpose:** Provide platform-level oversight and client onboarding.
-- **System Overview Dashboard (`/dashboard`)**: Displays high-level platform metrics including Total Day Cares, Total Kids Enrolled, and Active Day Cares.
-- **Institution Management (`/institutions`)**: A list of all day care centers on the platform. Allows the System Admin to view details and status of each center.
-- **Onboarding Flow (`/institutions/new`)**: A dedicated form to register a new day care institution (Name, Contact, Address). Future iterations will include automated creation of the initial Institution Admin account.
+- **System Overview Dashboard (`/dashboard`)**: Displays high-level platform metrics including Total Day Cares, Total Kids Enrolled, and Active Day Cares. Lists all institutions with their Institution Admin, kid count, class count, and status badge.
+- **Institution Management (`/institutions`)**: A list of all active day care centers on the platform. Allows the System Admin to view details and status of each center.
+- **Onboarding Flow (`/institutions/new`)**: A form to register a new day care institution (Name, Street Address, City, Province/State). Includes an optional Institution Administrator section (First Name, Last Name, Email) — if provided, a pending admin account is created and an activation email is sent immediately. A success modal confirms the email was sent and shows the admin's address.
+- **Delete Institution**: A trash icon on each institution card opens a confirmation modal. The modal displays a danger warning and requires the admin to type the institution's exact name before the delete button becomes active. On success, a second modal confirms the deletion. Deletion is a **soft-delete** — the institution's status is set to `deleted`; no data is removed from the database.
 
 ### 3.2 Institution Admin Experience
 **Purpose:** Daily operational management for a specific day care center.
@@ -56,7 +57,7 @@ These are first-class, native features of Sprout that differentiate it from comp
 2. Navigates to **Day Cares** and clicks **+ Add Day Care**.
 3. Fills in the details for "Sunshine Daycare" and the admin's name and email.
 4. The system provisions the institution, creates a **pending** admin user account (no password), and sends an **activation email** to the admin's email address.
-5. The activation email contains a secure, time-limited link (72-hour expiry).
+5. A success modal confirms the email was sent and shows the recipient address. The activation link expires in 72 hours.
 
 ### Journey 1b: Admin Account Activation (Institution Admin)
 **Purpose:** Allow an invited admin to securely set their password and gain access.
@@ -67,6 +68,15 @@ These are first-class, native features of Sprout that differentiate it from comp
 5. Admin enters and confirms a new password.
 6. On submit, the account status changes from `pending` → `active`, and the admin is redirected to the **Login** page.
 7. Admin logs in with their email and new password.
+
+### Journey 1c: Institution Deletion (System Admin)
+1. System Admin clicks the trash icon on an institution card.
+2. A confirmation modal appears with a danger warning.
+3. Admin types the exact institution name to unlock the Delete button.
+4. On confirm, the institution status is set to `deleted` (soft-delete — data is preserved).
+5. The institution disappears from all lists immediately.
+6. A success modal confirms the deletion.
+7. Any `admin` or `educator` users belonging to that institution can no longer log in (they receive a generic "user not found" error).
 
 ### Journey 2: Day Care Setup (Institution Admin)
 1. Institution Admin logs in with their newly created credentials.
@@ -90,8 +100,10 @@ These are first-class, native features of Sprout that differentiate it from comp
 
 ## 7. Technical & Non-Functional Requirements
 - **Architecture**: FastAPI backend (Python), React frontend (Vite/TS), MongoDB Atlas database.
-- **Authentication**: JWT-based session management. Account activation via secure, time-limited invitation tokens.
-- **Email**: Transactional emails via SendGrid. Dev environment uses an email whitelist with Gmail alias normalization to prevent accidental sends.
+- **Authentication**: JWT-based session management. Account activation via secure, time-limited invitation tokens. Login is blocked for `admin` and `educator` users belonging to a `deleted` institution.
+- **Email**: Transactional emails via SendGrid. Dev environment uses an email whitelist with Gmail alias normalization to prevent accidental sends. If no SendGrid API key is configured, activation URLs are logged to the console.
+- **Internationalisation**: Web portal supports English, Chinese (Simplified), and French.
 - **Performance**: Millisecond response times for logging to ensure educators aren't waiting on spinners.
 - **Security & Privacy**: Face embeddings stored securely and used exclusively for internal kid identification. Strict COPPA compliance considerations. Parents must explicitly consent to face recognition during onboarding.
 - **Scalability**: Designed with a multi-tenant database strategy using `institution_id` indexing to cleanly separate data across hundreds of day cares.
+- **Data Retention**: Institutions are never hard-deleted. Deletion sets `status: deleted`; all associated data is retained for audit and recovery purposes.

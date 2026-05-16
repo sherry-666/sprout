@@ -26,25 +26,24 @@ const Settings = () => {
           {t('settings.languageDescription')}
         </p>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={() => changeLanguage('en')}
-            className={i18n.resolvedLanguage === 'en' ? 'btn-primary' : 'btn-secondary'}
-          >
-            English
-          </button>
-          <button
-            onClick={() => changeLanguage('zh')}
-            className={i18n.resolvedLanguage === 'zh' ? 'btn-primary' : 'btn-secondary'}
-          >
-            中文 (Chinese)
-          </button>
-          <button
-            onClick={() => changeLanguage('fr')}
-            className={i18n.resolvedLanguage === 'fr' ? 'btn-primary' : 'btn-secondary'}
-          >
-            Français (French)
-          </button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {[
+            { code: 'en', label: 'English' },
+            { code: 'zh', label: '中文 (Chinese)' },
+            { code: 'fr', label: 'Français (French)' },
+          ].map(({ code, label }) => {
+            const active = i18n.resolvedLanguage === code;
+            return (
+              <button
+                key={code}
+                onClick={() => changeLanguage(code)}
+                className={active ? 'btn-primary' : 'btn-secondary'}
+                style={{ fontSize: '0.9rem', padding: '10px 20px' }}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </Layout>

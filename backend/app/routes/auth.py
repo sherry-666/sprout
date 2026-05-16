@@ -59,7 +59,17 @@ async def login(login_req: LoginRequest):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account not activated. Please check your email for the activation link.",
         )
-        
+
+    # Block admins and educators whose institution has been deleted
+    if user.get("role") in ("admin", "educator") and user.get("institution_id"):
+        db = get_database()
+        institution = await db.institutions.find_one({"_id": user["institution_id"]})
+        if not institution or institution.get("status") == "deleted":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username/email or password",
+            )
+
     access_token = create_access_token(data={"sub": str(user["_id"]), "role": user["role"]})
     return {"access_token": access_token, "token_type": "bearer", "user": UserResponse.from_mongo(user)}
 

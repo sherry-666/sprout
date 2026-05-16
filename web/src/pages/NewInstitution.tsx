@@ -9,14 +9,14 @@ const NewInstitution = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [createdAdminEmail, setCreatedAdminEmail] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
     address: '',
     city: '',
     province: '',
-    phone: '',
-    email: '',
     admin_first_name: '',
     admin_last_name: '',
     admin_email: '',
@@ -41,7 +41,8 @@ const NewInstitution = () => {
           status: 'active',
         }),
       });
-      navigate('/institutions');
+      setCreatedAdminEmail(formData.admin_email);
+      setShowSuccess(true);
     } catch (err: any) {
       setError(err.message || 'Failed to create day care.');
     } finally {
@@ -51,6 +52,30 @@ const NewInstitution = () => {
 
   return (
     <Layout>
+      {/* Success modal */}
+      {showSuccess && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div className="glass-card" style={{ maxWidth: '440px', width: '90%', textAlign: 'center', padding: '40px 32px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
+            <h2 style={{ marginBottom: '12px' }}>Day Care Created!</h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '8px' }}>
+              An activation email has been sent to
+            </p>
+            <p style={{ fontWeight: 600, marginBottom: '16px' }}>{createdAdminEmail}</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '28px' }}>
+              The admin will receive a link to set up their password. The link expires in 72 hours.
+            </p>
+            <button className="btn-primary" style={{ width: '100%' }} onClick={() => navigate('/institutions')}>
+              Back to Institutions
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="page-header">
         <div>
           <h1>{t('institutions.addTitle')}</h1>
@@ -75,31 +100,12 @@ const NewInstitution = () => {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Institution Details */}
           <div className="form-group">
             <label htmlFor="name">{t('institutions.name')}</label>
             <input
               type="text" id="name" name="name" className="input-field" required
               value={formData.name} onChange={handleChange}
               placeholder={t('institutions.namePlaceholder')}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">{t('institutions.email')}</label>
-            <input
-              type="email" id="email" name="email" className="input-field"
-              value={formData.email} onChange={handleChange}
-              placeholder={t('institutions.emailPlaceholder')}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="phone">{t('institutions.phone')}</label>
-            <input
-              type="text" id="phone" name="phone" className="input-field"
-              value={formData.phone} onChange={handleChange}
-              placeholder={t('institutions.phonePlaceholder')}
             />
           </div>
 
