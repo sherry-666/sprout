@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Optional
 from fastapi import Request
 from jose import jwt, JWTError
+from strawberry.fastapi import BaseContext
 from app.core.config import settings
 from app.core.database import get_database
 from app.graphql.loaders import Loaders, make_loaders
@@ -9,8 +10,9 @@ from app.graphql.loaders import Loaders, make_loaders
 ALGORITHM = "HS256"
 
 
-class GraphQLContext:
+class GraphQLContext(BaseContext):
     def __init__(self, viewer: Optional[dict], db, loaders: Loaders):
+        super().__init__()
         self.viewer = viewer
         self.db = db
         self.loaders = loaders
