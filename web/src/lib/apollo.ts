@@ -1,5 +1,7 @@
-import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, CombinedGraphQLErrors, ServerParseError } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
+import { ErrorLink } from '@apollo/client/link/error';
+import { clearSession } from './api';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -17,8 +19,23 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
+const errorLink = new ErrorLink(({ error }) => {
+  let isUnauthenticated = false;
+
+  if (CombinedGraphQLErrors.is(error)) {
+    isUnauthenticated = error.errors.some((e) => e.extensions?.['code'] === 'UNAUTHENTICATED');
+  } else if (ServerParseError.is(error) && error.statusCode === 401) {
+    isUnauthenticated = true;
+  }
+
+  if (isUnauthenticated) {
+    clearSession();
+    window.dispatchEvent(new Event('auth:logout'));
+  }
+});
+
 export const client = new ApolloClient({
-  link: authLink.concat(httpLink),
+  link: errorLink.concat(authLink).concat(httpLink),
   cache: new InMemoryCache({
     typePolicies: {
       User:        { keyFields: ['id'] },

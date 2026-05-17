@@ -3,6 +3,7 @@ import secrets
 import logging
 from datetime import datetime
 from typing import Optional, List, Annotated
+from bson import ObjectId
 
 import strawberry
 from strawberry.fastapi import GraphQLRouter
@@ -17,7 +18,7 @@ from app.core.email import (
     is_whitelisted,
 )
 from app.graphql.context import GraphQLContext, get_context
-from app.graphql.permissions import IsAuthenticated, IsAdmin, IsSuperAdmin, IsParent
+from app.graphql.permissions import IsAuthenticated, IsAdmin, IsSuperAdmin, IsParent, IsEducator
 from app.graphql.scalars import EmailAddress
 from app.graphql.enums import UserRole, UserStatus, InstitutionStatus
 from app.graphql.inputs import (
@@ -122,6 +123,7 @@ class Query:
         info: Info[GraphQLContext, None],
         first: int = 50,
         after: Optional[str] = None,
+        search: Optional[str] = None,
     ) -> KidConnection:
         db = info.context.db
         role = info.context.viewer_role
@@ -143,16 +145,26 @@ class Query:
         else:
             return KidConnection(edges=[], page_info=PageInfo(has_next_page=False, has_previous_page=False), total_count=0)
 
+        if search and search.strip():
+            pattern = {"$regex": f"^{search.strip()}", "$options": "i"}
+            query["$or"] = [
+                {"firstName": pattern},
+                {"lastName": pattern},
+            ]
+
         if after:
             created_at_iso, doc_id = decode_cursor(after)
             after_dt = datetime.fromisoformat(created_at_iso)
-            query.setdefault("$or", [])
-            query["$or"] = [
+            cursor_filter = [
                 {"createdAt": {"$gt": after_dt}},
                 {"createdAt": after_dt, "_id": {"$gt": doc_id}},
             ]
+            if "$or" in query:
+                query["$and"] = [{"$or": query.pop("$or")}, {"$or": cursor_filter}]
+            else:
+                query["$or"] = cursor_filter
 
-        base_query = {k: v for k, v in query.items() if k not in ("$or",)}
+        base_query = {k: v for k, v in query.items() if k not in ("$or", "$and")}
         total = await db.kids.count_documents(base_query)
         docs = await db.kids.find(query).sort(
             [("createdAt", 1), ("_id", 1)]
@@ -196,12 +208,16 @@ class Query:
             return None
         return Kid.from_doc(doc)
 
-    @strawberry.field(permission_classes=[IsAdmin])
+    @strawberry.field(permission_classes=[IsEducator])
     async def classes(self, info: Info[GraphQLContext, None]) -> List[Class]:
         db = info.context.db
         role = info.context.viewer_role
         if role == "super_admin":
             docs = await db.classes.find({}).to_list(500)
+        elif role == "educator":
+            docs = await db.classes.find(
+                {"educator_user_ids": info.context.viewer_id}
+            ).to_list(500)
         else:
             docs = await db.classes.find(
                 {"institution_id": info.context.viewer_institution_id}
@@ -216,6 +232,11 @@ class Query:
     ) -> Optional[Class]:
         db = info.context.db
         doc = await db.classes.find_one({"_id": str(id)})
+        if not doc:
+            try:
+                doc = await db.classes.find_one({"_id": ObjectId(str(id))})
+            except Exception:
+                pass
         return Class.from_doc(doc) if doc else None
 
     @strawberry.field(permission_classes=[IsAdmin])
@@ -223,14 +244,22 @@ class Query:
         self,
         info: Info[GraphQLContext, None],
         role: Optional[UserRole] = None,
+        search: Optional[str] = None,
+        limit: int = 500,
     ) -> List[User]:
         db = info.context.db
         query: dict = {"institution_id": info.context.viewer_institution_id}
         if role:
             query["role"] = role.value
         else:
-            query["role"] = {"$in": ["educator", "parent"]}
-        docs = await db.users.find(query).to_list(500)
+            query["role"] = {"$in": ["admin", "educator"]}
+        if search and search.strip():
+            pattern = {"$regex": f"^{search.strip()}", "$options": "i"}
+            query["$or"] = [
+                {"profile.firstName": pattern},
+                {"profile.lastName": pattern},
+            ]
+        docs = await db.users.find(query).to_list(limit)
         return [User.from_doc(d) for d in docs]
 
     @strawberry.field
@@ -620,15 +649,17 @@ class Mutation:
     ) -> Class:
         db = info.context.db
         institution_id = info.context.viewer_institution_id
+        class_id = str(ObjectId())
         doc = {
+            "_id": class_id,
             "name": input.name,
             "institution_id": institution_id,
             "educator_user_ids": [],
             "kid_ids": [],
             "createdAt": datetime.utcnow(),
         }
-        result = await db.classes.insert_one(doc)
-        created = await db.classes.find_one({"_id": result.inserted_id})
+        await db.classes.insert_one(doc)
+        created = await db.classes.find_one({"_id": class_id})
         return Class.from_doc(created)
 
     @strawberry.mutation(permission_classes=[IsAdmin])
@@ -639,19 +670,60 @@ class Mutation:
     ) -> Class:
         db = info.context.db
         class_id = str(input.class_id)
+
+        doc = await db.classes.find_one({"_id": class_id})
+        if not doc:
+            try:
+                doc = await db.classes.find_one({"_id": ObjectId(class_id)})
+            except Exception:
+                pass
+        if not doc:
+            raise ValueError(f"Class {class_id} not found")
+        actual_id = doc["_id"]
+
         updates: dict = {}
+        if input.name is not None:
+            updates["name"] = input.name
         if input.educator_ids is not None:
             updates["educator_user_ids"] = [str(i) for i in input.educator_ids]
         if input.kid_ids is not None:
             updates["kid_ids"] = [str(i) for i in input.kid_ids]
-            # Update class_id on each kid
             for kid_id in updates["kid_ids"]:
                 await db.kids.update_one({"_id": kid_id}, {"$set": {"class_id": class_id}})
 
         if updates:
-            await db.classes.update_one({"_id": class_id}, {"$set": updates})
-        doc = await db.classes.find_one({"_id": class_id})
+            await db.classes.update_one({"_id": actual_id}, {"$set": updates})
+        doc = await db.classes.find_one({"_id": actual_id})
         return Class.from_doc(doc)
+
+    @strawberry.mutation(permission_classes=[IsAdmin])
+    async def delete_class(
+        self,
+        info: Info[GraphQLContext, None],
+        class_id: strawberry.ID,
+    ) -> bool:
+        db = info.context.db
+        cid = str(class_id)
+
+        doc = await db.classes.find_one({"_id": cid})
+        if not doc:
+            try:
+                doc = await db.classes.find_one({"_id": ObjectId(cid)})
+            except Exception:
+                pass
+        if not doc:
+            return False
+        actual_id = doc["_id"]
+
+        kid_ids = doc.get("kid_ids", [])
+        if kid_ids:
+            await db.kids.update_many(
+                {"_id": {"$in": kid_ids}},
+                {"$unset": {"class_id": ""}},
+            )
+
+        await db.classes.delete_one({"_id": actual_id})
+        return True
 
     # ── Updates ────────────────────────────────────────────────────────
 

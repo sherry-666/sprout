@@ -80,6 +80,7 @@ class CreateClassInput:
 @strawberry.input
 class AssignClassInput:
     class_id: strawberry.ID
+    name: Optional[str] = None
     educator_ids: Optional[List[strawberry.ID]] = None
     kid_ids: Optional[List[strawberry.ID]] = None
 

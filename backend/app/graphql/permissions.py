@@ -5,6 +5,7 @@ from strawberry.types import Info
 
 class IsAuthenticated(strawberry.BasePermission):
     message = "Authentication required"
+    error_extensions = {"code": "UNAUTHENTICATED"}
 
     async def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
         return info.context.viewer is not None

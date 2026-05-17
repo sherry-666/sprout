@@ -23,7 +23,13 @@ The Web Portal is a React-based application designed for System and Institution 
 **Purpose:** Daily operational management for a specific day care center.
 - **Institution Dashboard (`/dashboard`)**: Overview of the specific day care's activities, active classes, educator count, and pending invitations.
 - **User Management (`/users`)**: Interface to invite and manage educators. Supports generating email deep-links for seamless onboarding.
-- **Class Management (`/classes`)**: Interface to create physical or virtual classes, assign Educators to those classes, and enroll Kids.
+- **Class Management (`/classes`)**: Institution admins can create classes and manage membership.
+  - **List view**: All classes for the institution are shown in a table with class name, educator count, and kid count. Clicking a row navigates to the class detail page.
+  - **Add Class flow**: An "Add Class" button opens a modal where the admin enters a class name, searches for educators and kids (real-time prefix search, max 10 results each), selects them as chips, and submits. Submitting creates the class and immediately assigns the selected members.
+  - An empty-state is shown when no classes exist.
+- **Class Detail (`/classes/:id`)**: Shows full class info — name, list of educators (name, email, status), list of enrolled kids (name, DOB, gender).
+  - **Edit Class**: An "Edit Class" button opens a modal pre-populated with the current name, educators, and kids. The admin can rename, add/remove educators, and add/remove kids using the same real-time search pattern.
+  - **Delete Class**: A "Delete Class" button opens a confirmation modal. On confirm, the class is deleted and the admin is redirected to `/classes`. All kids in the class have their `class_id` cleared.
 
 ### 3.3 Parent Web Experience
 **Purpose:** Give parents a focused view of their own children only.

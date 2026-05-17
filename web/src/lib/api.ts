@@ -1,3 +1,16 @@
+export const Role = {
+  SuperAdmin: 'super_admin',
+  Admin: 'admin',
+  Educator: 'educator',
+  Parent: 'parent',
+} as const;
+
+export type RoleValue = typeof Role[keyof typeof Role];
+
+export function isRole(role: RoleValue) {
+  return getUser()?.role === role;
+}
+
 export function getToken() {
   return localStorage.getItem('sprout_token');
 }

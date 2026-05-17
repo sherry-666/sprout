@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Users as UsersIcon, Mail, X, Loader } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -48,6 +49,7 @@ interface User {
 }
 
 const StatusBadge = ({ status }: { status: string }) => {
+  const { t } = useTranslation();
   const isPending = status === 'pending';
   return (
     <span style={{
@@ -55,13 +57,14 @@ const StatusBadge = ({ status }: { status: string }) => {
       color: isPending ? '#f59e0b' : '#10b981',
       padding: '3px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 500,
     }}>
-      {status}
+      {t(`statuses.${status}`, status)}
     </span>
   );
 };
 
 const Users = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [firstName, setFirstName] = useState('');
@@ -234,7 +237,10 @@ const Users = () => {
             </thead>
             <tbody>
               {users.map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <tr key={u.id} onClick={() => navigate(`/users/${u.id}`)}
+                  style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(79,70,229,0.03)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                   <td style={{ padding: '14px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>
@@ -246,7 +252,7 @@ const Users = () => {
                   <td style={{ padding: '14px 8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{u.email}</td>
                   <td style={{ padding: '14px 8px' }}>
                     <span style={{ background: 'rgba(79,70,229,0.1)', color: 'var(--primary-color)', padding: '3px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 500 }}>
-                      {u.role}
+                      {t(`roles.${u.role}`, u.role)}
                     </span>
                   </td>
                   <td style={{ padding: '14px 8px' }}><StatusBadge status={u.status} /></td>

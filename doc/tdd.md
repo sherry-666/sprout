@@ -28,7 +28,7 @@ The system consists of a centralized Python backend service communicating with a
 ## 2. Tech Stack
 - **Database**: MongoDB (Atlas for managed cloud hosting, integrates easily with Railway).
 - **Backend**: Python 3.12+ with FastAPI. Uses Motor (async MongoDB driver) for database access.
-- **Mobile App**: React Native (Expo) for cross-platform (iOS/Android) support. *(Not yet implemented.)*
+- **Mobile App**: React Native (Expo SDK 54, RN 0.81.5) for cross-platform (iOS/Android). Apollo Client for GraphQL. `@react-navigation/native` v7 for navigation (bottom tabs + native stacks). `@react-native-async-storage/async-storage` for JWT storage.
 - **Web Admin**: React (Vite + TypeScript) with react-i18next for EN/ZH/FR internationalisation.
 - **AI/ML Libraries**:
   - `google-generativeai` — Gemini API for LLM text generation and vision tasks.
@@ -58,7 +58,18 @@ sprout/
 │   │   └── lib/              # api.ts (authFetch), i18n.ts
 │   ├── package.json
 │   └── Dockerfile
-├── mobile/            # React Native (Expo) app — not yet implemented
+├── mobile/            # React Native (Expo) app for educators and parents
+│   ├── src/
+│   │   ├── apollo/client.ts      # ApolloClient with JWT auth link
+│   │   ├── contexts/AuthContext.tsx  # JWT + user state, role-aware routing
+│   │   ├── navigation/           # AppNavigator, EducatorNavigator, ParentNavigator
+│   │   ├── screens/educator/     # ClassesScreen, RosterScreen, LogActivityScreen
+│   │   ├── screens/parent/       # FeedScreen, KidDetailScreen, SummaryScreen
+│   │   ├── screens/ProfileScreen.tsx
+│   │   ├── config.ts             # GRAPHQL_URL constant
+│   │   └── theme.ts              # Colors, Spacing, Radius, Shadow
+│   ├── App.tsx
+│   └── package.json
 ├── doc/               # PRD, TDD, and runbook
 └── CLAUDE.md          # AI agent rules (enforces doc sync)
 ```
@@ -152,9 +163,11 @@ sprout/
 ### Admin APIs
 - `POST /api/admin/invite` — Invite an educator by email. Requires `admin` JWT. Body: `{ first_name, last_name, email }`. Validates whitelist + email uniqueness, creates a pending user with the caller's `institution_id`, generates an invitation token, and sends an activation email. Returns `{ success, email }`.
 - `GET /api/admin/users` — List all educators and parents for the caller's institution. Requires `admin` JWT. Returns array of `{ id, firstName, lastName, email, role, status }`.
-- `POST /api/classes` — Create a class.
-- `PUT /api/classes/{id}/assign` — Assign educators/kids to a class.
-- `GET /api/classes` — List all classes for the institution.
+- `mutation createClass(input: { name: String! }) → Class` — Create a class scoped to the caller's institution. Requires `admin` or `super_admin` role. Returns the new class with empty educator/kid lists. Generates an explicit string `_id` via `str(ObjectId())`.
+- `mutation assignClass(input: { classId: ID!, name: String, educatorIds: [ID!], kidIds: [ID!] }) → Class` — Replace educator and/or kid membership on a class, and optionally rename it. Setting `kidIds` also sets `class_id` on each affected kid document. Includes ObjectId fallback lookup for classes created before the string-ID fix. Requires `admin` or `super_admin` role.
+- `mutation deleteClass(classId: ID!) → Boolean` — Delete a class. Clears `class_id` from all kids in the class, then removes the class document. Includes ObjectId fallback for legacy classes. Requires `admin` or `super_admin` role.
+- `query class(id: ID!) → Class` — Fetch a single class by ID. Includes ObjectId fallback for classes created before the string-ID fix.
+- `query classes → [Class]` — List all classes for the caller's institution (or all classes for `super_admin`).
 - `POST /api/kids` — Add a new kid.
 - `PUT /api/kids/{id}` — Update kid info.
 
@@ -202,12 +215,35 @@ Stub files exist; none are wired into routes yet.
 - **Sticker Overlay**: Composites stickers onto photos.
 - **Text Overlay**: Adds captions with customisable fonts/colours.
 
-## 8. Frontend Conventions
+## 8. Mobile App — GraphQL Usage
+
+The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored in AsyncStorage and attached by an Apollo `setContext` link on every request.
+
+### Educator screens
+- **ClassesScreen**: `query { me { classes { id name kids { id } educators { id } } } }` — uses the `User.classes` sub-field (filters by `educator_user_ids`), not the admin-restricted `classes` query.
+- **RosterScreen**: `query { class(id) { id name kids { ... } educators { ... } } }` — visible to any authenticated user.
+- **LogActivityScreen**: `mutation createUpdate(input: { classId, type, content, kidId? })` — logs a meal, nap, activity, or photo update.
+
+### Parent screens
+- **FeedScreen**: `query { kids(first: 50) { edges { node { ... institution { ... } class { ... educators { ... } } } } } }` — `kids` query is scoped to the caller's kids when the JWT role is `parent`.
+- **KidDetailScreen**: `query { kid(id) { updates(first, after) { edges { ... pageInfo { hasNextPage endCursor } } } } }` — paginated update feed for a single kid, newest-first.
+- **SummaryScreen**: `query { kid(id) { dailySummary(date) { content aiGeneratedContent timestamp } } }` — generates an AI summary on demand if it doesn't exist for that date.
+
+### Navigation structure
+- `AppNavigator` (root) → role-aware routing: Login | EducatorNavigator | ParentNavigator | UnsupportedRoleScreen
+- `EducatorNavigator`: bottom tabs (Classes stack, Profile)
+- `ParentNavigator`: bottom tabs (Feed stack → KidDetail → Summary, Profile)
+
+### Config
+- Backend URL is set in `mobile/src/config.ts` as `GRAPHQL_URL`. Change to the machine's LAN IP when testing on a physical device.
+
+## 8b. Web Frontend Conventions
 
 - **CSS classes**: `btn-primary` (filled indigo), `btn-secondary` (transparent with border), `glass-card`, `input-field`, `form-group` — all defined in `src/index.css`.
 - **API calls**: All authenticated requests go through `authFetch()` in `src/lib/api.ts`, which injects the JWT from `localStorage`.
 - **i18n**: All user-facing strings use `useTranslation()` with keys in `src/lib/i18n.ts`. Three locales: `en`, `zh`, `fr`.
 - **Modals**: Implemented as fixed-position overlays with `zIndex: 1000` and a semi-transparent backdrop.
+- **Auth failure handling**: Apollo error link in `src/lib/apollo.ts` watches for GraphQL errors with `extensions.code === "UNAUTHENTICATED"` (raised by the backend `IsAuthenticated` permission) or 401 network errors. On match it calls `clearSession()` and dispatches a `window` `auth:logout` event. `PrivateRoute` in `App.tsx` wraps every authenticated route, listens for the event, and uses React Router `navigate('/login')` for the redirect — no hard reload.
 
 ## 9. Deployment Strategy (Railway)
 

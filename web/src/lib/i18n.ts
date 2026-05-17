@@ -10,7 +10,7 @@ const resources = {
         dayCares: "Day Cares",
         institutions: "Institutions",
         classes: "Classes",
-        users: "Users",
+        users: "Staff",
         settings: "Settings",
         kids: "Kids",
         myKids: "My Kids",
@@ -19,8 +19,14 @@ const resources = {
       roles: {
         systemAdmin: "System Admin",
         institutionAdmin: "Institution Admin",
+        admin: "Institution Admin",
         educator: "Educator",
         parent: "Parent"
+      },
+      statuses: {
+        active: "Active",
+        pending: "Pending",
+        inactive: "Inactive"
       },
       auth: {
         login: "Log in to Sprout",
@@ -91,15 +97,37 @@ const resources = {
         viewAndManage: "View and manage classes and student assignments.",
         addClass: "Add Class",
         noClasses: "No classes created yet",
-        clickToAdd: 'Click "Add Class" to create your first class.'
+        clickToAdd: 'Click "Add Class" to create your first class.',
+        createClassTitle: "Create New Class",
+        classNameLabel: "Class Name",
+        classNamePlaceholder: "e.g. Sunflower Group",
+        educators: "Educators",
+        kids: "Kids",
+        noEducatorsAvailable: "No educators invited yet.",
+        noKidsAvailable: "No kids enrolled yet.",
+        cancel: "Cancel",
+        create: "Create Class",
+        creating: "Creating...",
+        nameRequired: "Class name is required.",
+        createFailed: "Failed to create class. Please try again.",
+        educatorCount: "{{count}} educator",
+        educatorCount_plural: "{{count}} educators",
+        kidCount: "{{count}} kid",
+        kidCount_plural: "{{count}} kids",
+        searchStaff: "Search staff by name...",
+        searchKids: "Search kids by name...",
+        addStaff: "Add Educators",
+        addKids: "Add Kids",
+        selected: "selected",
+        noResults: "No results found."
       },
       users: {
-        userManagement: "User Management",
-        manageEducators: "Manage educators in your day care.",
-        inviteUser: "Invite User",
+        userManagement: "Staff Management",
+        manageEducators: "Manage staff in your day care.",
+        inviteUser: "Invite Staff",
         inviteDesc: "An activation email will be sent so they can set up their account.",
-        noUsers: "No users invited yet",
-        clickToInvite: 'Click "Invite User" to send an invitation link.',
+        noUsers: "No staff invited yet",
+        clickToInvite: 'Click "Invite Staff" to send an invitation link.',
         firstName: "First Name",
         firstNamePlaceholder: "e.g. Jane",
         lastName: "Last Name",
@@ -123,7 +151,11 @@ const resources = {
         subtitle: "Manage children enrolled in your day care.",
         addKid: "Register Kid",
         noKids: "No kids enrolled yet",
-        clickToAdd: 'Click "Register Kid" to enrol a child.'
+        clickToAdd: 'Click "Register Kid" to enrol a child.',
+        name: "Name",
+        dateOfBirth: "Date of Birth",
+        gender: "Gender",
+        class: "Class"
       },
       settings: {
         title: "Settings",
@@ -138,6 +170,11 @@ const resources = {
         activeClasses: "Active Classes",
         teachers: "Teachers",
         createClass: "Create Class"
+      },
+      educatorDashboard: {
+        subtitle: "Here's your day at a glance.",
+        myKids: "My Kids",
+        myClasses: "My Classes"
       },
       myKids: {
         title: "My Kids",
@@ -195,6 +232,28 @@ const resources = {
         errorParentEmail: "Parent {{n}}: email is required.",
         submitFailed: "Registration failed. Please try again."
       },
+      classDetail: {
+        back: "Back to Classes",
+        notFound: "Class not found.",
+        educators: "Educators",
+        noEducators: "No educators assigned to this class.",
+        kids: "Kids",
+        noKids: "No kids enrolled in this class.",
+        edit: "Edit Class",
+        delete: "Delete Class",
+        deleteTitle: "Delete Class",
+        deleteMsg: "Are you sure you want to delete this class? This action cannot be undone.",
+        deleteConfirm: "Yes, Delete",
+        saving: "Saving...",
+        save: "Save Changes",
+        deleting: "Deleting..."
+      },
+      staffDetail: {
+        back: "Back to Staff",
+        notFound: "Staff member not found.",
+        assignedClasses: "Assigned Classes",
+        noClasses: "Not assigned to any classes yet."
+      },
       institutionDetail: {
         loading: "Loading institution...",
         notFound: "Institution not found.",
@@ -238,7 +297,7 @@ const resources = {
         dayCares: "日托中心",
         institutions: "机构",
         classes: "班级",
-        users: "用户",
+        users: "员工",
         settings: "设置",
         kids: "儿童",
         myKids: "我的孩子",
@@ -247,8 +306,14 @@ const resources = {
       roles: {
         systemAdmin: "系统管理员",
         institutionAdmin: "机构管理员",
+        admin: "机构管理员",
         educator: "幼教老师",
         parent: "家长"
+      },
+      statuses: {
+        active: "活跃",
+        pending: "待激活",
+        inactive: "非活跃"
       },
       auth: {
         login: "登录 Sprout",
@@ -319,15 +384,37 @@ const resources = {
         viewAndManage: "查看和管理班级及学生分配。",
         addClass: "添加班级",
         noClasses: "暂未创建班级",
-        clickToAdd: '点击"添加班级"创建您的第一个班级。'
+        clickToAdd: '点击"添加班级"创建您的第一个班级。',
+        createClassTitle: "创建新班级",
+        classNameLabel: "班级名称",
+        classNamePlaceholder: "例如：向日葵班",
+        educators: "教师",
+        kids: "儿童",
+        noEducatorsAvailable: "暂未邀请教师。",
+        noKidsAvailable: "暂未注册儿童。",
+        cancel: "取消",
+        create: "创建班级",
+        creating: "创建中...",
+        nameRequired: "班级名称为必填项。",
+        createFailed: "创建班级失败，请重试。",
+        educatorCount: "{{count}} 位教师",
+        educatorCount_plural: "{{count}} 位教师",
+        kidCount: "{{count}} 名儿童",
+        kidCount_plural: "{{count}} 名儿童",
+        searchStaff: "按姓名搜索员工...",
+        searchKids: "按姓名搜索儿童...",
+        addStaff: "添加教师",
+        addKids: "添加儿童",
+        selected: "已选",
+        noResults: "未找到结果。"
       },
       users: {
-        userManagement: "用户管理",
-        manageEducators: "管理您日托中心的教师。",
-        inviteUser: "邀请用户",
+        userManagement: "员工管理",
+        manageEducators: "管理您日托中心的员工。",
+        inviteUser: "邀请员工",
         inviteDesc: "将发送激活邮件，以便他们设置账户。",
-        noUsers: "暂未邀请用户",
-        clickToInvite: '点击"邀请用户"发送邀请链接。',
+        noUsers: "暂未邀请员工",
+        clickToInvite: '点击"邀请员工"发送邀请链接。',
         firstName: "名字",
         firstNamePlaceholder: "例如：小明",
         lastName: "姓氏",
@@ -351,7 +438,11 @@ const resources = {
         subtitle: "管理您日托中心注册的儿童。",
         addKid: "注册儿童",
         noKids: "暂未注册儿童",
-        clickToAdd: '点击"注册儿童"注册孩子。'
+        clickToAdd: '点击"注册儿童"注册孩子。',
+        name: "姓名",
+        dateOfBirth: "出生日期",
+        gender: "性别",
+        class: "班级"
       },
       settings: {
         title: "设置",
@@ -366,6 +457,12 @@ const resources = {
         activeClasses: "活跃班级",
         teachers: "教师",
         createClass: "创建班级"
+      },
+      educatorDashboard: {
+        subtitle: "今天的工作一览。",
+        myKids: "我的儿童",
+        myClasses: "我的班级",
+        myCoworkers: "我的同事"
       },
       myKids: {
         title: "我的孩子",
@@ -423,6 +520,28 @@ const resources = {
         errorParentEmail: "家长 {{n}}：邮箱为必填项。",
         submitFailed: "注册失败，请重试。"
       },
+      classDetail: {
+        back: "返回班级列表",
+        notFound: "未找到该班级。",
+        educators: "教师",
+        noEducators: "该班级尚未分配教师。",
+        kids: "儿童",
+        noKids: "该班级尚未注册儿童。",
+        edit: "编辑班级",
+        delete: "删除班级",
+        deleteTitle: "删除班级",
+        deleteMsg: "确定要删除此班级吗？此操作无法撤销。",
+        deleteConfirm: "确认删除",
+        saving: "保存中...",
+        save: "保存更改",
+        deleting: "删除中..."
+      },
+      staffDetail: {
+        back: "返回员工列表",
+        notFound: "未找到该员工。",
+        assignedClasses: "所在班级",
+        noClasses: "尚未分配到任何班级。"
+      },
       institutionDetail: {
         loading: "正在加载机构信息...",
         notFound: "未找到该机构。",
@@ -466,7 +585,7 @@ const resources = {
         dayCares: "Garderies",
         institutions: "Institutions",
         classes: "Classes",
-        users: "Utilisateurs",
+        users: "Personnel",
         settings: "Paramètres",
         kids: "Enfants",
         myKids: "Mes enfants",
@@ -475,8 +594,14 @@ const resources = {
       roles: {
         systemAdmin: "Administrateur système",
         institutionAdmin: "Administrateur d'institution",
+        admin: "Administrateur d'institution",
         educator: "Éducateur",
         parent: "Parent"
+      },
+      statuses: {
+        active: "Actif",
+        pending: "En attente",
+        inactive: "Inactif"
       },
       auth: {
         login: "Connectez-vous à Sprout",
@@ -547,15 +672,37 @@ const resources = {
         viewAndManage: "Voir et gérer les classes et les affectations des étudiants.",
         addClass: "Ajouter une classe",
         noClasses: "Aucune classe créée",
-        clickToAdd: 'Cliquez sur "Ajouter une classe" pour créer votre première classe.'
+        clickToAdd: 'Cliquez sur "Ajouter une classe" pour créer votre première classe.',
+        createClassTitle: "Créer une nouvelle classe",
+        classNameLabel: "Nom de la classe",
+        classNamePlaceholder: "ex: Groupe Tournesol",
+        educators: "Éducateurs",
+        kids: "Enfants",
+        noEducatorsAvailable: "Aucun éducateur invité pour l'instant.",
+        noKidsAvailable: "Aucun enfant inscrit pour l'instant.",
+        cancel: "Annuler",
+        create: "Créer la classe",
+        creating: "Création...",
+        nameRequired: "Le nom de la classe est requis.",
+        createFailed: "Échec de la création de la classe. Veuillez réessayer.",
+        educatorCount: "{{count}} éducateur",
+        educatorCount_plural: "{{count}} éducateurs",
+        kidCount: "{{count}} enfant",
+        kidCount_plural: "{{count}} enfants",
+        searchStaff: "Rechercher du personnel par nom...",
+        searchKids: "Rechercher des enfants par nom...",
+        addStaff: "Ajouter des éducateurs",
+        addKids: "Ajouter des enfants",
+        selected: "sélectionné(s)",
+        noResults: "Aucun résultat trouvé."
       },
       users: {
-        userManagement: "Gestion des utilisateurs",
-        manageEducators: "Gérez les éducateurs dans votre garderie.",
-        inviteUser: "Inviter un utilisateur",
+        userManagement: "Gestion du personnel",
+        manageEducators: "Gérez le personnel de votre garderie.",
+        inviteUser: "Inviter un membre du personnel",
         inviteDesc: "Un email d'activation sera envoyé pour qu'il puisse configurer son compte.",
-        noUsers: "Aucun utilisateur invité",
-        clickToInvite: 'Cliquez sur "Inviter un utilisateur" pour envoyer un lien.',
+        noUsers: "Aucun membre du personnel invité",
+        clickToInvite: 'Cliquez sur "Inviter un membre du personnel" pour envoyer un lien.',
         firstName: "Prénom",
         firstNamePlaceholder: "ex: Jeanne",
         lastName: "Nom",
@@ -579,7 +726,11 @@ const resources = {
         subtitle: "Gérez les enfants inscrits dans votre garderie.",
         addKid: "Inscrire un enfant",
         noKids: "Aucun enfant inscrit",
-        clickToAdd: 'Cliquez sur "Inscrire un enfant" pour inscrire un enfant.'
+        clickToAdd: 'Cliquez sur "Inscrire un enfant" pour inscrire un enfant.',
+        name: "Nom",
+        dateOfBirth: "Date de naissance",
+        gender: "Genre",
+        class: "Classe"
       },
       settings: {
         title: "Paramètres",
@@ -594,6 +745,12 @@ const resources = {
         activeClasses: "Classes actives",
         teachers: "Éducateurs",
         createClass: "Créer une classe"
+      },
+      educatorDashboard: {
+        subtitle: "Votre journée en un coup d'œil.",
+        myKids: "Mes enfants",
+        myClasses: "Mes classes",
+        myCoworkers: "Mes collègues"
       },
       myKids: {
         title: "Mes enfants",
@@ -650,6 +807,28 @@ const resources = {
         errorParentName: "Parent {{n}} : le prénom et le nom sont requis.",
         errorParentEmail: "Parent {{n}} : l'email est requis.",
         submitFailed: "Inscription échouée. Veuillez réessayer."
+      },
+      classDetail: {
+        back: "Retour aux classes",
+        notFound: "Classe introuvable.",
+        educators: "Éducateurs",
+        noEducators: "Aucun éducateur assigné à cette classe.",
+        kids: "Enfants",
+        noKids: "Aucun enfant inscrit dans cette classe.",
+        edit: "Modifier la classe",
+        delete: "Supprimer la classe",
+        deleteTitle: "Supprimer la classe",
+        deleteMsg: "Êtes-vous sûr de vouloir supprimer cette classe ? Cette action est irréversible.",
+        deleteConfirm: "Oui, supprimer",
+        saving: "Enregistrement...",
+        save: "Enregistrer les modifications",
+        deleting: "Suppression..."
+      },
+      staffDetail: {
+        back: "Retour au personnel",
+        notFound: "Membre du personnel introuvable.",
+        assignedClasses: "Classes assignées",
+        noClasses: "Non assigné à une classe pour l'instant."
       },
       institutionDetail: {
         loading: "Chargement de l'institution...",

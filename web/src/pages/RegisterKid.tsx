@@ -108,7 +108,7 @@ const RegisterKid = () => {
           input: {
             firstName,
             lastName,
-            gender: gender.toUpperCase(),
+            gender,
             dateOfBirth,
             profilePhotoUrl: null,
             parents: parents.map(p => ({

@@ -2,15 +2,15 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, School, Users, BookOpen, Settings, LogOut, Baby } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { clearSession, getUser } from '../lib/api';
+import { clearSession, getUser, Role } from '../lib/api';
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = getUser();
-  const isSuperAdmin = user?.role === 'super_admin';
-  const isEducator = user?.role === 'educator';
-  const isParent = user?.role === 'parent';
+  const isSuperAdmin = user?.role === Role.SuperAdmin;
+  const isEducator = user?.role === Role.Educator;
+  const isParent = user?.role === Role.Parent;
 
   const handleSignOut = () => {
     clearSession();
@@ -69,7 +69,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               {user?.profile?.firstName} {user?.profile?.lastName}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              {user?.role === 'super_admin' ? t('roles.systemAdmin') : isParent ? t('roles.parent') : isEducator ? t('roles.educator') : t('roles.institutionAdmin')}
+              {isSuperAdmin ? t('roles.systemAdmin') : isParent ? t('roles.parent') : isEducator ? t('roles.educator') : t('roles.institutionAdmin')}
             </div>
           </div>
           <button className="nav-link"

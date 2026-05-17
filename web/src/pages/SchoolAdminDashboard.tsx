@@ -2,12 +2,27 @@
 import { Users, BookOpen, Baby } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { gql } from '@apollo/client';
+import { useQuery } from '@apollo/client/react';
 import { getUser } from '../lib/api';
+
+const DASHBOARD_STATS_QUERY = gql`
+  query SchoolAdminStats {
+    kids(first: 1) { totalCount }
+    classes { id }
+    users(role: educator) { id }
+  }
+`;
 
 const SchoolAdminDashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = getUser();
+
+  const { data } = useQuery(DASHBOARD_STATS_QUERY, { errorPolicy: 'all' });
+  const totalKids = data?.kids?.totalCount ?? '—';
+  const totalClasses = data?.classes?.length ?? '—';
+  const totalTeachers = data?.users?.length ?? '—';
 
   return (
     <div>
@@ -22,14 +37,14 @@ const SchoolAdminDashboard = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
         <div className="glass-card" id="total-kids-card"
-          style={{ cursor: 'pointer' }} onClick={() => navigate('/users')}>
+          style={{ cursor: 'pointer' }} onClick={() => navigate('/kids')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ background: 'rgba(79,70,229,0.1)', borderRadius: '12px', padding: '14px' }}>
               <Baby size={24} color="var(--primary-color)" />
             </div>
             <div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('schoolAdmin.totalKids')}</div>
-              <div style={{ fontSize: '2rem', fontWeight: 700 }}>0</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700 }}>{totalKids}</div>
             </div>
           </div>
         </div>
@@ -42,7 +57,7 @@ const SchoolAdminDashboard = () => {
             </div>
             <div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('schoolAdmin.activeClasses')}</div>
-              <div style={{ fontSize: '2rem', fontWeight: 700 }}>0</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700 }}>{totalClasses}</div>
             </div>
           </div>
         </div>
@@ -55,7 +70,7 @@ const SchoolAdminDashboard = () => {
             </div>
             <div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('schoolAdmin.teachers')}</div>
-              <div style={{ fontSize: '2rem', fontWeight: 700 }}>0</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700 }}>{totalTeachers}</div>
             </div>
           </div>
         </div>
