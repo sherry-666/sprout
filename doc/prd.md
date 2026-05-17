@@ -22,8 +22,36 @@ The Web Portal is a React-based application designed for System and Institution 
 ### 3.2 Institution Admin Experience
 **Purpose:** Daily operational management for a specific day care center.
 - **Institution Dashboard (`/dashboard`)**: Overview of the specific day care's activities, active classes, educator count, and pending invitations.
-- **User Management (`/users`)**: Interface to invite and manage Parents and Educators. Supports generating email deep-links for seamless onboarding.
+- **User Management (`/users`)**: Interface to invite and manage educators. Supports generating email deep-links for seamless onboarding.
 - **Class Management (`/classes`)**: Interface to create physical or virtual classes, assign Educators to those classes, and enroll Kids.
+
+### 3.3 Educator Web Experience *(TODO)*
+**Purpose:** Give educators a focused view of only what is relevant to them.
+
+- **Nav:** Educators see Classes and Kids only — User Management is hidden.
+- **Classes (`/classes`):** Educators see only the classes they are assigned to, not all institution classes.
+- **Kids (`/kids`):** Educators see only the kids enrolled in their assigned classes, not all kids in the institution.
+- Scoped views require backend filtering by `educator_user_ids` on the class documents.
+
+### 3.4 Institution Permission System *(TODO)*
+**Purpose:** Give the Institution Admin granular control over what each institution user can do.
+
+**Rules:**
+- Institution Admin always has full access to all permissions.
+- When inviting a new user, the admin selects which permissions to grant.
+- Permissions can be changed at any time from the User Management screen.
+
+**Available permissions:**
+| Permission | Description |
+|---|---|
+| `edit_profile` | Edit institution profile and settings |
+| `edit_class` | Create, update, and delete classes |
+| `invite_user` | Invite new users to the institution |
+| `register_kid` | Add and manage kids |
+
+**UI touch-points:**
+- Invite User modal — permission checkboxes shown after filling in name/email.
+- User Management table — each row has an "Edit Permissions" action that opens a permissions panel.
 
 ## 4. Mobile App Experience (React Native)
 The Mobile App is designed for on-the-go usage by Educators in the classroom and Parents at home or work.

@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel, EmailStr
 from bson import ObjectId
 from app.core.database import get_database
-from app.core.email_service import send_activation_email, is_whitelisted
+from app.core.email import send_institution_admin_invite, is_whitelisted
 from app.models.institution import InstitutionCreate, InstitutionInDB, InstitutionResponse
 from app.models.invitation import InvitationToken
 from app.models.user import UserInDB, UserProfile, UserRole, UserStatus
@@ -111,12 +111,11 @@ async def create_institution(req: InstitutionCreateRequest):
 
         # Send activation email
         try:
-            send_activation_email(
+            send_institution_admin_invite(
                 to_email=req.admin_email,
                 token=token,
                 institution_name=req.name,
                 first_name=req.admin_first_name,
-                role="admin",
             )
             inst_response["invitation_sent"] = True
         except Exception as e:

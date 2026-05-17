@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, School, Users, BookOpen, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, School, Users, BookOpen, Settings, LogOut, Baby } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { clearSession, getUser } from '../lib/api';
 
@@ -9,6 +9,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const user = getUser();
   const isSuperAdmin = user?.role === 'super_admin';
+  const isEducator = user?.role === 'educator';
 
   const handleSignOut = () => {
     clearSession();
@@ -33,13 +34,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <School size={20} /> {t('nav.institutions')}
             </NavLink>
           ) : (
-            /* School Admin nav */
+            /* Institution Admin + Educator nav */
             <>
               <NavLink to="/classes" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
                 <BookOpen size={20} /> {t('nav.classes')}
               </NavLink>
-              <NavLink to="/users" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-                <Users size={20} /> {t('nav.users')}
+              {!isEducator && (
+                <NavLink to="/users" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                  <Users size={20} /> {t('nav.users')}
+                </NavLink>
+              )}
+              <NavLink to="/kids" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                <Baby size={20} /> {t('nav.kids')}
               </NavLink>
             </>
           )}
@@ -55,7 +61,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               {user?.profile?.firstName} {user?.profile?.lastName}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              {user?.role === 'super_admin' ? t('roles.systemAdmin') : t('roles.schoolAdmin')}
+              {user?.role === 'super_admin' ? t('roles.systemAdmin') : isEducator ? t('roles.educator') : t('roles.institutionAdmin')}
             </div>
           </div>
           <button className="nav-link"

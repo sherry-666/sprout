@@ -146,9 +146,9 @@ sprout/
 - `GET /api/institutions/{id}` — Get a single institution with full detail: admin info (id, name, email, status), `educators` array (id, name, email, status), `kids` array (id, firstName, lastName, dateOfBirth, class_id), and `classCount`.
 - `DELETE /api/institutions/{id}` — Soft-delete: sets `status: deleted`. Does not remove data.
 
-### Admin APIs *(planned)*
-- `POST /api/admin/invite` — Invite a user (educator or parent) via email.
-- `GET /api/admin/users` — List all users for the institution.
+### Admin APIs
+- `POST /api/admin/invite` — Invite an educator by email. Requires `admin` JWT. Body: `{ first_name, last_name, email }`. Validates whitelist + email uniqueness, creates a pending user with the caller's `institution_id`, generates an invitation token, and sends an activation email. Returns `{ success, email }`.
+- `GET /api/admin/users` — List all educators and parents for the caller's institution. Requires `admin` JWT. Returns array of `{ id, firstName, lastName, email, role, status }`.
 - `POST /api/classes` — Create a class.
 - `PUT /api/classes/{id}/assign` — Assign educators/kids to a class.
 - `GET /api/classes` — List all classes for the institution.
@@ -160,6 +160,10 @@ sprout/
 - `POST /api/updates` — Create a new update for a kid.
 - `POST /api/updates/photo` — Upload a photo; AI identifies kids and generates captions.
 - `POST /api/ai/draft-update` — Generate an AI-drafted parent-friendly message from quick tags.
+
+### Kids APIs
+- `POST /api/kids/register` — Register a kid. Requires `admin` JWT. Body: `{ firstName, lastName, gender, dateOfBirth (YYYY-MM-DD), profilePhotoUrl?, parents: [{ firstName, lastName, email, phone? }] }`. For each parent: if email already exists, links to existing account (no email sent); otherwise creates a pending parent user, generates an invitation token, and sends a parent activation email. Returns `{ success, kid_id, emails_invited }`.
+- `GET /api/kids` — List all kids for the caller's institution. Requires `admin` JWT. Returns array of `{ id, firstName, lastName, gender, dateOfBirth, profilePhotoUrl, parentCount }`.
 
 ### Parent APIs *(planned)*
 - `GET /api/parent/kids` — Get kid's info and assigned class.

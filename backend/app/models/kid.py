@@ -7,8 +7,9 @@ from app.models.user import PyObjectId
 class KidBase(BaseModel):
     firstName: str
     lastName: str
+    gender: Optional[str] = None  # 'male' | 'female'
     dateOfBirth: Optional[datetime] = None
-    parent_user_ids: List[PyObjectId] = []
+    parent_user_ids: List[str] = []
     class_id: Optional[PyObjectId] = None
     institution_id: Optional[PyObjectId] = None
     profilePhotoUrl: Optional[str] = None

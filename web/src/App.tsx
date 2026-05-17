@@ -8,6 +8,8 @@ import ActivateAccount from './pages/ActivateAccount';
 import Users from './pages/Users';
 import Classes from './pages/Classes';
 import InstitutionDetail from './pages/InstitutionDetail';
+import Kids from './pages/Kids';
+import RegisterKid from './pages/RegisterKid';
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Users />} />
         <Route path="/classes" element={<Classes />} />
+        <Route path="/kids" element={<Kids />} />
+        <Route path="/kids/register" element={<RegisterKid />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
