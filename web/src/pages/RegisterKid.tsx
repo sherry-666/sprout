@@ -65,6 +65,7 @@ const RegisterKid = () => {
     if (!lastName.trim()) errs.push(t('registerKid.errorLastName'));
     if (!gender) errs.push(t('registerKid.errorGender'));
     if (!dateOfBirth) errs.push(t('registerKid.errorDob'));
+    else if (new Date(dateOfBirth) > new Date()) errs.push(t('registerKid.errorDobFuture'));
     if (parents.length === 0) errs.push(t('registerKid.errorNoParents'));
     parents.forEach((p, i) => {
       if (!p.firstName.trim() || !p.lastName.trim()) errs.push(t('registerKid.errorParentName', { n: i + 1 }));

@@ -18,9 +18,6 @@ const SchoolAdminDashboard = () => {
             {t('schoolAdmin.subtitle')}
           </p>
         </div>
-        <button className="btn-primary" id="create-class-btn" onClick={() => navigate('/classes')}>
-          + {t('schoolAdmin.createClass')}
-        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>

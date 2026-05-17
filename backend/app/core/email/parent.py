@@ -2,6 +2,43 @@ from app.core.config import settings
 from app.core.email._base import _send_email
 
 
+def send_parent_new_kid_notification(
+    to_email: str,
+    institution_name: str,
+    first_name: str,
+    kid_name: str,
+) -> bool:
+    """Notify an existing parent that a new child has been linked to their account."""
+    subject = f"{kid_name} has been enrolled at {institution_name} on Sprout"
+    html_content = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+            <span style="font-size: 40px;">🌱</span>
+            <h1 style="margin: 8px 0 0; font-size: 28px; color: #1a1a2e;">Sprout</h1>
+            <p style="color: #64748b; margin: 8px 0 0; font-size: 15px;">Daily updates for the parents who care</p>
+        </div>
+
+        <div style="background: linear-gradient(135deg, #fff7ed, #fef3c7); border-radius: 16px; padding: 36px; margin-bottom: 24px; border: 1px solid #fde68a;">
+            <h2 style="margin: 0 0 12px; color: #1a1a2e; font-size: 22px;">Hi {first_name}! 👋</h2>
+            <p style="color: #555; line-height: 1.7; margin: 0 0 16px; font-size: 16px;">
+                <strong>{kid_name}</strong> has just been enrolled at <strong>{institution_name}</strong>
+                and linked to your Sprout account.
+            </p>
+            <p style="color: #555; line-height: 1.7; margin: 0 0 0;">
+                You'll start receiving real-time activity updates, photos, and daily summaries
+                for <strong>{kid_name}</strong> through your existing account. No action needed — just log in!
+            </p>
+        </div>
+
+        <p style="color: #999; font-size: 13px; text-align: center; line-height: 1.6;">
+            If you weren't expecting this, please contact {institution_name} directly.
+        </p>
+    </div>
+    """
+    # Pass the institution name as the activation_url placeholder (used only for dev logging)
+    return _send_email(to_email, subject, html_content, activation_url=f"(no link — existing user notification)")
+
+
 def send_parent_invite(
     to_email: str,
     token: str,

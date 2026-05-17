@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr
 
 from app.core.database import get_database
 from app.core.deps import require_admin
-from app.core.email import send_parent_invite, is_whitelisted
+from app.core.email import send_parent_invite, send_parent_new_kid_notification, is_whitelisted
 from app.models.invitation import InvitationToken
 from app.models.kid import KidInDB
 from app.models.user import UserInDB, UserProfile, UserRole, UserStatus
@@ -51,8 +51,18 @@ async def register_kid(req: RegisterKidRequest, current_user: dict = Depends(req
     for parent in req.parents:
         existing = await db.users.find_one({"email": parent.email})
         if existing:
-            # Parent already on platform — link them, skip email
+            # Parent already on platform — link them and send a notification
             parent_user_ids.append(str(existing["_id"]))
+            try:
+                if is_whitelisted(parent.email):
+                    send_parent_new_kid_notification(
+                        to_email=parent.email,
+                        institution_name=institution["name"],
+                        first_name=existing["profile"]["firstName"],
+                        kid_name=f"{req.firstName} {req.lastName}",
+                    )
+            except Exception as e:
+                logger.error("Failed to send new-kid notification to %s: %s", parent.email, e)
             continue
 
         # New parent — create pending account
