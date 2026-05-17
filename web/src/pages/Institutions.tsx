@@ -3,21 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { School, Plus, Loader } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { authFetch } from '../lib/api';
+import { gql } from '@apollo/client';
+import { useQuery } from '@apollo/client/react';
+
+const GET_INSTITUTIONS_QUERY = gql`
+  query GetInstitutions {
+    institutions {
+      id
+      name
+      address
+      city
+      province
+      status
+    }
+  }
+`;
 
 const Institutions = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [institutions, setInstitutions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  const { data, loading, error } = useQuery<any>(GET_INSTITUTIONS_QUERY);
 
   useEffect(() => {
-    authFetch('/api/institutions')
-      .then(setInstitutions)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+    if (data?.institutions) {
+      setInstitutions(data.institutions);
+    }
+  }, [data]);
 
   return (
     <Layout>

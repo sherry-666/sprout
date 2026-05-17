@@ -135,7 +135,7 @@ sprout/
 
 ## 5. API Endpoints (REST)
 
-> **Planned migration to GraphQL** *(TODO)*: The REST surface below will be replaced by a single `/graphql` endpoint. Design preview — including all types, queries, mutations, and errors-as-data unions — lives in [`doc/graphql-schema.html`](./graphql-schema.html). Not yet implemented; the REST endpoints documented in this section are the source of truth until the migration lands.
+> **GraphQL Migration Completed**: The `/graphql` endpoint is fully implemented and registered. It supports all queries, mutations, Node interface, error-as-data unions, pagination, and dynamic daily updates/summaries as specified in [`doc/graphql-schema.html`](./graphql-schema.html). The REST surface documented below remains active alongside it.
 
 ### Auth APIs
 - `POST /api/auth/register` — Register a new user directly (used for bootstrapping super_admin).

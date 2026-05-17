@@ -2,7 +2,17 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Layout from '../components/Layout';
-import { authFetch } from '../lib/api';
+import { gql } from '@apollo/client';
+import { useMutation } from '@apollo/client/react';
+
+const CREATE_INSTITUTION_MUTATION = gql`
+  mutation CreateInstitution($input: CreateInstitutionInput!) {
+    createInstitution(input: $input) {
+      id
+      name
+    }
+  }
+`;
 
 const NewInstitution = () => {
   const { t } = useTranslation();
@@ -22,6 +32,8 @@ const NewInstitution = () => {
     admin_email: '',
   });
 
+  const [createInstitutionMutate] = useMutation<any>(CREATE_INSTITUTION_MUTATION);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -33,13 +45,18 @@ const NewInstitution = () => {
     setError('');
 
     try {
-      await authFetch('/api/institutions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          status: 'active',
-        }),
+      await createInstitutionMutate({
+        variables: {
+          input: {
+            name: formData.name,
+            address: formData.address || null,
+            city: formData.city || null,
+            province: formData.province || null,
+            adminFirstName: formData.admin_first_name || null,
+            adminLastName: formData.admin_last_name || null,
+            adminEmail: formData.admin_email || null,
+          },
+        },
       });
       setCreatedAdminEmail(formData.admin_email);
       setShowSuccess(true);

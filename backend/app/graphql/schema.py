@@ -26,7 +26,7 @@ from app.graphql.inputs import (
     RegisterKidInput, CreateClassInput, AssignClassInput, CreateUpdateInput,
 )
 from app.graphql.types import (
-    User, Institution, Kid, Class, Update,
+    Node, User, Institution, Kid, Class, Update,
     KidConnection, KidEdge, UpdateConnection, UpdateEdge,
     AuthPayload, InvitationInfo, InvitationSent, KidRegistered, Profile, PageInfo,
 )
@@ -49,6 +49,36 @@ logger = logging.getLogger(__name__)
 
 @strawberry.type
 class Query:
+
+    @strawberry.field
+    async def node(
+        self,
+        info: Info[GraphQLContext, None],
+        id: strawberry.ID,
+    ) -> Optional[Node]:
+        db = info.context.db
+        
+        doc = await info.context.loaders.institution_by_id.load(str(id))
+        if doc:
+            return Institution.from_doc(doc)
+            
+        doc = await info.context.loaders.user_by_id.load(str(id))
+        if doc:
+            return User.from_doc(doc)
+            
+        doc = await info.context.loaders.kid_by_id.load(str(id))
+        if doc:
+            return Kid.from_doc(doc)
+            
+        doc = await info.context.loaders.class_by_id.load(str(id))
+        if doc:
+            return Class.from_doc(doc)
+            
+        doc = await db.updates.find_one({"_id": str(id)})
+        if doc:
+            return Update.from_doc(doc)
+            
+        return None
 
     @strawberry.field(permission_classes=[IsAuthenticated])
     async def me(self, info: Info[GraphQLContext, None]) -> Optional[User]:
@@ -178,7 +208,7 @@ class Query:
             ).to_list(500)
         return [Class.from_doc(d) for d in docs]
 
-    @strawberry.field(permission_classes=[IsAuthenticated])
+    @strawberry.field(name="class", permission_classes=[IsAuthenticated])
     async def class_(
         self,
         info: Info[GraphQLContext, None],
@@ -636,7 +666,7 @@ class Mutation:
             "kid_id": str(input.kid_id) if input.kid_id else None,
             "educator_user_id": info.context.viewer_id,
             "class_id": str(input.class_id),
-            "type": input.type,
+            "type": input.type.value,
             "content": input.content,
             "mediaUrls": input.media_urls or [],
             "detected_kid_ids": [],

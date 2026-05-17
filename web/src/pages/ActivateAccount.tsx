@@ -2,8 +2,52 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff } from 'lucide-react';
+import { gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client/react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const VALIDATE_TOKEN_QUERY = gql`
+  query ValidateToken($token: String!) {
+    validateToken(token: $token) {
+      __typename
+      ... on InvitationInfo {
+        email
+        firstName
+        lastName
+        role
+        institutionName
+      }
+      ... on TokenNotFoundError {
+        message
+      }
+      ... on TokenExpiredError {
+        message
+      }
+      ... on TokenUsedError {
+        message
+      }
+    }
+  }
+`;
+
+const ACTIVATE_MUTATION = gql`
+  mutation Activate($input: ActivateInput!) {
+    activate(input: $input) {
+      __typename
+      ... on AuthPayload {
+        accessToken
+      }
+      ... on TokenNotFoundError {
+        message
+      }
+      ... on TokenExpiredError {
+        message
+      }
+      ... on TokenUsedError {
+        message
+      }
+    }
+  }
+`;
 
 interface TokenInfo {
   email: string;
@@ -29,6 +73,16 @@ const ActivateAccount = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const { data: tokenData, loading: tokenLoading, error: tokenError } = useQuery<any>(
+    VALIDATE_TOKEN_QUERY,
+    {
+      variables: { token },
+      skip: !token,
+    }
+  );
+
+  const [activateMutate] = useMutation<any>(ACTIVATE_MUTATION);
+
   useEffect(() => {
     if (!token) {
       setError(t('activate.invalidToken'));
@@ -36,18 +90,31 @@ const ActivateAccount = () => {
       return;
     }
 
-    fetch(`${API_BASE}/api/auth/validate-token/${token}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.detail || t('activate.invalidToken'));
-        }
-        return res.json();
-      })
-      .then(setTokenInfo)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [token, t]);
+    if (tokenError) {
+      setError(tokenError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (tokenData) {
+      const res = tokenData.validateToken;
+      if (res.__typename === 'InvitationInfo') {
+        setTokenInfo({
+          email: res.email,
+          first_name: res.firstName,
+          last_name: res.lastName,
+          role: res.role,
+          institution_name: res.institutionName,
+        });
+        setError('');
+      } else {
+        setError(res.message || t('activate.invalidToken'));
+      }
+      setLoading(false);
+    } else if (!tokenLoading) {
+      setLoading(false);
+    }
+  }, [token, tokenData, tokenLoading, tokenError, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,15 +131,29 @@ const ActivateAccount = () => {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/activate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
+      const { data } = await activateMutate({
+        variables: {
+          input: {
+            token,
+            password,
+          },
+        },
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || t('activate.failed'));
+
+      const res = data?.activate;
+      if (!res) {
+        throw new Error(t('activate.failed'));
       }
+
+      if (
+        res.__typename === 'TokenNotFoundError' ||
+        res.__typename === 'TokenExpiredError' ||
+        res.__typename === 'TokenUsedError'
+      ) {
+        setError(res.message);
+        return;
+      }
+
       setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
     } catch (e: any) {

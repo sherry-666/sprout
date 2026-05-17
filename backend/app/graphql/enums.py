@@ -1,8 +1,9 @@
+from enum import Enum
 import strawberry
 
 
 @strawberry.enum
-class UserRole(str):
+class UserRole(str, Enum):
     super_admin = "super_admin"
     admin = "admin"
     educator = "educator"
@@ -10,26 +11,26 @@ class UserRole(str):
 
 
 @strawberry.enum
-class UserStatus(str):
+class UserStatus(str, Enum):
     active = "active"
     pending = "pending"
 
 
 @strawberry.enum
-class InstitutionStatus(str):
+class InstitutionStatus(str, Enum):
     active = "active"
     inactive = "inactive"
     deleted = "deleted"
 
 
 @strawberry.enum
-class Gender(str):
+class Gender(str, Enum):
     male = "male"
     female = "female"
 
 
 @strawberry.enum
-class UpdateType(str):
+class UpdateType(str, Enum):
     meal = "meal"
     nap = "nap"
     activity = "activity"
@@ -38,7 +39,7 @@ class UpdateType(str):
 
 
 @strawberry.enum
-class InvitationRole(str):
+class InvitationRole(str, Enum):
     admin = "admin"
     educator = "educator"
     parent = "parent"

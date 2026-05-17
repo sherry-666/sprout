@@ -2,7 +2,44 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff } from 'lucide-react';
-import { apiLogin, saveSession } from '../lib/api';
+import { gql } from '@apollo/client';
+import { useMutation } from '@apollo/client/react';
+import { saveSession } from '../lib/api';
+
+const LOGIN_MUTATION = gql`
+  mutation Login($input: LoginInput!) {
+    login(input: $input) {
+      __typename
+      ... on AuthPayload {
+        accessToken
+        user {
+          id
+          role
+          email
+          username
+          status
+          profile {
+            firstName
+            lastName
+            fullName
+            phone
+            avatarUrl
+          }
+          institution {
+            id
+            name
+          }
+        }
+      }
+      ... on InvalidCredentialsError {
+        message
+      }
+      ... on AccountPendingError {
+        message
+      }
+    }
+  }
+`;
 
 const Login = () => {
   const { t } = useTranslation();
@@ -13,13 +50,33 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  const [loginMutate] = useMutation<any>(LOGIN_MUTATION);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const data = await apiLogin(email, password);
-      saveSession(data.access_token, data.user);
+      const { data } = await loginMutate({
+        variables: {
+          input: {
+            login: email,
+            password: password,
+          },
+        },
+      });
+
+      const result = data?.login;
+      if (!result) {
+        throw new Error('No response from server');
+      }
+
+      if (result.__typename === 'InvalidCredentialsError' || result.__typename === 'AccountPendingError') {
+        setError(result.message);
+        return;
+      }
+
+      saveSession(result.accessToken, result.user);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || t('auth.invalidCredentials'));

@@ -3,7 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { ArrowLeft, Plus, Trash2, User, Users, Baby, Loader, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { authFetch } from '../lib/api';
+import { gql } from '@apollo/client';
+import { useMutation } from '@apollo/client/react';
+
+const REGISTER_KID_MUTATION = gql`
+  mutation RegisterKid($input: RegisterKidInput!) {
+    registerKid(input: $input) {
+      __typename
+      ... on KidRegistered {
+        kid {
+          id
+          firstName
+          lastName
+        }
+        emailsInvited
+      }
+      ... on ValidationError {
+        field
+        message
+      }
+    }
+  }
+`;
 
 interface ParentForm {
   firstName: string;
@@ -43,6 +64,8 @@ const RegisterKid = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
 
+  const [registerKidMutate] = useMutation<any>(REGISTER_KID_MUTATION);
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -80,18 +103,36 @@ const RegisterKid = () => {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const res = await authFetch('/api/kids/register', {
-        method: 'POST',
-        body: JSON.stringify({
-          firstName, lastName, gender, dateOfBirth,
-          profilePhotoUrl: null,
-          parents: parents.map(p => ({
-            firstName: p.firstName, lastName: p.lastName,
-            email: p.email, phone: p.phone || null,
-          })),
-        }),
+      const { data } = await registerKidMutate({
+        variables: {
+          input: {
+            firstName,
+            lastName,
+            gender: gender.toUpperCase(),
+            dateOfBirth,
+            profilePhotoUrl: null,
+            parents: parents.map(p => ({
+              firstName: p.firstName,
+              lastName: p.lastName,
+              email: p.email,
+              phone: p.phone || null,
+            })),
+          },
+        },
       });
-      setInvitedEmails(res.emails_invited || []);
+
+      const res = data?.registerKid;
+      if (!res) {
+        throw new Error(t('registerKid.submitFailed'));
+      }
+
+      if (res.__typename === 'ValidationError') {
+        setShowReview(false);
+        setErrors([`${res.field}: ${res.message}`]);
+        return;
+      }
+
+      setInvitedEmails(res.emailsInvited || []);
       setShowReview(false);
       setShowSuccess(true);
     } catch (e: any) {

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 from datetime import datetime, date
 from typing import Optional, List, TYPE_CHECKING
 import strawberry
@@ -7,6 +8,15 @@ from strawberry.types import Info
 from app.graphql.scalars import DateTime, Date, EmailAddress
 from app.graphql.enums import UserRole, UserStatus, InstitutionStatus, Gender, UpdateType, InvitationRole
 from app.graphql.pagination import PageInfo, encode_cursor, decode_cursor
+
+logger = logging.getLogger(__name__)
+
+
+# ─── Node Interface ───────────────────────────────────────────────────
+
+@strawberry.interface
+class Node:
+    id: strawberry.ID
 
 
 # ─── Profile ──────────────────────────────────────────────────────────
@@ -35,7 +45,7 @@ class Profile:
 # ─── User ─────────────────────────────────────────────────────────────
 
 @strawberry.type
-class User:
+class User(Node):
     id: strawberry.ID
     role: UserRole
     email: Optional[EmailAddress]
@@ -112,7 +122,7 @@ class KidConnection:
 # ─── Institution ──────────────────────────────────────────────────────
 
 @strawberry.type
-class Institution:
+class Institution(Node):
     id: strawberry.ID
     name: str
     address: Optional[str]
@@ -212,7 +222,7 @@ class Institution:
 # ─── Class ────────────────────────────────────────────────────────────
 
 @strawberry.type
-class Class:
+class Class(Node):
     id: strawberry.ID
     name: str
     created_at: DateTime
@@ -261,7 +271,7 @@ class UpdateConnection:
 # ─── Kid ──────────────────────────────────────────────────────────────
 
 @strawberry.type
-class Kid:
+class Kid(Node):
     id: strawberry.ID
     first_name: str
     last_name: str
@@ -288,7 +298,7 @@ class Kid:
         doc = await info.context.loaders.institution_by_id.load(self.institution_id_)
         return Institution.from_doc(doc) if doc else None
 
-    @strawberry.field
+    @strawberry.field(name="class")
     async def class_(self, info: Info) -> Optional[Class]:
         if not self.class_id_:
             return None
@@ -342,6 +352,71 @@ class Kid:
             ),
         )
 
+    @strawberry.field
+    async def daily_summary(self, info: Info, date: Date) -> Optional[Update]:
+        db = info.context.db
+        start_dt = datetime.combine(date, datetime.min.time())
+        end_dt = datetime.combine(date, datetime.max.time())
+
+        # Check if an existing daily summary exists
+        existing = await db.updates.find_one({
+            "kid_id": str(self.id),
+            "type": "daily_summary",
+            "timestamp": {"$gte": start_dt, "$lte": end_dt}
+        })
+        if existing:
+            return Update.from_doc(existing)
+
+        # If not, generate a new one!
+        # First, fetch all updates (except daily summaries) for this kid on this date
+        updates = await db.updates.find({
+            "kid_id": str(self.id),
+            "type": {"$ne": "daily_summary"},
+            "timestamp": {"$gte": start_dt, "$lte": end_dt}
+        }).to_list(100)
+
+        if not updates:
+            return None
+
+        from app.ai.llm_service import generate_daily_summary
+        kid_name = f"{self.first_name} {self.last_name}"
+        updates_text = [u.get("content", "") for u in updates if u.get("content")]
+
+        if not updates_text:
+            return None
+
+        try:
+            summary_content = await generate_daily_summary(kid_name, updates_text)
+        except Exception as e:
+            logger.error("Failed to generate AI daily summary: %s", e)
+            summary_content = "Summary generation failed."
+
+        # Find an educator to associate with this summary
+        educator_user_id = updates[0].get("educator_user_id")
+        if not educator_user_id:
+            class_doc = None
+            if self.class_id_:
+                class_doc = await db.classes.find_one({"_id": self.class_id_})
+            if class_doc and class_doc.get("educator_user_ids"):
+                educator_user_id = class_doc["educator_user_ids"][0]
+            else:
+                educator_user_id = info.context.viewer_id or "000000000000000000000000"
+
+        doc = {
+            "kid_id": str(self.id),
+            "educator_user_id": str(educator_user_id),
+            "class_id": str(self.class_id_) if self.class_id_ else "",
+            "type": "daily_summary",
+            "content": summary_content,
+            "mediaUrls": [],
+            "detected_kid_ids": [],
+            "timestamp": end_dt,
+        }
+
+        result = await db.updates.insert_one(doc)
+        created = await db.updates.find_one({"_id": result.inserted_id})
+        return Update.from_doc(created)
+
     @classmethod
     def from_doc(cls, doc: dict) -> Kid:
         dob = doc.get("dateOfBirth")
@@ -364,7 +439,7 @@ class Kid:
 # ─── Update ───────────────────────────────────────────────────────────
 
 @strawberry.type
-class Update:
+class Update(Node):
     id: strawberry.ID
     type: UpdateType
     content: str
@@ -389,7 +464,7 @@ class Update:
         doc = await info.context.loaders.user_by_id.load(self.educator_id_)
         return User.from_doc(doc) if doc else None
 
-    @strawberry.field
+    @strawberry.field(name="class")
     async def class_(self, info: Info) -> Optional[Class]:
         doc = await info.context.loaders.class_by_id.load(self.class_id_)
         return Class.from_doc(doc) if doc else None

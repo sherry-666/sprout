@@ -1,8 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { School, ChevronRight, UserCheck, MapPin, Loader, Trash2 } from 'lucide-react';
-import { authFetch } from '../lib/api';
+import { gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client/react';
+
+const GET_INSTITUTIONS_QUERY = gql`
+  query GetInstitutions {
+    institutions {
+      id
+      name
+      address
+      city
+      province
+      status
+      kidCount
+      classCount
+      admin {
+        id
+        email
+        status
+        profile {
+          fullName
+        }
+      }
+    }
+  }
+`;
+
+const DELETE_INSTITUTION_MUTATION = gql`
+  mutation DeleteInstitution($id: ID!) {
+    deleteInstitution(id: $id) {
+      id
+      name
+    }
+  }
+`;
 
 interface Institution {
   id: string;
@@ -20,21 +53,38 @@ const SuperAdminDashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [institutions, setInstitutions] = useState<Institution[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
   const [deleteTarget, setDeleteTarget] = useState<Institution | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deletedName, setDeletedName] = useState('');
 
+  const { data, loading, error } = useQuery<any>(GET_INSTITUTIONS_QUERY);
+  const [deleteInstitutionMutate] = useMutation<any>(DELETE_INSTITUTION_MUTATION);
+
   useEffect(() => {
-    authFetch('/api/institutions')
-      .then(setInstitutions)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+    if (data?.institutions) {
+      const mapped = data.institutions.map((inst: any) => ({
+        id: inst.id,
+        name: inst.name,
+        address: inst.address,
+        city: inst.city,
+        province: inst.province,
+        status: inst.status,
+        kidCount: inst.kidCount,
+        classCount: inst.classCount,
+        adminInfo: inst.admin
+          ? {
+              id: inst.admin.id,
+              name: inst.admin.profile?.fullName || '',
+              email: inst.admin.email || '',
+              status: inst.admin.status || '',
+            }
+          : null,
+      }));
+      setInstitutions(mapped);
+    }
+  }, [data]);
 
   const openDeleteModal = (e: React.MouseEvent, inst: Institution) => {
     e.stopPropagation();
@@ -54,7 +104,13 @@ const SuperAdminDashboard = () => {
     setDeleting(true);
     setDeleteError('');
     try {
-      await authFetch(`/api/institutions/${deleteTarget.id}`, { method: 'DELETE' });
+      await deleteInstitutionMutate({
+        variables: { id: deleteTarget.id },
+        update(cache: any) {
+          cache.evict({ id: cache.identify({ __typename: 'Institution', id: deleteTarget.id }) });
+          cache.gc();
+        },
+      });
       setInstitutions((prev) => prev.filter((i) => i.id !== deleteTarget.id));
       setDeletedName(deleteTarget.name);
       closeDeleteModal();

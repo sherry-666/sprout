@@ -1,8 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { Users as UsersIcon, Mail, X, Loader } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { authFetch } from '../lib/api';
+import { gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client/react';
+
+const GET_USERS_QUERY = gql`
+  query GetUsers {
+    users {
+      id
+      email
+      role
+      status
+      profile {
+        firstName
+        lastName
+      }
+    }
+  }
+`;
+
+const INVITE_EDUCATOR_MUTATION = gql`
+  mutation InviteEducator($input: InviteEducatorInput!) {
+    inviteEducator(input: $input) {
+      __typename
+      ... on User {
+        id
+        email
+      }
+      ... on EmailAlreadyRegisteredError {
+        message
+      }
+      ... on EmailNotWhitelistedError {
+        message
+      }
+    }
+  }
+`;
 
 interface User {
   id: string;
@@ -29,7 +63,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 const Users = () => {
   const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -39,15 +72,22 @@ const Users = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successEmail, setSuccessEmail] = useState('');
 
-  const loadUsers = () => {
-    setLoading(true);
-    authFetch('/api/admin/users')
-      .then(setUsers)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
+  const { data, loading, refetch } = useQuery<any>(GET_USERS_QUERY);
+  const [inviteEducatorMutate] = useMutation<any>(INVITE_EDUCATOR_MUTATION);
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    if (data?.users) {
+      const mapped = data.users.map((u: any) => ({
+        id: u.id,
+        firstName: u.profile?.firstName || '',
+        lastName: u.profile?.lastName || '',
+        email: u.email,
+        role: u.role,
+        status: u.status,
+      }));
+      setUsers(mapped);
+    }
+  }, [data]);
 
   const openModal = () => {
     setFirstName(''); setLastName(''); setEmail('');
@@ -62,14 +102,30 @@ const Users = () => {
     setSubmitting(true);
     setFormError('');
     try {
-      await authFetch('/api/admin/invite', {
-        method: 'POST',
-        body: JSON.stringify({ first_name: firstName, last_name: lastName, email }),
+      const { data: inviteRes } = await inviteEducatorMutate({
+        variables: {
+          input: {
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+          },
+        },
       });
+
+      const result = inviteRes?.inviteEducator;
+      if (!result) {
+        throw new Error(t('users.inviteFailed'));
+      }
+
+      if (result.__typename === 'EmailAlreadyRegisteredError' || result.__typename === 'EmailNotWhitelistedError') {
+        setFormError(result.message);
+        return;
+      }
+
       setShowModal(false);
       setSuccessEmail(email);
       setShowSuccess(true);
-      loadUsers();
+      refetch();
     } catch (e: any) {
       setFormError(e.message || t('users.inviteFailed'));
     } finally {

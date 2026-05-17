@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, List
 import strawberry
 from app.graphql.scalars import EmailAddress
-from app.graphql.enums import UserRole, Gender
+from app.graphql.enums import UserRole, Gender, UpdateType
 
 
 @strawberry.input
@@ -87,7 +87,7 @@ class AssignClassInput:
 @strawberry.input
 class CreateUpdateInput:
     class_id: strawberry.ID
-    type: str
+    type: UpdateType
     content: str
     kid_id: Optional[strawberry.ID] = None
     media_urls: Optional[List[str]] = None

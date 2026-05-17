@@ -2,7 +2,35 @@ import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { Baby, School, BookOpen, GraduationCap, Loader } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { authFetch } from '../lib/api';
+import { gql } from '@apollo/client';
+import { useQuery } from '@apollo/client/react';
+
+const GET_MY_KIDS_QUERY = gql`
+  query GetMyKids {
+    kids {
+      id
+      firstName
+      lastName
+      gender
+      dateOfBirth
+      profilePhotoUrl
+      institution {
+        id
+        name
+      }
+      class {
+        id
+        name
+        educators {
+          id
+          profile {
+            fullName
+          }
+        }
+      }
+    }
+  }
+`;
 
 interface KidSummary {
   id: string;
@@ -19,15 +47,27 @@ interface KidSummary {
 const MyKids = () => {
   const { t } = useTranslation();
   const [kids, setKids] = useState<KidSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  const { data, loading, error } = useQuery<any>(GET_MY_KIDS_QUERY);
 
   useEffect(() => {
-    authFetch('/api/parent/kids')
-      .then(setKids)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+    if (data?.kids) {
+      const mapped = data.kids.map((kid: any) => ({
+        id: kid.id,
+        firstName: kid.firstName,
+        lastName: kid.lastName,
+        gender: kid.gender,
+        dateOfBirth: kid.dateOfBirth,
+        profilePhotoUrl: kid.profilePhotoUrl,
+        institution: kid.institution ? { id: kid.institution.id, name: kid.institution.name } : null,
+        class: kid.class ? { id: kid.class.id, name: kid.class.name } : null,
+        educators: kid.class?.educators
+          ? kid.class.educators.map((e: any) => ({ id: e.id, name: e.profile?.fullName || '' }))
+          : [],
+      }));
+      setKids(mapped);
+    }
+  }, [data]);
 
   return (
     <Layout>
@@ -43,7 +83,7 @@ const MyKids = () => {
           <Loader size={24} style={{ animation: 'spin 1s linear infinite' }} />
         </div>
       ) : error ? (
-        <div className="glass-card" style={{ color: '#dc2626', textAlign: 'center' }}>⚠️ {error}</div>
+        <div className="glass-card" style={{ color: '#dc2626', textAlign: 'center' }}>⚠️ {error.message}</div>
       ) : kids.length === 0 ? (
         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '16px' }}>
           <Baby size={48} color="var(--text-secondary)" style={{ opacity: 0.4 }} />

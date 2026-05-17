@@ -3,7 +3,59 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { ArrowLeft, Loader, School, User, GraduationCap, Baby, Trash2, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { authFetch } from '../lib/api';
+import { gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client/react';
+
+const GET_INSTITUTION_DETAIL_QUERY = gql`
+  query GetInstitutionDetail($id: ID!) {
+    institution(id: $id) {
+      id
+      name
+      address
+      city
+      province
+      phone
+      email
+      status
+      classCount
+      admin {
+        id
+        email
+        status
+        profile {
+          fullName
+        }
+      }
+      educators {
+        id
+        email
+        status
+        profile {
+          fullName
+        }
+      }
+      kids(first: 100) {
+        edges {
+          node {
+            id
+            firstName
+            lastName
+            dateOfBirth
+          }
+        }
+      }
+    }
+  }
+`;
+
+const DELETE_INSTITUTION_MUTATION = gql`
+  mutation DeleteInstitution($id: ID!) {
+    deleteInstitution(id: $id) {
+      id
+      name
+    }
+  }
+`;
 
 const StatusBadge = ({ status }: { status: string }) => {
   const colors: Record<string, { bg: string; color: string }> = {
@@ -36,8 +88,6 @@ const InstitutionDetail = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [inst, setInst] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
@@ -45,13 +95,53 @@ const InstitutionDetail = () => {
   const [deleteError, setDeleteError] = useState('');
   const [showDeletedModal, setShowDeletedModal] = useState(false);
 
+  const { data, loading, error } = useQuery<any>(GET_INSTITUTION_DETAIL_QUERY, {
+    variables: { id },
+    skip: !id,
+  });
+
+  const [deleteInstitutionMutate] = useMutation<any>(DELETE_INSTITUTION_MUTATION);
+
   useEffect(() => {
-    if (!id) return;
-    authFetch(`/api/institutions/${id}`)
-      .then(setInst)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [id]);
+    if (data?.institution) {
+      const mapped = {
+        id: data.institution.id,
+        name: data.institution.name,
+        address: data.institution.address,
+        city: data.institution.city,
+        province: data.institution.province,
+        phone: data.institution.phone,
+        email: data.institution.email,
+        status: data.institution.status,
+        classCount: data.institution.classCount,
+        adminInfo: data.institution.admin
+          ? {
+              id: data.institution.admin.id,
+              name: data.institution.admin.profile?.fullName || '',
+              email: data.institution.admin.email,
+              status: data.institution.admin.status,
+            }
+          : null,
+        educators: data.institution.educators
+          ? data.institution.educators.map((e: any) => ({
+              id: e.id,
+              name: e.profile?.fullName || '',
+              email: e.email,
+              status: e.status,
+            }))
+          : [],
+        kids: data.institution.kids?.edges
+          ? data.institution.kids.edges.map((edge: any) => ({
+              id: edge.node.id,
+              firstName: edge.node.firstName,
+              lastName: edge.node.lastName,
+              dateOfBirth: edge.node.dateOfBirth,
+            }))
+          : [],
+      };
+      setInst(mapped);
+    }
+  }, [data]);
 
   const openDeleteModal = () => {
     setDeleteConfirm('');
@@ -64,7 +154,13 @@ const InstitutionDetail = () => {
     setDeleting(true);
     setDeleteError('');
     try {
-      await authFetch(`/api/institutions/${id}`, { method: 'DELETE' });
+      await deleteInstitutionMutate({
+        variables: { id },
+        update(cache: any) {
+          cache.evict({ id: cache.identify({ __typename: 'Institution', id }) });
+          cache.gc();
+        },
+      });
       setShowDeleteModal(false);
       setShowDeletedModal(true);
     } catch (e: any) {
@@ -89,7 +185,7 @@ const InstitutionDetail = () => {
     return (
       <Layout>
         <div className="glass-card" style={{ color: '#dc2626', textAlign: 'center' }}>
-          ⚠️ {error || t('institutionDetail.notFound')}
+          ⚠️ {error?.message || t('institutionDetail.notFound')}
         </div>
       </Layout>
     );
