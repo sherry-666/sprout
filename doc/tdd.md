@@ -143,7 +143,7 @@ sprout/
 ### Institution APIs
 - `GET /api/institutions` — List all institutions where `status != deleted`.
 - `POST /api/institutions` — Create a new institution. If admin info is provided, creates a pending user and sends an activation email via SendGrid.
-- `GET /api/institutions/{id}` — Get a single institution with admin info, kid count, class count, educator count.
+- `GET /api/institutions/{id}` — Get a single institution with full detail: admin info (id, name, email, status), `educators` array (id, name, email, status), `kids` array (id, firstName, lastName, dateOfBirth, class_id), and `classCount`.
 - `DELETE /api/institutions/{id}` — Soft-delete: sets `status: deleted`. Does not remove data.
 
 ### Admin APIs *(planned)*

@@ -110,6 +110,23 @@ const resources = {
         teachers: "Teachers",
         createClass: "Create Class"
       },
+      institutionDetail: {
+        loading: "Loading institution...",
+        notFound: "Institution not found.",
+        back: "Back to Day Cares",
+        details: "Institution Details",
+        classes: "Classes",
+        admin: "Institution Admin",
+        noAdmin: "No admin assigned yet.",
+        educators: "Educators",
+        noEducators: "No educators added yet.",
+        kids: "Kids",
+        noKids: "No kids enrolled yet.",
+        manage: "Manage",
+        deleteHint: "Permanently remove this institution and all associated data from Sprout.",
+        deleteSuccessMsg: "has been deleted. Users belonging to this institution can no longer log in.",
+        done: "Done"
+      },
       activate: {
         validating: "Validating your invitation...",
         welcome: "Welcome, {{name}}!",
@@ -236,6 +253,23 @@ const resources = {
         teachers: "教师",
         createClass: "创建班级"
       },
+      institutionDetail: {
+        loading: "正在加载机构信息...",
+        notFound: "未找到该机构。",
+        back: "返回日托中心",
+        details: "机构详情",
+        classes: "班级",
+        admin: "机构管理员",
+        noAdmin: "尚未分配管理员。",
+        educators: "教师",
+        noEducators: "尚未添加教师。",
+        kids: "儿童",
+        noKids: "尚未注册儿童。",
+        manage: "管理",
+        deleteHint: "从 Sprout 永久移除此机构及所有相关数据。",
+        deleteSuccessMsg: "已被删除。该机构的用户将无法再登录。",
+        done: "完成"
+      },
       activate: {
         validating: "正在验证您的邀请...",
         welcome: "欢迎，{{name}}！",
@@ -361,6 +395,23 @@ const resources = {
         activeClasses: "Classes actives",
         teachers: "Éducateurs",
         createClass: "Créer une classe"
+      },
+      institutionDetail: {
+        loading: "Chargement de l'institution...",
+        notFound: "Institution introuvable.",
+        back: "Retour aux garderies",
+        details: "Détails de l'institution",
+        classes: "Classes",
+        admin: "Administrateur de l'institution",
+        noAdmin: "Aucun administrateur assigné.",
+        educators: "Éducateurs",
+        noEducators: "Aucun éducateur ajouté.",
+        kids: "Enfants",
+        noKids: "Aucun enfant inscrit.",
+        manage: "Gérer",
+        deleteHint: "Supprimer définitivement cette institution et toutes les données associées de Sprout.",
+        deleteSuccessMsg: "a été supprimé(e). Les utilisateurs de cette institution ne peuvent plus se connecter.",
+        done: "Terminé"
       },
       activate: {
         validating: "Validation de votre invitation...",

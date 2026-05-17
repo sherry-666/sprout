@@ -7,6 +7,7 @@ import Settings from './pages/Settings';
 import ActivateAccount from './pages/ActivateAccount';
 import Users from './pages/Users';
 import Classes from './pages/Classes';
+import InstitutionDetail from './pages/InstitutionDetail';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/institutions" element={<Institutions />} />
         <Route path="/institutions/new" element={<NewInstitution />} />
+        <Route path="/institutions/:id" element={<InstitutionDetail />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Users />} />
         <Route path="/classes" element={<Classes />} />

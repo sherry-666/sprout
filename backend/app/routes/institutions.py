@@ -55,7 +55,18 @@ async def create_institution(req: InstitutionCreateRequest):
     """Create a new institution and optionally invite an admin via email."""
     db = get_database()
 
-    # 1. Create institution
+    # 1. Validate admin email before touching the database
+    if req.admin_email and req.admin_first_name and req.admin_last_name:
+        if not is_whitelisted(req.admin_email):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Email {req.admin_email} is not in the dev whitelist."
+            )
+        existing = await db.users.find_one({"email": req.admin_email})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+    # 2. Create institution
     inst_data = InstitutionCreate(
         name=req.name,
         address=req.address,
@@ -70,19 +81,8 @@ async def create_institution(req: InstitutionCreateRequest):
     created_inst = await db.institutions.find_one({"_id": result.inserted_id})
     inst_response = InstitutionResponse.from_mongo(created_inst).model_dump()
 
-    # 2. If admin info provided, create pending user + send invitation email
+    # 3. Create pending user + send invitation email
     if req.admin_email and req.admin_first_name and req.admin_last_name:
-        # Whitelist check
-        if not is_whitelisted(req.admin_email):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Email {req.admin_email} is not in the dev whitelist."
-            )
-
-        # Check if email already exists
-        existing = await db.users.find_one({"email": req.admin_email})
-        if existing:
-            raise HTTPException(status_code=400, detail="Email already registered")
 
         # Create pending user (no password)
         pending_user = UserInDB(
@@ -145,7 +145,7 @@ async def delete_institution(institution_id: str):
 
 @router.get("/{institution_id}", response_model=dict)
 async def get_institution(institution_id: str):
-    """Get a single institution with full details."""
+    """Get a single institution with full details including admin, educators, and kids."""
     db = get_database()
     inst = await db.institutions.find_one({"_id": institution_id})
     if not inst:
@@ -161,9 +161,34 @@ async def get_institution(institution_id: str):
         "id": str(admin_doc["_id"]),
         "name": f"{admin_doc['profile']['firstName']} {admin_doc['profile']['lastName']}",
         "email": admin_doc.get("email") or admin_doc.get("username"),
+        "status": admin_doc.get("status", "active"),
     } if admin_doc else None
 
-    inst_data["kidCount"] = await db.kids.count_documents({"institution_id": institution_id})
+    educator_docs = await db.users.find({
+        "role": UserRole.educator,
+        "institution_id": institution_id
+    }).to_list(length=200)
+    inst_data["educators"] = [
+        {
+            "id": str(e["_id"]),
+            "name": f"{e['profile']['firstName']} {e['profile']['lastName']}",
+            "email": e.get("email") or e.get("username"),
+            "status": e.get("status", "active"),
+        }
+        for e in educator_docs
+    ]
+
+    kid_docs = await db.kids.find({"institution_id": institution_id}).to_list(length=500)
+    inst_data["kids"] = [
+        {
+            "id": str(k["_id"]),
+            "firstName": k["firstName"],
+            "lastName": k["lastName"],
+            "dateOfBirth": k.get("dateOfBirth").isoformat() if k.get("dateOfBirth") else None,
+            "class_id": str(k["class_id"]) if k.get("class_id") else None,
+        }
+        for k in kid_docs
+    ]
+
     inst_data["classCount"] = await db.classes.count_documents({"institution_id": institution_id})
-    inst_data["educatorCount"] = await db.users.count_documents({"role": UserRole.educator, "institution_id": institution_id})
     return inst_data
