@@ -30,7 +30,7 @@ const Institutions = () => {
         </div>
         <button className="btn-primary" id="add-school-btn" onClick={() => navigate('/institutions/new')}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Plus size={16} /> {t('institutions.addDayCare')}
+            <Plus size={16} /> {t('institutions.inviteInstitution')}
           </span>
         </button>
       </div>

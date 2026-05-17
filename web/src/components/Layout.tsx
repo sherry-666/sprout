@@ -30,7 +30,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           {isSuperAdmin ? (
             /* System Admin nav */
             <NavLink to="/institutions" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              <School size={20} /> {t('nav.dayCares')}
+              <School size={20} /> {t('nav.institutions')}
             </NavLink>
           ) : (
             /* School Admin nav */

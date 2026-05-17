@@ -8,6 +8,7 @@ const resources = {
       nav: {
         dashboard: "Dashboard",
         dayCares: "Day Cares",
+        institutions: "Institutions",
         classes: "Classes",
         users: "Users",
         settings: "Settings",
@@ -43,6 +44,7 @@ const resources = {
         dayCareManagement: "Day Care Management",
         onboardSubtext: "Onboard and manage day care centers on the Sprout platform.",
         addDayCare: "Add Day Care",
+        inviteInstitution: "Invite Institution",
         noDayCaresAdded: "No day cares added yet",
         clickToAdd: 'Click "Add Day Care" to onboard your first institution.',
         deleteTitle: "Delete Institution",
@@ -151,6 +153,7 @@ const resources = {
       nav: {
         dashboard: "仪表盘",
         dayCares: "日托中心",
+        institutions: "机构",
         classes: "班级",
         users: "用户",
         settings: "设置",
@@ -186,6 +189,7 @@ const resources = {
         dayCareManagement: "日托中心管理",
         onboardSubtext: "在 Sprout 平台上引入和管理日托中心。",
         addDayCare: "添加日托中心",
+        inviteInstitution: "邀请机构",
         noDayCaresAdded: "暂未添加日托中心",
         clickToAdd: '点击"添加日托中心"引入您的第一个机构。',
         deleteTitle: "删除机构",
@@ -294,6 +298,7 @@ const resources = {
       nav: {
         dashboard: "Tableau de bord",
         dayCares: "Garderies",
+        institutions: "Institutions",
         classes: "Classes",
         users: "Utilisateurs",
         settings: "Paramètres",
@@ -329,6 +334,7 @@ const resources = {
         dayCareManagement: "Gestion des garderies",
         onboardSubtext: "Intégrer et gérer les garderies sur la plateforme Sprout.",
         addDayCare: "Ajouter une garderie",
+        inviteInstitution: "Inviter une institution",
         noDayCaresAdded: "Aucune garderie ajoutée",
         clickToAdd: 'Cliquez sur "Ajouter une garderie" pour intégrer votre première institution.',
         deleteTitle: "Supprimer l'institution",

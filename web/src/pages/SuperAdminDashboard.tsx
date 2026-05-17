@@ -186,9 +186,6 @@ const SuperAdminDashboard = () => {
             {t('dashboard.managingDayCares', { count: institutions.length })}
           </p>
         </div>
-        <button className="btn-primary" id="add-daycare-btn" onClick={() => navigate('/institutions')}>
-          + {t('institutions.addDayCare')}
-        </button>
       </div>
 
       {/* Summary Cards */}
