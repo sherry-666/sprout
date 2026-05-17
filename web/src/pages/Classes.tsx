@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Plus, BookOpen, Baby, Loader } from 'lucide-react';
+import { Plus, BookOpen, Loader } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
@@ -32,7 +32,7 @@ const Classes = () => {
   const navigate = useNavigate();
   const isEducator = isRole(Role.Educator);
 
-  const { data: classesData, loading: classesLoading } = useQuery(GET_CLASSES_QUERY);
+  const { data: classesData, loading: classesLoading } = useQuery<{ classes: ClassDoc[] }>(GET_CLASSES_QUERY);
   const classes: ClassDoc[] = classesData?.classes ?? [];
 
   return (

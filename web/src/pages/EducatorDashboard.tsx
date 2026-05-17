@@ -17,7 +17,7 @@ const EducatorDashboard = () => {
   const navigate = useNavigate();
   const user = getUser();
 
-  const { data } = useQuery(EDUCATOR_STATS_QUERY, { errorPolicy: 'all' });
+  const { data } = useQuery<{ kids: { totalCount: number }; classes: { id: string }[] }>(EDUCATOR_STATS_QUERY, { errorPolicy: 'all' });
   const myKids = data?.kids?.totalCount ?? '—';
   const myClasses = data?.classes?.length ?? '—';
 

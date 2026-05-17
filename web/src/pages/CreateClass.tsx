@@ -65,9 +65,9 @@ const CreateClass = () => {
   const debouncedStaff = useDebounce(staffSearch, 250);
   const debouncedKids = useDebounce(kidSearch, 250);
 
-  const [searchStaff, { data: staffData, loading: staffLoading }] = useLazyQuery(SEARCH_STAFF_QUERY, { fetchPolicy: 'network-only' });
-  const [searchKids, { data: kidsData, loading: kidsLoading }] = useLazyQuery(SEARCH_KIDS_QUERY, { fetchPolicy: 'network-only' });
-  const [createClass] = useMutation(CREATE_CLASS_MUTATION);
+  const [searchStaff, { data: staffData, loading: staffLoading }] = useLazyQuery<{ users: any[] }>(SEARCH_STAFF_QUERY, { fetchPolicy: 'network-only' });
+  const [searchKids, { data: kidsData, loading: kidsLoading }] = useLazyQuery<{ kids: { edges: { node: any }[] } }>(SEARCH_KIDS_QUERY, { fetchPolicy: 'network-only' });
+  const [createClass] = useMutation<{ createClass: { id: string } }>(CREATE_CLASS_MUTATION);
   const [assignClass] = useMutation(ASSIGN_CLASS_MUTATION);
 
   const staffResults = staffData?.users ?? [];
@@ -105,7 +105,7 @@ const CreateClass = () => {
     setError('');
     try {
       const { data } = await createClass({ variables: { input: { name: className.trim() } } });
-      const newId = data.createClass.id;
+      const newId = data!.createClass.id;
       const educatorIds = [...selectedStaff.keys()];
       const kidIds = [...selectedKids.keys()];
       if (educatorIds.length > 0 || kidIds.length > 0) {

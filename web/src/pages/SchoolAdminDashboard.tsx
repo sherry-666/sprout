@@ -19,7 +19,7 @@ const SchoolAdminDashboard = () => {
   const navigate = useNavigate();
   const user = getUser();
 
-  const { data } = useQuery(DASHBOARD_STATS_QUERY, { errorPolicy: 'all' });
+  const { data } = useQuery<{ kids: { totalCount: number }; classes: { id: string }[]; users: { id: string }[] }>(DASHBOARD_STATS_QUERY, { errorPolicy: 'all' });
   const totalKids = data?.kids?.totalCount ?? '—';
   const totalClasses = data?.classes?.length ?? '—';
   const totalTeachers = data?.users?.length ?? '—';

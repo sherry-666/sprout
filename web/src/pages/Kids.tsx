@@ -37,7 +37,7 @@ const Kids = () => {
   const navigate = useNavigate();
   const isEducator = isRole(Role.Educator);
 
-  const { data, loading, error } = useQuery(GET_KIDS_QUERY);
+  const { data, loading, error } = useQuery<{ kids: { edges: { node: any }[]; totalCount: number } }>(GET_KIDS_QUERY);
   const kids = data?.kids?.edges?.map((e: any) => e.node) ?? [];
 
   return (

@@ -67,7 +67,7 @@ const ClassDetail = () => {
   const { t } = useTranslation();
   const isEducator = isRole(Role.Educator);
 
-  const { data, loading, error } = useQuery(GET_CLASS_QUERY, { variables: { id }, skip: !id });
+  const { data, loading, error } = useQuery<{ class: { id: string; name: string; educators: any[]; kids: any[] } | null }>(GET_CLASS_QUERY, { variables: { id }, skip: !id });
 
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);

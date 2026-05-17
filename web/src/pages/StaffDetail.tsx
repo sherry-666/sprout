@@ -53,7 +53,7 @@ const StaffDetail = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const { data, loading, error } = useQuery(GET_STAFF_MEMBER_QUERY, { variables: { id }, skip: !id });
+  const { data, loading, error } = useQuery<{ node: any }>(GET_STAFF_MEMBER_QUERY, { variables: { id }, skip: !id });
 
   const member = data?.node;
 

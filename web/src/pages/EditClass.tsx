@@ -86,7 +86,7 @@ const EditClass = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const { data, loading: pageLoading, error: pageError } = useQuery(GET_CLASS_QUERY, { variables: { id }, skip: !id });
+  const { data, loading: pageLoading, error: pageError } = useQuery<{ class: { id: string; name: string; educators: any[]; kids: any[] } | null }>(GET_CLASS_QUERY, { variables: { id }, skip: !id });
 
   const [name, setName] = useState('');
   const [educators, setEducators] = useState<{ id: string; name: string; email: string; status: string }[]>([]);
@@ -99,8 +99,8 @@ const EditClass = () => {
   const debouncedStaff = useDebounce(staffSearch, 250);
   const debouncedKids = useDebounce(kidSearch, 250);
 
-  const [searchStaff, { data: staffData, loading: staffLoading }] = useLazyQuery(SEARCH_STAFF_QUERY, { fetchPolicy: 'network-only' });
-  const [searchKids, { data: kidsData, loading: kidsLoading }] = useLazyQuery(SEARCH_KIDS_QUERY, { fetchPolicy: 'network-only' });
+  const [searchStaff, { data: staffData, loading: staffLoading }] = useLazyQuery<{ users: any[] }>(SEARCH_STAFF_QUERY, { fetchPolicy: 'network-only' });
+  const [searchKids, { data: kidsData, loading: kidsLoading }] = useLazyQuery<{ kids: { edges: { node: any }[] } }>(SEARCH_KIDS_QUERY, { fetchPolicy: 'network-only' });
   const [assignClass] = useMutation(ASSIGN_CLASS_MUTATION);
 
   const staffResults: any[] = (staffData?.users ?? []).filter((s: any) => !educators.some(e => e.id === s.id));
