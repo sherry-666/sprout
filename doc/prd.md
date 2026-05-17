@@ -25,7 +25,19 @@ The Web Portal is a React-based application designed for System and Institution 
 - **User Management (`/users`)**: Interface to invite and manage educators. Supports generating email deep-links for seamless onboarding.
 - **Class Management (`/classes`)**: Interface to create physical or virtual classes, assign Educators to those classes, and enroll Kids.
 
-### 3.3 Educator Web Experience *(TODO)*
+### 3.3 Parent Web Experience
+**Purpose:** Give parents a focused view of their own children only.
+
+- **Nav:** Parents see only **My Kids** (`/my-kids`). Classes, Kids, and Users tabs are hidden.
+- **My Kids (`/my-kids`):** Lists all kids linked to the parent's account. Each kid card shows the enrolled day care, assigned class, and educators.
+- Parents do **not** appear in the institution's User Management view — that list is educators only.
+
+### 3.3a Profile Photo Upload *(TODO)*
+- Kids and users have a profile photo field in the UI, but photos are not currently saved.
+- Requires cloud file storage (e.g. S3 or Cloudinary) to be configured before this can ship.
+- Once available, photos should be uploadable from the Register Kid form and editable from the kid/user profile page.
+
+### 3.5 Educator Web Experience *(TODO)*
 **Purpose:** Give educators a focused view of only what is relevant to them.
 
 - **Nav:** Educators see Classes and Kids only — User Management is hidden.
@@ -33,7 +45,7 @@ The Web Portal is a React-based application designed for System and Institution 
 - **Kids (`/kids`):** Educators see only the kids enrolled in their assigned classes, not all kids in the institution.
 - Scoped views require backend filtering by `educator_user_ids` on the class documents.
 
-### 3.4 Institution Permission System *(TODO)*
+### 3.6 Institution Permission System *(TODO)*
 **Purpose:** Give the Institution Admin granular control over what each institution user can do.
 
 **Rules:**
@@ -52,6 +64,36 @@ The Web Portal is a React-based application designed for System and Institution 
 **UI touch-points:**
 - Invite User modal — permission checkboxes shown after filling in name/email.
 - User Management table — each row has an "Edit Permissions" action that opens a permissions panel.
+
+### 3.7 Forgot Password Flow *(TODO)*
+**Purpose:** Allow institution admins, educators, and parents to recover access if they forget their password.
+
+- Available to: `admin`, `educator`, `parent` roles only. System admins (`super_admin`) are excluded — they must reset via the backend directly.
+- Flow:
+  1. "Forgot password?" link on the login page.
+  2. User enters their email address.
+  3. A password reset email is sent with a time-limited link (e.g. 1 hour).
+  4. Clicking the link opens a page to set a new password.
+  5. On success, the old token is invalidated and the user is redirected to login.
+- Requires a new `password_reset_tokens` collection and a `POST /api/auth/forgot-password` + `POST /api/auth/reset-password` endpoint pair.
+- A dedicated reset email template should be added to `backend/app/core/email/`.
+
+### 3.8 Phone Number Setup *(TODO)*
+**Purpose:** Allow users to add or update their phone number from within the app.
+
+- Available to all roles.
+- Accessible from the Settings page (`/settings`).
+- Phone number is stored in `users.profile.phone`.
+- UI: a simple edit field in the account section of Settings with a Save button.
+
+### 3.9 Two-Factor Authentication via SMS *(TODO)*
+**Purpose:** Provide an optional second factor for login using a one-time SMS code.
+
+- Depends on 3.8 (phone number must be set before 2FA can be enabled).
+- User opts in from the Settings page; enabling 2FA requires verifying the phone number first via a test SMS.
+- On login, after correct password, user is prompted to enter the SMS code before being granted access.
+- Requires an SMS provider (e.g. Twilio) and a `POST /api/auth/verify-otp` endpoint.
+- System admins are out of scope (they do not use the app login flow).
 
 ## 4. Mobile App Experience (React Native)
 The Mobile App is designed for on-the-go usage by Educators in the classroom and Parents at home or work.

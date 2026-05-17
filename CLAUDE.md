@@ -12,6 +12,7 @@
 | New dependency, env var, or deployment detail | `doc/tdd.md` — Sections 2, 9 |
 | New frontend convention (CSS class, pattern) | `doc/tdd.md` — Section 8 |
 | Removed or renamed anything user-visible | Both docs |
+| Intentionally incomplete work (stubbed UI, `null` fields, missing backend) | Add a `*(TODO)*` section to both docs explaining what is missing and why |
 
 If a code change is not reflected in the docs, the task is **not done**.
 

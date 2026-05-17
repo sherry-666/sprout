@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Eye, EyeOff } from 'lucide-react';
 import { apiLogin, saveSession } from '../lib/api';
 
 const Login = () => {
@@ -9,6 +10,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -53,11 +55,17 @@ const Login = () => {
           </div>
           <div className="form-group">
             <label htmlFor="password">{t('auth.password')}</label>
-            <input
-              type="password" id="password" className="input-field"
-              placeholder="••••••••"
-              value={password} onChange={(e) => setPassword(e.target.value)} required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'} id="password" className="input-field"
+                placeholder="••••••••" style={{ paddingRight: '44px' }}
+                value={password} onChange={(e) => setPassword(e.target.value)} required
+              />
+              <button type="button" onClick={() => setShowPassword(v => !v)}
+                style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px', display: 'flex' }}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <button type="submit" className="btn-primary" id="login-btn"
             style={{ width: '100%', marginTop: '8px' }} disabled={loading}>

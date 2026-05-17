@@ -10,6 +10,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const user = getUser();
   const isSuperAdmin = user?.role === 'super_admin';
   const isEducator = user?.role === 'educator';
+  const isParent = user?.role === 'parent';
 
   const handleSignOut = () => {
     clearSession();
@@ -24,14 +25,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
 
         <nav className="nav-links">
-          <NavLink to="/dashboard" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            <LayoutDashboard size={20} /> {t('nav.dashboard')}
-          </NavLink>
+          {!isParent && (
+            <NavLink to="/dashboard" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              <LayoutDashboard size={20} /> {t('nav.dashboard')}
+            </NavLink>
+          )}
 
           {isSuperAdmin ? (
             /* System Admin nav */
             <NavLink to="/institutions" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
               <School size={20} /> {t('nav.institutions')}
+            </NavLink>
+          ) : isParent ? (
+            /* Parent nav */
+            <NavLink to="/my-kids" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              <Baby size={20} /> {t('nav.myKids')}
             </NavLink>
           ) : (
             /* Institution Admin + Educator nav */
@@ -61,7 +69,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               {user?.profile?.firstName} {user?.profile?.lastName}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              {user?.role === 'super_admin' ? t('roles.systemAdmin') : isEducator ? t('roles.educator') : t('roles.institutionAdmin')}
+              {user?.role === 'super_admin' ? t('roles.systemAdmin') : isParent ? t('roles.parent') : isEducator ? t('roles.educator') : t('roles.institutionAdmin')}
             </div>
           </div>
           <button className="nav-link"

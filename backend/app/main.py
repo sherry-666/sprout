@@ -6,6 +6,7 @@ from app.routes import auth
 from app.routes import institutions
 from app.routes import admin
 from app.routes import kids
+from app.routes import parent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +36,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(institutions.router, prefix="/api/institutions", tags=["institutions"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(kids.router, prefix="/api/kids", tags=["kids"])
+app.include_router(parent.router, prefix="/api/parent", tags=["parent"])
 
 @app.get("/health")
 async def health_check():

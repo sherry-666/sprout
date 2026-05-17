@@ -13,6 +13,7 @@ const resources = {
         users: "Users",
         settings: "Settings",
         kids: "Kids",
+        myKids: "My Kids",
         signOut: "Sign Out"
       },
       roles: {
@@ -138,6 +139,19 @@ const resources = {
         teachers: "Teachers",
         createClass: "Create Class"
       },
+      myKids: {
+        title: "My Kids",
+        subtitle: "Your children enrolled on Sprout.",
+        noKids: "No kids linked to your account yet.",
+        institution: "Day Care",
+        class: "Class",
+        educators: "Educators",
+        notAssigned: "Not assigned",
+        notEnrolled: "Not enrolled",
+        noEducators: "No educators assigned",
+        male: "Male",
+        female: "Female"
+      },
       registerKid: {
         title: "Register a Kid",
         subtitle: "Add a child to your day care and notify their parents.",
@@ -227,6 +241,7 @@ const resources = {
         users: "用户",
         settings: "设置",
         kids: "儿童",
+        myKids: "我的孩子",
         signOut: "退出登录"
       },
       roles: {
@@ -352,6 +367,19 @@ const resources = {
         teachers: "教师",
         createClass: "创建班级"
       },
+      myKids: {
+        title: "我的孩子",
+        subtitle: "在 Sprout 上注册的您的孩子。",
+        noKids: "暂无与您账户关联的孩子。",
+        institution: "日托中心",
+        class: "班级",
+        educators: "教师",
+        notAssigned: "未分配",
+        notEnrolled: "未注册",
+        noEducators: "暂无教师",
+        male: "男",
+        female: "女"
+      },
       registerKid: {
         title: "注册儿童",
         subtitle: "将孩子添加到您的日托中心并通知其父母。",
@@ -441,6 +469,7 @@ const resources = {
         users: "Utilisateurs",
         settings: "Paramètres",
         kids: "Enfants",
+        myKids: "Mes enfants",
         signOut: "Se déconnecter"
       },
       roles: {
@@ -565,6 +594,19 @@ const resources = {
         activeClasses: "Classes actives",
         teachers: "Éducateurs",
         createClass: "Créer une classe"
+      },
+      myKids: {
+        title: "Mes enfants",
+        subtitle: "Vos enfants inscrits sur Sprout.",
+        noKids: "Aucun enfant lié à votre compte pour l'instant.",
+        institution: "Garderie",
+        class: "Classe",
+        educators: "Éducateurs",
+        notAssigned: "Non assigné",
+        notEnrolled: "Non inscrit",
+        noEducators: "Aucun éducateur assigné",
+        male: "Garçon",
+        female: "Fille"
       },
       registerKid: {
         title: "Inscrire un enfant",

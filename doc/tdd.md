@@ -36,6 +36,7 @@ The system consists of a centralized Python backend service communicating with a
   - `Pillow` / `OpenCV` — Image manipulation (stickers, text overlays, captions). *(Not yet wired up.)*
 - **Email**: SendGrid (`sendgrid>=6.11.0`). Falls back to console logging if `SENDGRID_API_KEY` is not set.
 - **Hosting/Deployment**: Railway. Railway supports native deployment for Python and static sites.
+- **File Storage** *(TODO)*: No file storage is configured yet. Profile photos (kids, users) are accepted by the frontend UI but `profilePhotoUrl` is always stored as `null`. Requires a cloud storage solution (e.g. AWS S3, Cloudinary, or Railway volume) and a `POST /api/upload` endpoint that returns a URL. Until implemented, profile photos are not persisted.
 
 ## 3. Project Structure
 ```
@@ -165,7 +166,10 @@ sprout/
 - `POST /api/kids/register` — Register a kid. Requires `admin` JWT. Body: `{ firstName, lastName, gender, dateOfBirth (YYYY-MM-DD), profilePhotoUrl?, parents: [{ firstName, lastName, email, phone? }] }`. For each parent: if email already exists, links to existing account (no email sent); otherwise creates a pending parent user, generates an invitation token, and sends a parent activation email. Returns `{ success, kid_id, emails_invited }`.
 - `GET /api/kids` — List all kids for the caller's institution. Requires `admin` JWT. Returns array of `{ id, firstName, lastName, gender, dateOfBirth, profilePhotoUrl, parentCount }`.
 
-### Parent APIs *(planned)*
+### Parent APIs
+- `GET /api/parent/kids` — List all kids linked to the authenticated parent. Requires `parent` JWT. For each kid returns: `id`, `firstName`, `lastName`, `gender`, `dateOfBirth`, `profilePhotoUrl`, `institution` (id, name), `class` (id, name), `educators` (id, name). Class and educator fields are `null` if not yet assigned.
+
+### Parent APIs (further planned)
 - `GET /api/parent/kids` — Get kid's info and assigned class.
 - `GET /api/updates/{kidId}` — Get feed of updates for a kid (paginated).
 - `GET /api/updates/{kidId}/summary` — Get AI-generated daily summary.

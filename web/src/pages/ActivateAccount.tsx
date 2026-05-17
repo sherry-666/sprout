@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Eye, EyeOff } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -25,6 +26,8 @@ const ActivateAccount = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [activating, setActivating] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -158,19 +161,31 @@ const ActivateAccount = () => {
           </div>
           <div className="form-group">
             <label htmlFor="activate-password">{t('activate.newPassword')}</label>
-            <input
-              type="password" id="activate-password" className="input-field"
-              placeholder="••••••••"
-              value={password} onChange={(e) => setPassword(e.target.value)} required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'} id="activate-password" className="input-field"
+                placeholder="••••••••" style={{ paddingRight: '44px' }}
+                value={password} onChange={(e) => setPassword(e.target.value)} required
+              />
+              <button type="button" onClick={() => setShowPassword(v => !v)}
+                style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px', display: 'flex' }}>
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <div className="form-group">
             <label htmlFor="activate-confirm">{t('activate.confirmPassword')}</label>
-            <input
-              type="password" id="activate-confirm" className="input-field"
-              placeholder="••••••••"
-              value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showConfirm ? 'text' : 'password'} id="activate-confirm" className="input-field"
+                placeholder="••••••••" style={{ paddingRight: '44px' }}
+                value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required
+              />
+              <button type="button" onClick={() => setShowConfirm(v => !v)}
+                style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '2px', display: 'flex' }}>
+                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <button type="submit" className="btn-primary" id="activate-btn"
             style={{ width: '100%', marginTop: '8px' }} disabled={activating}>

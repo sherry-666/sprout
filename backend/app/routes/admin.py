@@ -71,7 +71,7 @@ async def list_users(current_user: dict = Depends(require_admin)):
 
     users = await db.users.find({
         "institution_id": institution_id,
-        "role": {"$in": [UserRole.educator, UserRole.parent]},
+        "role": UserRole.educator,
     }).to_list(length=200)
 
     return [

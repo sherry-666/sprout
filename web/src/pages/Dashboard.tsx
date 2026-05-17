@@ -8,9 +8,8 @@ import SchoolAdminDashboard from './SchoolAdminDashboard';
 const Dashboard = () => {
   const user = getUser();
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'parent') return <Navigate to="/my-kids" replace />;
 
   return (
     <Layout>
