@@ -30,15 +30,24 @@ def send_institution_admin_invite(
                 daily reports and photo tagging.
             </p>
 
-            <div style="background: white; border-radius: 10px; padding: 20px; margin-bottom: 28px;">
-                <p style="margin: 0 0 12px; font-weight: 600; color: #1a1a2e; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">What you can do with Sprout</p>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <div style="color: #555; font-size: 14px; line-height: 1.5;">✅ &nbsp;Manage classes and assign educators</div>
-                    <div style="color: #555; font-size: 14px; line-height: 1.5;">✅ &nbsp;Invite educators and track daily activity</div>
-                    <div style="color: #555; font-size: 14px; line-height: 1.5;">✅ &nbsp;Register kids and link them to parents</div>
-                    <div style="color: #555; font-size: 14px; line-height: 1.5;">✅ &nbsp;AI-generated parent updates and daily summaries</div>
-                </div>
-            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 28px;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #e0e7ff;">
+                    <span style="color: #4F46E5; font-weight: 700; margin-right: 10px;">—</span>
+                    <span style="color: #374151; font-size: 15px;">Manage classes and assign educators</span>
+                </td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #e0e7ff;">
+                    <span style="color: #4F46E5; font-weight: 700; margin-right: 10px;">—</span>
+                    <span style="color: #374151; font-size: 15px;">Invite educators and track daily activity</span>
+                </td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #e0e7ff;">
+                    <span style="color: #4F46E5; font-weight: 700; margin-right: 10px;">—</span>
+                    <span style="color: #374151; font-size: 15px;">Register kids and link them to parents</span>
+                </td></tr>
+                <tr><td style="padding: 8px 0;">
+                    <span style="color: #4F46E5; font-weight: 700; margin-right: 10px;">—</span>
+                    <span style="color: #374151; font-size: 15px;">AI-generated parent updates and daily summaries</span>
+                </td></tr>
+            </table>
 
             <div style="text-align: center;">
                 <a href="{activation_url}"
