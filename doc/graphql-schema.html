@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sprout — GraphQL Schema</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --bg-elev: #181825;
+    --bg-card: #232336;
+    --bg-row-hover: #2a2a40;
+    --border: #313244;
+    --text: #cdd6f4;
+    --text-dim: #9399b2;
+    --text-faint: #6c7086;
+    --keyword: #cba6f7;
+    --type: #89b4fa;
+    --scalar: #f9e2af;
+    --string: #a6e3a1;
+    --enum-val: #fab387;
+    --field: #cdd6f4;
+    --comment: #6c7086;
+    --punct: #7f849c;
+    --accent: #89b4fa;
+    --recurse: #f5c2e7;
+    --bang: #f38ba8;
+    --badge-type: #1e3a5f;
+    --badge-enum: #5c3a1a;
+    --badge-input: #1a4d3a;
+    --badge-union: #4d1a3a;
+    --badge-interface: #3a1a4d;
+    --badge-scalar: #4d4a1a;
+    --badge-root: #5a3a1a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  body {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+  }
+  aside {
+    background: var(--bg-elev);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  aside h1 {
+    margin: 0 24px 4px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  aside .subtitle {
+    margin: 0 24px 16px;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  aside .view-tabs {
+    display: flex;
+    margin: 0 24px 18px;
+    background: var(--bg-card);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 2px;
+  }
+  aside .view-tabs button {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    color: var(--text-dim);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  aside .view-tabs button.active {
+    background: var(--bg);
+    color: var(--text);
+  }
+  aside .group { margin-top: 14px; }
+  aside .group-title {
+    margin: 0 24px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  aside a {
+    display: block;
+    padding: 3px 24px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 12.5px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    border-left: 2px solid transparent;
+    cursor: pointer;
+  }
+  aside a:hover {
+    background: var(--bg-card);
+    color: var(--text);
+    border-left-color: var(--type);
+  }
+  main {
+    padding: 28px 40px 80px;
+    max-width: 1100px;
+  }
+  main h1 {
+    margin: 0 0 8px;
+    font-size: 26px;
+    font-weight: 700;
+  }
+  main .intro {
+    color: var(--text-dim);
+    margin-bottom: 22px;
+    max-width: 720px;
+  }
+  main h2 {
+    margin: 32px 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+  .legend {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .badge.type      { background: var(--badge-type); color: var(--type); }
+  .badge.enum      { background: var(--badge-enum); color: var(--enum-val); }
+  .badge.input     { background: var(--badge-input); color: var(--string); }
+  .badge.union     { background: var(--badge-union); color: #f5c2e7; }
+  .badge.interface { background: var(--badge-interface); color: var(--keyword); }
+  .badge.scalar    { background: var(--badge-scalar); color: var(--scalar); }
+  .badge.root      { background: var(--badge-root); color: #fab387; }
+
+  /* ───── Tree view ───── */
+  .tree-view {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  .tree-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .tree-controls button {
+    background: var(--bg-card);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .tree-controls button:hover { color: var(--text); border-color: var(--accent); }
+
+  .troot {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .troot-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .troot-name {
+    color: var(--type);
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .tnode { }
+  .trow {
+    padding: 3px 6px 3px 0;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    border-radius: 4px;
+    line-height: 1.6;
+  }
+  .trow.clickable { cursor: pointer; }
+  .trow.clickable:hover { background: var(--bg-row-hover); }
+  .tcaret {
+    display: inline-block;
+    width: 14px;
+    color: var(--text-faint);
+    font-size: 9px;
+    flex-shrink: 0;
+    text-align: center;
+    transition: transform 0.1s ease;
+  }
+  .trow.expanded > .tcaret { transform: rotate(0deg); }
+  .tchildren {
+    margin-left: 6px;
+    padding-left: 14px;
+    border-left: 1px dashed var(--border);
+  }
+  .tchildren[hidden] { display: none; }
+  .tfname { color: var(--field); }
+  .tref {
+    color: var(--type);
+    text-decoration: none;
+  }
+  .trow.clickable .tref { border-bottom: 1px dashed transparent; }
+  .trow.clickable:hover .tref { border-bottom-color: var(--type); }
+  .arg-name { color: var(--text-dim); font-style: italic; }
+  .arg-default { color: var(--string); }
+  .enumv { color: var(--enum-val); }
+  .punct { color: var(--punct); }
+  .bang { color: var(--bang); }
+  .scalar { color: var(--scalar); }
+  .recurse {
+    color: var(--recurse);
+    font-size: 11px;
+    margin-left: 4px;
+    border: 1px solid var(--recurse);
+    padding: 0 5px;
+    border-radius: 3px;
+    opacity: 0.7;
+  }
+  .builtin-note { color: var(--text-faint); font-style: italic; font-size: 12px; padding: 4px 0 4px 20px; }
+
+  /* ───── SDL view (cards) ───── */
+  .sdl-view .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 12px 0;
+    scroll-margin-top: 20px;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .card-name {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--type);
+  }
+  pre {
+    margin: 0;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .kw     { color: var(--keyword); }
+  .tname  { color: var(--type); font-weight: 600; }
+  .com    { color: var(--comment); font-style: italic; }
+
+  @media (max-width: 800px) {
+    body { grid-template-columns: 1fr; }
+    aside { position: static; height: auto; }
+    main { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <h1>Sprout GraphQL</h1>
+  <div class="subtitle">v0.1 · single source of truth</div>
+  <div class="view-tabs">
+    <button data-view="tree" class="active">Tree</button>
+    <button data-view="sdl">SDL</button>
+  </div>
+  <nav id="nav"></nav>
+</aside>
+
+<main>
+  <h1>Sprout GraphQL Schema</h1>
+  <p class="intro">
+    Design preview of Sprout's GraphQL API. Replaces the current REST surface
+    (<code>/api/*</code>) with a single graph endpoint at <code>/graphql</code>.
+    Errors-as-data unions are used for expected, recoverable failures
+    (auth, invitations, validation); GraphQL <code>errors[]</code> is reserved
+    for unauthorized access and bugs.
+  </p>
+
+  <div class="legend">
+    <span class="badge root">root</span>
+    <span class="badge type">type</span>
+    <span class="badge interface">interface</span>
+    <span class="badge enum">enum</span>
+    <span class="badge input">input</span>
+    <span class="badge union">union</span>
+    <span class="badge scalar">scalar</span>
+  </div>
+
+  <!-- TREE VIEW -->
+  <div id="tree-view" class="tree-view">
+    <div class="tree-controls">
+      <button id="expand-roots">Expand roots</button>
+      <button id="collapse-all">Collapse all</button>
+    </div>
+    <div id="tree-content"></div>
+  </div>
+
+  <!-- SDL VIEW -->
+  <div id="sdl-view" class="sdl-view" hidden>
+    <div id="sdl-content"></div>
+  </div>
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// Source of truth: the SDL
+// ═══════════════════════════════════════════════════════════════════════
+const SDL = `# ═══════════════════════════════════════════════════════════════
+# Scalars
+# ═══════════════════════════════════════════════════════════════
+
+scalar DateTime          # ISO 8601, UTC
+scalar Date              # YYYY-MM-DD (e.g. kid date of birth)
+scalar EmailAddress
+
+# ═══════════════════════════════════════════════════════════════
+# Enums
+# ═══════════════════════════════════════════════════════════════
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  EDUCATOR
+  PARENT
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+}
+
+enum InstitutionStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum UpdateType {
+  MEAL
+  NAP
+  ACTIVITY
+  PHOTO
+  DAILY_SUMMARY
+}
+
+enum InvitationRole {
+  ADMIN
+  EDUCATOR
+  PARENT
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Node interface (Relay global object identification)
+# ═══════════════════════════════════════════════════════════════
+
+interface Node {
+  id: ID!
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Object types
+# ═══════════════════════════════════════════════════════════════
+
+type Profile {
+  firstName: String!
+  lastName: String!
+  fullName: String!
+  phone: String
+  avatarUrl: String
+}
+
+type User implements Node {
+  id: ID!
+  role: UserRole!
+  email: EmailAddress
+  username: String
+  status: UserStatus!
+  profile: Profile!
+  institution: Institution
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  kids: [Kid!]
+  classes: [Class!]
+}
+
+type Institution implements Node {
+  id: ID!
+  name: String!
+  address: String
+  city: String
+  province: String
+  phone: String
+  email: String
+  status: InstitutionStatus!
+  createdAt: DateTime!
+  admin: User
+  educators: [User!]!
+  kids(first: Int = 50, after: String): KidConnection!
+  classes: [Class!]!
+  kidCount: Int!
+  classCount: Int!
+  educatorCount: Int!
+}
+
+type Kid implements Node {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  fullName: String!
+  gender: Gender
+  dateOfBirth: Date
+  profilePhotoUrl: String
+  createdAt: DateTime!
+  institution: Institution!
+  class: Class
+  parents: [User!]!
+  parentCount: Int!
+  updates(first: Int = 20, after: String, type: UpdateType): UpdateConnection!
+  dailySummary(date: Date!): Update
+}
+
+type Class implements Node {
+  id: ID!
+  name: String!
+  institution: Institution!
+  educators: [User!]!
+  kids: [Kid!]!
+  createdAt: DateTime!
+}
+
+type Update implements Node {
+  id: ID!
+  type: UpdateType!
+  content: String!
+  aiGeneratedContent: String
+  mediaUrls: [String!]!
+  timestamp: DateTime!
+  kid: Kid
+  detectedKids: [Kid!]!
+  educator: User!
+  class: Class!
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Pagination (Relay-style cursor connections)
+# ═══════════════════════════════════════════════════════════════
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type KidEdge {
+  node: Kid!
+  cursor: String!
+}
+
+type KidConnection {
+  edges: [KidEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type UpdateEdge {
+  node: Update!
+  cursor: String!
+}
+
+type UpdateConnection {
+  edges: [UpdateEdge!]!
+  pageInfo: PageInfo!
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Auth / session payloads
+# ═══════════════════════════════════════════════════════════════
+
+type AuthPayload {
+  accessToken: String!
+  tokenType: String!
+  user: User!
+}
+
+type InvitationInfo {
+  email: EmailAddress
+  firstName: String!
+  lastName: String!
+  role: InvitationRole!
+  institutionName: String!
+}
+
+type InvitationSent {
+  email: EmailAddress!
+  sent: Boolean!
+}
+
+type KidRegistered {
+  kid: Kid!
+  emailsInvited: [EmailAddress!]!
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Error types (errors as data)
+# ═══════════════════════════════════════════════════════════════
+
+type InvalidCredentialsError {
+  message: String!
+}
+
+type AccountPendingError {
+  message: String!
+}
+
+type TokenNotFoundError {
+  message: String!
+}
+
+type TokenExpiredError {
+  message: String!
+}
+
+type TokenUsedError {
+  message: String!
+}
+
+type EmailAlreadyRegisteredError {
+  message: String!
+  email: EmailAddress!
+}
+
+type EmailNotWhitelistedError {
+  message: String!
+  email: EmailAddress!
+}
+
+type ValidationError {
+  field: String!
+  message: String!
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Result unions
+# ═══════════════════════════════════════════════════════════════
+
+union LoginResult =
+    AuthPayload
+  | InvalidCredentialsError
+  | AccountPendingError
+
+union ActivateResult =
+    AuthPayload
+  | TokenNotFoundError
+  | TokenExpiredError
+  | TokenUsedError
+
+union ValidateTokenResult =
+    InvitationInfo
+  | TokenNotFoundError
+  | TokenExpiredError
+  | TokenUsedError
+
+union InviteResult =
+    InvitationSent
+  | EmailAlreadyRegisteredError
+  | EmailNotWhitelistedError
+
+union RegisterKidResult =
+    KidRegistered
+  | EmailNotWhitelistedError
+  | ValidationError
+
+# ═══════════════════════════════════════════════════════════════
+# Inputs
+# ═══════════════════════════════════════════════════════════════
+
+input ProfileInput {
+  firstName: String!
+  lastName: String!
+  phone: String
+  avatarUrl: String
+}
+
+input LoginInput {
+  login: String!
+  password: String!
+}
+
+input ActivateInput {
+  token: String!
+  password: String!
+}
+
+input RegisterUserInput {
+  email: EmailAddress!
+  password: String!
+  role: UserRole!
+  profile: ProfileInput!
+  institutionId: ID
+}
+
+input CreateInstitutionInput {
+  name: String!
+  address: String
+  city: String
+  province: String
+  phone: String
+  email: String
+  adminEmail: EmailAddress
+  adminFirstName: String
+  adminLastName: String
+}
+
+input InviteEducatorInput {
+  firstName: String!
+  lastName: String!
+  email: EmailAddress!
+}
+
+input ParentInput {
+  firstName: String!
+  lastName: String!
+  email: EmailAddress!
+  phone: String
+}
+
+input RegisterKidInput {
+  firstName: String!
+  lastName: String!
+  gender: Gender!
+  dateOfBirth: Date!
+  profilePhotoUrl: String
+  parents: [ParentInput!]!
+}
+
+input CreateClassInput {
+  name: String!
+}
+
+input AssignClassInput {
+  classId: ID!
+  educatorIds: [ID!]
+  kidIds: [ID!]
+}
+
+input CreateUpdateInput {
+  kidId: ID
+  classId: ID!
+  type: UpdateType!
+  content: String!
+  mediaUrls: [String!]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Root: Query
+# ═══════════════════════════════════════════════════════════════
+
+type Query {
+  node(id: ID!): Node
+  me: User
+  institutions: [Institution!]!
+  institution(id: ID!): Institution
+  kids(first: Int = 50, after: String): KidConnection!
+  kid(id: ID!): Kid
+  classes: [Class!]!
+  class(id: ID!): Class
+  users(role: UserRole): [User!]!
+  validateInvitationToken(token: String!): ValidateTokenResult!
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Root: Mutation
+# ═══════════════════════════════════════════════════════════════
+
+type Mutation {
+  register(input: RegisterUserInput!): User!
+  login(input: LoginInput!): LoginResult!
+  activateAccount(input: ActivateInput!): ActivateResult!
+  createInstitution(input: CreateInstitutionInput!): Institution!
+  deleteInstitution(id: ID!): Institution!
+  inviteEducator(input: InviteEducatorInput!): InviteResult!
+  registerKid(input: RegisterKidInput!): RegisterKidResult!
+  createClass(input: CreateClassInput!): Class!
+  assignClass(input: AssignClassInput!): Class!
+  createUpdate(input: CreateUpdateInput!): Update!
+}
+`;
+
+// ═══════════════════════════════════════════════════════════════════════
+// SDL parser
+// ═══════════════════════════════════════════════════════════════════════
+const BUILTIN_SCALARS = new Set(['ID', 'String', 'Int', 'Float', 'Boolean']);
+const ROOT_TYPES = ['Query', 'Mutation'];
+
+function parseSDL(sdl) {
+  const defs = [];
+  const lines = sdl.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) { i++; continue; }
+
+    const blockMatch = trimmed.match(/^(type|interface|enum|input)\s+(\w+)/);
+    if (blockMatch) {
+      const kind = blockMatch[1];
+      const name = blockMatch[2];
+      const startLine = i;
+      let depth = 0;
+      let endLine = i;
+      for (let j = i; j < lines.length; j++) {
+        for (const ch of lines[j]) {
+          if (ch === '{') depth++;
+          else if (ch === '}') depth--;
+        }
+        if (depth === 0 && j > i) { endLine = j; break; }
+      }
+      defs.push({ kind, name, body: lines.slice(startLine, endLine + 1).join('\n') });
+      i = endLine + 1;
+      continue;
+    }
+
+    const scalarMatch = trimmed.match(/^scalar\s+(\w+)/);
+    if (scalarMatch) {
+      defs.push({ kind: 'scalar', name: scalarMatch[1], body: line });
+      i++;
+      continue;
+    }
+
+    const unionMatch = trimmed.match(/^union\s+(\w+)\s*=/);
+    if (unionMatch) {
+      const name = unionMatch[1];
+      const startLine = i;
+      let endLine = i;
+      let j = i + 1;
+      while (j < lines.length) {
+        const next = lines[j].trim();
+        if (!next || next.startsWith('#')) { j++; continue; }
+        if (next.startsWith('|')) { endLine = j; j++; continue; }
+        break;
+      }
+      defs.push({ kind: 'union', name, body: lines.slice(startLine, endLine + 1).join('\n') });
+      i = endLine + 1;
+      continue;
+    }
+    i++;
+  }
+  return defs;
+}
+
+function parseTypeRef(raw) {
+  let s = raw.trim();
+  let isNonNull = false, isList = false, innerNonNull = false;
+  if (s.endsWith('!')) { isNonNull = true; s = s.slice(0, -1).trim(); }
+  if (s.startsWith('[') && s.endsWith(']')) {
+    isList = true;
+    s = s.slice(1, -1).trim();
+    if (s.endsWith('!')) { innerNonNull = true; s = s.slice(0, -1).trim(); }
+  }
+  return { name: s, isNonNull, isList, innerNonNull };
+}
+
+function parseArgs(s) {
+  if (!s || !s.trim()) return [];
+  const parts = s.split(',').map(p => p.trim()).filter(Boolean);
+  const args = [];
+  for (const p of parts) {
+    const m = p.match(/^(\w+)\s*:\s*([^=]+?)(?:\s*=\s*(.+))?$/);
+    if (!m) continue;
+    args.push({
+      name: m[1],
+      type: parseTypeRef(m[2].trim()),
+      defaultValue: m[3] ? m[3].trim() : null,
+    });
+  }
+  return args;
+}
+
+function parseFields(body) {
+  const m = body.match(/\{([\s\S]*)\}/);
+  if (!m) return [];
+  const fields = [];
+  for (const rawLine of m[1].split('\n')) {
+    const line = rawLine.replace(/#.*$/, '').trim();
+    if (!line) continue;
+    const fm = line.match(/^(\w+)\s*(?:\(([^)]*)\))?\s*:\s*(.+?)$/);
+    if (!fm) continue;
+    fields.push({
+      name: fm[1],
+      args: parseArgs(fm[2] || ''),
+      returnType: parseTypeRef(fm[3].trim()),
+    });
+  }
+  return fields;
+}
+
+function parseEnumValues(body) {
+  const m = body.match(/\{([\s\S]*)\}/);
+  if (!m) return [];
+  return m[1].split('\n')
+    .map(l => l.replace(/#.*$/, '').trim())
+    .filter(l => /^[A-Z][A-Z0-9_]*$/.test(l));
+}
+
+function parseUnionMembers(body) {
+  const m = body.match(/=\s*([\s\S]+)$/);
+  if (!m) return [];
+  return m[1]
+    .split(/[|\n]/)
+    .map(s => s.replace(/#.*$/, '').trim())
+    .filter(Boolean);
+}
+
+function parseImplements(body) {
+  const m = body.match(/implements\s+([\w\s,&]+?)\s*\{/);
+  if (!m) return [];
+  return m[1].split(/[\s,&]+/).filter(Boolean);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Build type map
+// ═══════════════════════════════════════════════════════════════════════
+const defs = parseSDL(SDL);
+const TYPE_MAP = {};
+for (const d of defs) {
+  if (d.kind === 'type' || d.kind === 'interface' || d.kind === 'input') {
+    TYPE_MAP[d.name] = {
+      kind: d.kind,
+      fields: parseFields(d.body),
+      interfaces: parseImplements(d.body),
+      body: d.body,
+    };
+  } else if (d.kind === 'enum') {
+    TYPE_MAP[d.name] = { kind: 'enum', values: parseEnumValues(d.body), body: d.body };
+  } else if (d.kind === 'union') {
+    TYPE_MAP[d.name] = { kind: 'union', members: parseUnionMembers(d.body), body: d.body };
+  } else if (d.kind === 'scalar') {
+    TYPE_MAP[d.name] = { kind: 'scalar', body: d.body };
+  }
+}
+
+function kindOf(typeName) {
+  if (BUILTIN_SCALARS.has(typeName)) return 'scalar';
+  return TYPE_MAP[typeName] ? TYPE_MAP[typeName].kind : null;
+}
+
+function isExpandable(typeName) {
+  const k = kindOf(typeName);
+  return k === 'type' || k === 'interface' || k === 'input' || k === 'enum' || k === 'union';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Tree rendering
+// ═══════════════════════════════════════════════════════════════════════
+function renderTypeRef(ref) {
+  const k = kindOf(ref.name);
+  const builtin = BUILTIN_SCALARS.has(ref.name);
+  let s = builtin
+    ? `<span class="scalar">${ref.name}</span>`
+    : `<span class="tref">${ref.name}</span>`;
+  if (ref.isList) {
+    s = '<span class="punct">[</span>' + s;
+    if (ref.innerNonNull) s += '<span class="bang">!</span>';
+    s += '<span class="punct">]</span>';
+  }
+  if (ref.isNonNull) s += '<span class="bang">!</span>';
+  return s;
+}
+
+function renderArgs(args) {
+  if (!args.length) return '';
+  const inner = args.map(a => {
+    let s = `<span class="arg-name">${a.name}</span><span class="punct">:</span> ${renderTypeRef(a.type)}`;
+    if (a.defaultValue !== null) {
+      s += ` <span class="punct">=</span> <span class="arg-default">${escapeAttr(a.defaultValue)}</span>`;
+    }
+    return s;
+  }).join('<span class="punct">, </span>');
+  return `<span class="punct">(</span>${inner}<span class="punct">)</span>`;
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function renderFieldRow(field, ancestors) {
+  const ret = field.returnType;
+  const expandable = isExpandable(ret.name);
+  const recursive = ancestors.includes(ret.name);
+  const caret = expandable
+    ? '<span class="tcaret">▶</span>'
+    : '<span class="tcaret">·</span>';
+  const cls = expandable ? 'trow clickable' : 'trow leaf';
+  const ancestorsAttr = ancestors.join(',');
+  return `<div class="tnode">
+    <div class="${cls}" data-expand="${expandable ? ret.name : ''}" data-ancestors="${ancestorsAttr}">
+      ${caret}<span class="tfname">${field.name}</span>${renderArgs(field.args)}<span class="punct">:</span> ${renderTypeRef(ret)}${recursive ? '<span class="recurse">↻ cycle</span>' : ''}
+    </div>
+    <div class="tchildren" hidden></div>
+  </div>`;
+}
+
+function renderEnumValueRow(value) {
+  return `<div class="tnode"><div class="trow leaf">
+    <span class="tcaret">·</span><span class="enumv">${value}</span>
+  </div></div>`;
+}
+
+function renderUnionMemberRow(memberName, ancestors) {
+  const expandable = isExpandable(memberName);
+  const recursive = ancestors.includes(memberName);
+  const caret = expandable ? '<span class="tcaret">▶</span>' : '<span class="tcaret">·</span>';
+  const cls = expandable ? 'trow clickable' : 'trow leaf';
+  return `<div class="tnode">
+    <div class="${cls}" data-expand="${expandable ? memberName : ''}" data-ancestors="${ancestors.join(',')}">
+      ${caret}<span class="punct">|</span> <span class="tref">${memberName}</span>${recursive ? '<span class="recurse">↻ cycle</span>' : ''}
+    </div>
+    <div class="tchildren" hidden></div>
+  </div>`;
+}
+
+function renderTypeContents(typeName, ancestors) {
+  if (BUILTIN_SCALARS.has(typeName)) {
+    return '<div class="builtin-note">Built-in scalar — no further structure.</div>';
+  }
+  const t = TYPE_MAP[typeName];
+  if (!t) return '';
+  if (t.kind === 'type' || t.kind === 'interface' || t.kind === 'input') {
+    if (!t.fields.length) return '<div class="builtin-note">(no fields)</div>';
+    return t.fields.map(f => renderFieldRow(f, ancestors)).join('');
+  }
+  if (t.kind === 'enum') {
+    return t.values.map(renderEnumValueRow).join('');
+  }
+  if (t.kind === 'union') {
+    return t.members.map(m => renderUnionMemberRow(m, ancestors)).join('');
+  }
+  if (t.kind === 'scalar') {
+    return '<div class="builtin-note">Custom scalar — no further structure.</div>';
+  }
+  return '';
+}
+
+function renderRoot(name) {
+  const t = TYPE_MAP[name];
+  if (!t) return '';
+  const kindBadge = ROOT_TYPES.includes(name) ? 'root' : t.kind;
+  return `<div class="troot" id="root-${name}">
+    <div class="troot-header">
+      <span class="troot-name">${name}</span>
+      <span class="badge ${kindBadge}">${kindBadge === 'root' ? 'root · ' + name.toLowerCase() : t.kind}</span>
+    </div>
+    <div class="tnode-children" data-root="${name}">
+      ${renderTypeContents(name, [name])}
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Mount tree view
+// ═══════════════════════════════════════════════════════════════════════
+const treeContent = document.getElementById('tree-content');
+treeContent.innerHTML = ROOT_TYPES
+  .filter(r => TYPE_MAP[r])
+  .map(renderRoot)
+  .join('');
+
+// Click handler — lazy expand on demand
+treeContent.addEventListener('click', (e) => {
+  const row = e.target.closest('.trow.clickable');
+  if (!row) return;
+  const typeName = row.dataset.expand;
+  if (!typeName) return;
+  const childrenEl = row.nextElementSibling;
+  if (!childrenEl || !childrenEl.classList.contains('tchildren')) return;
+
+  if (row.classList.contains('expanded')) {
+    row.classList.remove('expanded');
+    childrenEl.hidden = true;
+    row.querySelector('.tcaret').textContent = '▶';
+  } else {
+    if (childrenEl.children.length === 0) {
+      const ancestors = (row.dataset.ancestors || '').split(',').filter(Boolean);
+      childrenEl.innerHTML = renderTypeContents(typeName, [...ancestors, typeName]);
+    }
+    row.classList.add('expanded');
+    childrenEl.hidden = false;
+    row.querySelector('.tcaret').textContent = '▼';
+  }
+});
+
+// Tree controls
+document.getElementById('collapse-all').addEventListener('click', () => {
+  treeContent.querySelectorAll('.trow.expanded').forEach(row => {
+    row.classList.remove('expanded');
+    row.querySelector('.tcaret').textContent = '▶';
+    const next = row.nextElementSibling;
+    if (next && next.classList.contains('tchildren')) next.hidden = true;
+  });
+});
+
+document.getElementById('expand-roots').addEventListener('click', () => {
+  // Expand one level under each root operation (fields of Query/Mutation/Subscription
+  // are already shown by default — this expands their return types one step further).
+  const topLevelRows = treeContent.querySelectorAll('.troot > .tnode-children > .tnode > .trow.clickable:not(.expanded)');
+  topLevelRows.forEach(row => row.click());
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// SDL view rendering (cards)
+// ═══════════════════════════════════════════════════════════════════════
+const defNames = new Set(defs.map(d => d.name));
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlightSDL(body) {
+  let out = escapeHtml(body);
+  out = out.replace(/(#[^\n]*)/g, '<span class="com">$1</span>');
+  out = out.replace(/\b(type|interface|enum|input|union|scalar|extend|schema|implements)\b/g,
+    '<span class="kw">$1</span>');
+  out = out.replace(/!/g, '<span class="bang">!</span>');
+  out = out.replace(/\b([A-Z][A-Za-z0-9_]*)\b/g, (m, name) => {
+    if (BUILTIN_SCALARS.has(name)) return `<span class="scalar">${name}</span>`;
+    if (defNames.has(name)) return `<a class="tref" href="#sdl-${name}" data-jump-sdl="${name}">${name}</a>`;
+    if (/^[A-Z][A-Z0-9_]*$/.test(name)) return `<span class="enumv">${name}</span>`;
+    return `<span class="tname">${name}</span>`;
+  });
+  return out;
+}
+
+const sdlGroups = { root: [], interface: [], type: [], union: [], enum: [], input: [], scalar: [] };
+for (const d of defs) {
+  if (d.kind === 'type' && ROOT_TYPES.includes(d.name)) sdlGroups.root.push(d);
+  else sdlGroups[d.kind].push(d);
+}
+['type', 'union', 'enum', 'input', 'scalar', 'interface'].forEach(k => {
+  sdlGroups[k].sort((a, b) => a.name.localeCompare(b.name));
+});
+sdlGroups.root.sort((a, b) => ROOT_TYPES.indexOf(a.name) - ROOT_TYPES.indexOf(b.name));
+
+function sdlSection(title, items) {
+  if (!items.length) return '';
+  const cards = items.map(d => `<div class="card" id="sdl-${d.name}">
+    <div class="card-header">
+      <span class="card-name">${d.name}</span>
+      <span class="badge ${d.kind === 'type' && ROOT_TYPES.includes(d.name) ? 'root' : d.kind}">${d.kind}</span>
+    </div>
+    <pre>${highlightSDL(d.body)}</pre>
+  </div>`).join('');
+  return `<h2>${title}</h2>${cards}`;
+}
+
+document.getElementById('sdl-content').innerHTML = [
+  sdlSection('Root Operations', sdlGroups.root),
+  sdlSection('Interfaces', sdlGroups.interface),
+  sdlSection('Object Types', sdlGroups.type),
+  sdlSection('Unions', sdlGroups.union),
+  sdlSection('Input Types', sdlGroups.input),
+  sdlSection('Enums', sdlGroups.enum),
+  sdlSection('Scalars', sdlGroups.scalar),
+].join('');
+
+// ═══════════════════════════════════════════════════════════════════════
+// Sidebar navigation
+// ═══════════════════════════════════════════════════════════════════════
+const nav = document.getElementById('nav');
+function navGroup(title, items) {
+  if (!items.length) return '';
+  const links = items.map(d => `<a data-jump="${d.name}">${d.name}</a>`).join('');
+  return `<div class="group"><div class="group-title">${title}</div>${links}</div>`;
+}
+nav.innerHTML = [
+  navGroup('Root', sdlGroups.root),
+  navGroup('Interfaces', sdlGroups.interface),
+  navGroup('Object Types', sdlGroups.type),
+  navGroup('Unions', sdlGroups.union),
+  navGroup('Inputs', sdlGroups.input),
+  navGroup('Enums', sdlGroups.enum),
+  navGroup('Scalars', sdlGroups.scalar),
+].join('');
+
+// ═══════════════════════════════════════════════════════════════════════
+// View toggle
+// ═══════════════════════════════════════════════════════════════════════
+const treeView = document.getElementById('tree-view');
+const sdlView = document.getElementById('sdl-view');
+const viewTabs = document.querySelectorAll('.view-tabs button');
+let currentView = 'tree';
+
+function setView(view) {
+  currentView = view;
+  viewTabs.forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  treeView.hidden = view !== 'tree';
+  sdlView.hidden = view !== 'sdl';
+}
+viewTabs.forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+
+// ═══════════════════════════════════════════════════════════════════════
+// Sidebar click — context-aware (tree view focuses, SDL view scrolls)
+// ═══════════════════════════════════════════════════════════════════════
+nav.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-jump]');
+  if (!a) return;
+  const name = a.dataset.jump;
+  if (currentView === 'sdl') {
+    const el = document.getElementById('sdl-' + name);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    // Tree view: if it's a root type, scroll to its card; otherwise
+    // append a standalone subtree of that type so the user can explore it.
+    if (ROOT_TYPES.includes(name)) {
+      const el = document.getElementById('root-' + name);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    // Render or focus a standalone exploration card
+    let standalone = document.getElementById('standalone-' + name);
+    if (!standalone) {
+      const t = TYPE_MAP[name];
+      if (!t) return;
+      const html = `<div class="troot" id="standalone-${name}">
+        <div class="troot-header">
+          <span class="troot-name">${name}</span>
+          <span class="badge ${t.kind}">${t.kind}</span>
+        </div>
+        <div class="tnode-children">${renderTypeContents(name, [name])}</div>
+      </div>`;
+      treeContent.insertAdjacentHTML('beforeend', html);
+      standalone = document.getElementById('standalone-' + name);
+    }
+    standalone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+});
+</script>
+
+</body>
+</html>

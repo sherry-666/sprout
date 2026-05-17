@@ -135,6 +135,8 @@ sprout/
 
 ## 5. API Endpoints (REST)
 
+> **Planned migration to GraphQL** *(TODO)*: The REST surface below will be replaced by a single `/graphql` endpoint. Design preview — including all types, queries, mutations, and errors-as-data unions — lives in [`doc/graphql-schema.html`](./graphql-schema.html). Not yet implemented; the REST endpoints documented in this section are the source of truth until the migration lands.
+
 ### Auth APIs
 - `POST /api/auth/register` — Register a new user directly (used for bootstrapping super_admin).
 - `POST /api/auth/login` — Login and receive JWT token. Rejects `pending` users. Rejects `admin`/`educator` users whose institution has `status: deleted` with a generic 401.
