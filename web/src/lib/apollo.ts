@@ -3,7 +3,7 @@ import { setContext } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
 import { clearSession } from './api';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 const httpLink = createHttpLink({
   uri: `${API_BASE}/graphql`,

@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     SENDGRID_FROM_EMAIL: str = "noreply@sprout.app"
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # Comma-separated allowed CORS origins (e.g. https://sprout-web.railway.app,http://localhost:5173)
+    ALLOWED_ORIGINS: str = "http://localhost:5173"
+
     # Dev email whitelist (comma-separated base Gmail addresses, dots/+suffix stripped)
     EMAIL_WHITELIST_ENABLED: bool = True
     EMAIL_WHITELIST: str = "csjingtao@gmail.com"
