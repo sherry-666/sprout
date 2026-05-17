@@ -7,7 +7,7 @@ import { useQuery, useMutation } from '@apollo/client/react';
 
 const VALIDATE_TOKEN_QUERY = gql`
   query ValidateToken($token: String!) {
-    validateToken(token: $token) {
+    validateInvitationToken(token: $token) {
       __typename
       ... on InvitationInfo {
         email
@@ -31,7 +31,7 @@ const VALIDATE_TOKEN_QUERY = gql`
 
 const ACTIVATE_MUTATION = gql`
   mutation Activate($input: ActivateInput!) {
-    activate(input: $input) {
+    activateAccount(input: $input) {
       __typename
       ... on AuthPayload {
         accessToken
@@ -97,7 +97,7 @@ const ActivateAccount = () => {
     }
 
     if (tokenData) {
-      const res = tokenData.validateToken;
+      const res = tokenData.validateInvitationToken;
       if (res.__typename === 'InvitationInfo') {
         setTokenInfo({
           email: res.email,
@@ -140,7 +140,7 @@ const ActivateAccount = () => {
         },
       });
 
-      const res = data?.activate;
+      const res = data?.activateAccount;
       if (!res) {
         throw new Error(t('activate.failed'));
       }

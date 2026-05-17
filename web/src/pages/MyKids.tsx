@@ -8,23 +8,27 @@ import { useQuery } from '@apollo/client/react';
 const GET_MY_KIDS_QUERY = gql`
   query GetMyKids {
     kids {
-      id
-      firstName
-      lastName
-      gender
-      dateOfBirth
-      profilePhotoUrl
-      institution {
-        id
-        name
-      }
-      class {
-        id
-        name
-        educators {
+      edges {
+        node {
           id
-          profile {
-            fullName
+          firstName
+          lastName
+          gender
+          dateOfBirth
+          profilePhotoUrl
+          institution {
+            id
+            name
+          }
+          class {
+            id
+            name
+            educators {
+              id
+              profile {
+                fullName
+              }
+            }
           }
         }
       }
@@ -51,8 +55,8 @@ const MyKids = () => {
   const { data, loading, error } = useQuery<any>(GET_MY_KIDS_QUERY);
 
   useEffect(() => {
-    if (data?.kids) {
-      const mapped = data.kids.map((kid: any) => ({
+    if (data?.kids?.edges) {
+      const mapped = data.kids.edges.map(({ node: kid }: any) => ({
         id: kid.id,
         firstName: kid.firstName,
         lastName: kid.lastName,

@@ -133,9 +133,9 @@ sprout/
 - `used`: Boolean (default: false)
 - `created_at`: Date
 
-## 5. API Endpoints (REST)
+## 5. API Endpoints
 
-> **GraphQL Migration Completed**: The `/graphql` endpoint is fully implemented and registered. It supports all queries, mutations, Node interface, error-as-data unions, pagination, and dynamic daily updates/summaries as specified in [`doc/graphql-schema.html`](./graphql-schema.html). The REST surface documented below remains active alongside it.
+> **GraphQL Migration Completed**: All REST routes have been removed. The sole API entry point is `/graphql` (Strawberry + FastAPI). It supports all queries, mutations, Node interface, errors-as-data unions, and Relay cursor pagination. Schema reference: [`doc/graphql-schema.html`](./graphql-schema.html). The legacy REST endpoints listed below are retained for historical reference only — they no longer exist in the codebase.
 
 ### Auth APIs
 - `POST /api/auth/register` — Register a new user directly (used for bootstrapping super_admin).

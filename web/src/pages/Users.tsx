@@ -24,9 +24,9 @@ const INVITE_EDUCATOR_MUTATION = gql`
   mutation InviteEducator($input: InviteEducatorInput!) {
     inviteEducator(input: $input) {
       __typename
-      ... on User {
-        id
+      ... on InvitationSent {
         email
+        sent
       }
       ... on EmailAlreadyRegisteredError {
         message
