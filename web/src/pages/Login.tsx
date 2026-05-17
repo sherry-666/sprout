@@ -68,18 +68,24 @@ const Login = () => {
 
       const result = data?.login;
       if (!result) {
-        throw new Error('No response from server');
+        setError(t('auth.internalError'));
+        return;
       }
 
-      if (result.__typename === 'InvalidCredentialsError' || result.__typename === 'AccountPendingError') {
-        setError(result.message);
+      if (result.__typename === 'InvalidCredentialsError') {
+        setError(t('auth.invalidCredentials'));
+        return;
+      }
+
+      if (result.__typename === 'AccountPendingError') {
+        setError(t('auth.accountPending'));
         return;
       }
 
       saveSession(result.accessToken, result.user);
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message || t('auth.invalidCredentials'));
+    } catch {
+      setError(t('auth.internalError'));
     } finally {
       setLoading(false);
     }
@@ -106,7 +112,7 @@ const Login = () => {
             <label htmlFor="login">{t('auth.usernameOrEmail')}</label>
             <input
               type="text" id="login" className="input-field"
-              placeholder="sprout_admin"
+              placeholder="admin@daycare.com"
               value={email} onChange={(e) => setEmail(e.target.value)} required
             />
           </div>

@@ -35,7 +35,9 @@ const resources = {
         password: "Password",
         signIn: "Sign In",
         signingIn: "Signing in...",
-        invalidCredentials: "Invalid credentials"
+        invalidCredentials: "Incorrect username or password.",
+        accountPending: "Your account is pending activation. Check your email.",
+        internalError: "Something went wrong. Please try again."
       },
       dashboard: {
         systemOverview: "System Overview",
@@ -322,7 +324,9 @@ const resources = {
         password: "密码",
         signIn: "登录",
         signingIn: "登录中...",
-        invalidCredentials: "凭据无效"
+        invalidCredentials: "用户名或密码不正确。",
+        accountPending: "您的账户尚未激活，请查收邮件。",
+        internalError: "出现错误，请稍后再试。"
       },
       dashboard: {
         systemOverview: "系统总览",
@@ -610,7 +614,9 @@ const resources = {
         password: "Mot de passe",
         signIn: "Se connecter",
         signingIn: "Connexion...",
-        invalidCredentials: "Identifiants invalides"
+        invalidCredentials: "Nom d'utilisateur ou mot de passe incorrect.",
+        accountPending: "Votre compte est en attente d'activation. Vérifiez vos emails.",
+        internalError: "Une erreur s'est produite. Veuillez réessayer."
       },
       dashboard: {
         systemOverview: "Aperçu du système",
