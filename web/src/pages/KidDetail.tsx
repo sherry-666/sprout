@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { ArrowLeft, Pencil, User, Users, Trash2, Plus, Loader, X, Camera } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 import { gql } from '@apollo/client';
 import { useQuery, useMutation } from '@apollo/client/react';
 
@@ -82,8 +81,6 @@ const genderGradient = (gender: string) =>
 const KidDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation();
-
   const { data, loading, error, refetch } = useQuery<{ kid: any }>(
     GET_KID_QUERY,
     { variables: { id }, skip: !id, fetchPolicy: 'network-only' },
