@@ -21,6 +21,10 @@ async def connect_to_mongo():
     await db.db.institutions.create_index("status")
     await db.db.invitations.create_index("token", unique=True)
     await db.db.invitations.create_index("expires_at", expireAfterSeconds=0)
+    # Agent threads
+    await db.db.conversations.create_index([("user_id", 1), ("updated_at", -1)])
+    await db.db.messages.create_index([("conversation_id", 1), ("created_at", 1)])
+    await db.db.jobs.create_index([("status", 1), ("created_at", 1)])
     print("Indexes ensured.")
 
 async def close_mongo_connection():

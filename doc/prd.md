@@ -136,24 +136,24 @@ The educator app has three bottom tabs:
 - **Photo Enhancement**: Optional tools to apply AI-generated stickers, captions, or fun overlays to photos before sharing. *(Not yet implemented.)*
 
 ### 4.1a AI Quick Log (Educator Mobile)
-**Purpose:** Let an educator capture a voice note and/or batch photos, have Gemini AI transcribe, identify kids, and draft per-kid parent updates — all reviewed and sent in one flow.
+**Purpose:** Let an educator capture a voice note and/or batch photos in seconds, then hand off to an AI agent that drafts per-kid parent updates in the background while the educator gets on with their day.
 
-**Step 1 — Input**
-- Optional class chip selector (defaults to all kids in educator's classes).
-- **Voice note**: press-and-hold mic button records audio (expo-av); release stops and encodes to base64.
-- **Photos**: tap to open multi-select image picker (up to 10 photos); each photo is presigned and uploaded to S3 immediately.
-- **Analyze** button sends voice + photo keys to the backend AI pipeline.
+**Capture screen**
+- Single full-height input card between an optional class chip selector and a "Send to Agent" footer.
+- **Voice note**: round mic button at the card's bottom-right; tap to start on-device speech recognition (expo-speech-recognition); transcribed text streams into the note field in real time. Tap again to stop.
+- **Photos**: tap "Add Photos" to multi-select up to 10 images; each is presigned and uploaded to S3 in the background, then shown in a 3-column wrap grid inside the card.
+- **Send to Agent** creates a Quick Log conversation in the new Agents tab and immediately navigates the educator there.
 
-**Step 2 — Photo Review** *(skipped if no photos)*
-- Each uploaded photo is shown with an AI-generated scene description.
-- Detected kids appear as removable tags (tap to untag).
-- A "＋" button opens a bottom-sheet kid picker to manually add kids to a photo.
+**Agents tab**
+- New top-level tab listing every AI conversation the educator has run, with status badges (Working… / Review / Sent / Failed) and last-update timestamps.
+- Opening a conversation shows the agent thread: progress messages stream in as the worker analyses photos, followed by editable **draft cards** (one per identified kid: avatar, name, photo strip, content textbox, Remove button).
+- A footer button "Send N updates to parents" submits every remaining draft in a single batch. The educator can edit text inline or remove individual drafts before sending.
 
-**Step 3 — Review & Confirm**
-- Per-kid cards with avatar, name, and an editable text field pre-filled by the AI.
-- Photo count badge shows how many photos are linked to each update.
-- AI transcript shown at top for reference.
-- "Send Updates" creates one update per kid (with linked photos) and notifies parents.
+### 4.1b Agents Tab (Educator Mobile)
+**Purpose:** Background-driven AI workflows — first the Quick Log drafter, with room for more agent types later (daily summaries, parent Q&A, behaviour insights).
+- Conversation list (recent first) with status badges.
+- Conversation detail subscribes to a GraphQL subscription so new messages appear live as the worker writes them.
+- Educator can leave the conversation at any time; status updates continue in the background and the conversation reappears in the list when ready for review.
 
 ### 4.2 Parent Flow
 **Purpose:** Delightful, real-time connection to their child's day.

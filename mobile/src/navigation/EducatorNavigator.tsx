@@ -9,12 +9,15 @@ import ClassesScreen from '../screens/educator/ClassesScreen';
 import RosterScreen from '../screens/educator/RosterScreen';
 import LogActivityScreen from '../screens/educator/LogActivityScreen';
 import QuickLogScreen from '../screens/educator/QuickLogScreen';
+import AgentsListScreen from '../screens/agents/AgentsListScreen';
+import ConversationScreen from '../screens/agents/ConversationScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { Colors } from '../theme';
 
 const Tab = createBottomTabNavigator();
 const ClassesStack = createNativeStackNavigator();
+const AgentsStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 
 const NAV_OPTS = {
@@ -81,6 +84,15 @@ function ClassesStackNav() {
   );
 }
 
+function AgentsStackNav() {
+  return (
+    <AgentsStack.Navigator screenOptions={NAV_OPTS}>
+      <AgentsStack.Screen name="AgentsList" component={AgentsListScreen} options={{ title: 'Agents' }} />
+      <AgentsStack.Screen name="Conversation" component={ConversationScreen} options={{ title: 'Quick Log' }} />
+    </AgentsStack.Navigator>
+  );
+}
+
 function SettingsStackNav() {
   const { t } = useTranslation();
   return (
@@ -113,6 +125,15 @@ export default function EducatorNavigator() {
         options={{
           tabBarLabel: t('tabs.classes'),
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📚</Text>,
+          tabBarButton: tabButton,
+        }}
+      />
+      <Tab.Screen
+        name="Agents"
+        component={AgentsStackNav}
+        options={{
+          tabBarLabel: 'Agents',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🤖</Text>,
           tabBarButton: tabButton,
         }}
       />

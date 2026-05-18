@@ -9,6 +9,7 @@ from bson import ObjectId
 
 import strawberry
 from strawberry.fastapi import GraphQLRouter
+from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL, GRAPHQL_WS_PROTOCOL
 from strawberry.types import Info
 
 from app.core.security import verify_password, get_password_hash, create_access_token
@@ -43,6 +44,7 @@ from app.graphql.errors import (
     LoginResult, ActivateResult, ValidateTokenResult, InviteResult, RegisterKidResult,
 )
 from app.graphql.pagination import encode_cursor, decode_cursor
+from app.graphql.agents import AgentsQuery, AgentsMutation, AgentsSubscription
 from app.models.user import UserInDB, UserProfile, UserRole as ModelUserRole, UserStatus as ModelUserStatus
 from app.models.institution import InstitutionInDB, InstitutionStatus as ModelInstStatus
 from app.models.invitation import InvitationToken
@@ -56,7 +58,7 @@ _ALLOWED_PHOTO_TYPES = frozenset({"image/jpeg", "image/jpg", "image/png", "image
 # ─── Query ────────────────────────────────────────────────────────────
 
 @strawberry.type
-class Query:
+class Query(AgentsQuery):
 
     @strawberry.field
     async def node(
@@ -301,7 +303,7 @@ class Query:
 # ─── Mutation ─────────────────────────────────────────────────────────
 
 @strawberry.type
-class Mutation:
+class Mutation(AgentsMutation):
 
     # ── Auth ──────────────────────────────────────────────────────────
 
@@ -1197,6 +1199,17 @@ class Mutation:
 
 # ─── Schema ────────────────────────────────────────────────────────────
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+schema = strawberry.Schema(
+    query=Query,
+    mutation=Mutation,
+    subscription=AgentsSubscription,
+)
 
-graphql_router = GraphQLRouter(schema, context_getter=get_context)
+graphql_router = GraphQLRouter(
+    schema,
+    context_getter=get_context,
+    subscription_protocols=[
+        GRAPHQL_TRANSPORT_WS_PROTOCOL,
+        GRAPHQL_WS_PROTOCOL,
+    ],
+)

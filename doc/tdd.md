@@ -27,7 +27,7 @@ The system consists of a centralized Python backend service communicating with a
 
 ## 2. Tech Stack
 - **Database**: MongoDB (Atlas for managed cloud hosting, integrates easily with Railway).
-- **Backend**: Python 3.12+ with FastAPI. Uses Motor (async MongoDB driver) for database access.
+- **Backend**: Python 3.11+ with FastAPI. Uses Motor (async MongoDB driver) for database access. Strawberry GraphQL with subscription support via `graphql-transport-ws` over WebSocket. A lightweight MongoDB-backed job queue (`app/core/jobs.py`) with an in-process worker loop drives async AI workflows (no Redis/Celery yet — splitting the worker into its own service is a config change).
 - **Mobile App**: React Native (Expo SDK 54, RN 0.81.5) for cross-platform (iOS/Android). Apollo Client for GraphQL. `@react-navigation/native` v7 for navigation (bottom tabs + native stacks). `@react-native-async-storage/async-storage` for JWT storage and language persistence. `i18next` + `react-i18next` for EN/ZH/FR internationalisation (language saved under key `sprout_lang` in AsyncStorage).
 - **Web Admin**: React (Vite + TypeScript) with react-i18next for EN/ZH/FR internationalisation.
 - **AI/ML Libraries**:
@@ -60,10 +60,11 @@ sprout/
 │   └── Dockerfile
 ├── mobile/            # React Native (Expo) app for educators and parents
 │   ├── src/
-│   │   ├── apollo/client.ts      # ApolloClient with JWT auth link
+│   │   ├── apollo/client.ts      # ApolloClient: HTTP link for queries/mutations + WS link (graphql-ws) for subscriptions, split via @apollo/client/utilities
 │   │   ├── contexts/AuthContext.tsx  # JWT + user state, role-aware routing
-│   │   ├── navigation/           # AppNavigator, EducatorNavigator, ParentNavigator
-│   │   ├── screens/educator/     # ClassesScreen, RosterScreen, LogActivityScreen
+│   │   ├── navigation/           # AppNavigator, EducatorNavigator (Classes / Agents / Settings tabs), ParentNavigator
+│   │   ├── screens/educator/     # ClassesScreen, RosterScreen, LogActivityScreen, QuickLogScreen
+│   │   ├── screens/agents/       # AgentsListScreen, ConversationScreen
 │   │   ├── screens/parent/       # FeedScreen, KidDetailScreen, SummaryScreen
 │   │   ├── screens/ProfileScreen.tsx
 │   │   ├── config.ts             # GRAPHQL_URL constant
@@ -152,6 +153,37 @@ sprout/
 ### 4.6 Invitations Collection
 - `token`: String (unique index, secure random token via `secrets.token_urlsafe(32)`)
 - `user_id`: String (FK → users._id)
+
+### 4.7 Conversations Collection (Agents tab)
+- `_id`: String (UUID)
+- `user_id`: String (FK → users._id)
+- `agent_type`: String (`quick_log` for now; extensible for future agents)
+- `status`: Enum (`pending`, `processing`, `awaiting_review`, `sent`, `failed`)
+- `title`: String
+- `class_id`: String (optional, FK → classes._id) — scope of the run
+- `error`: String (optional, populated when status is `failed`)
+- `created_at`, `updated_at`: Date
+- Index: `(user_id, updated_at desc)`
+
+### 4.8 Messages Collection (Agents tab)
+- `_id`: String (UUID)
+- `conversation_id`: String (FK → conversations._id)
+- `role`: Enum (`system`, `agent`, `user`)
+- `kind`: Enum (`text`, `progress`, `draft_card`, `action`) — drives client-side rendering
+- `content`: String — main display text
+- `payload`: Dict — kind-specific structured data (e.g. for `draft_card`: `{kid_id, kid_name, avatar_url, photo_keys, photo_urls}`)
+- `created_at`: Date
+- Index: `(conversation_id, created_at asc)`
+
+### 4.9 Jobs Collection (background queue)
+- `_id`: String (UUID)
+- `type`: String (e.g. `quick_log_analysis`)
+- `payload`: Dict — handler-specific input
+- `status`: Enum (`pending`, `processing`, `completed`, `failed`)
+- `attempts`: Int — incremented on each claim
+- `created_at`, `started_at` (optional), `completed_at` (optional): Date
+- `error`: String (optional, populated when failed)
+- Index: `(status, created_at asc)`
 - `institution_id`: String (FK → institutions._id)
 - `role`: Enum (`admin`, `educator`, `parent`)
 - `expires_at`: Date (TTL index, default: 72 hours)
@@ -189,13 +221,18 @@ sprout/
 
 **Quick Log pipeline** (educator role required):
 - `presignQuickLogPhoto(contentType: String!) → PresignedUpload` — Returns a 5-minute pre-signed PUT URL for a raw photo. Object key: `quick-log/{educator_id}/raw-{uuid}.jpg`. Accepted types: `image/jpeg`, `image/png`, `image/webp`.
-- `analyzeQuickLog(classId: ID, audioBase64: String, audioMimeType: String, photoKeys: [String!]) → QuickLogAnalysis` — AI pipeline:
-  1. If `audioBase64` supplied: Gemini Flash transcribes audio → `parse_transcript` identifies mentioned kids and drafts per-kid updates.
-  2. For each `photoKey`: `match_faces` compares detected face embeddings against kids with stored `faceEmbedding`; `describe_scene` generates a 1–2 sentence scene description.
-  3. Merges voice and photo signals into per-kid suggestions.
-  - `classId` scopes eligible kids to one class; omitting it uses all kids in the educator's classes.
-  - Returns: `{ transcript, suggestions[{ kidId, kidName, avatarUrl, content, photoKeys }], photoResults[{ photoKey, photoUrl, detectedKidIds, sceneDescription }], eligibleKids[{ id, firstName, lastName, avatarUrl }] }`.
-- `confirmQuickLog(updates: [QuickLogUpdateInput!]!) → [Update]` — Creates one Update document per kid. `QuickLogUpdateInput`: `{ kidId, content, photoKeys }`. Photos are stored as `mediaKeys` (not `mediaUrls`) so presigned GET URLs are regenerated at read time.
+- `createQuickLogConversation(classId: ID, transcript: String, photoKeys: [String!]) → Conversation` — Creates a new Conversation row, enqueues a `quick_log_analysis` Job, and returns immediately. The background worker processes the job and streams progress + draft_card messages into the conversation. Mobile client subscribes to `messageAdded(conversationId)` to render them live.
+
+**Agents tab** (any authenticated role):
+- Query `conversation(id: ID!) → Conversation` — Fetches one conversation with its messages.
+- Query `myConversations(limit: Int) → [Conversation]` — Lists the viewer's conversations, newest first.
+- Mutation `updateDraftMessage(messageId: ID!, content: String!) → Message` — Edit a draft card's content inline.
+- Mutation `removeDraftMessage(messageId: ID!) → Boolean` — Remove a draft card before sending.
+- Mutation `sendConversationDrafts(conversationId: ID!) → Conversation` — Convert every remaining `draft_card` in the conversation into an `Update` document (one per kid), append an action receipt message, and transition the conversation to `sent` status.
+- Subscription `messageAdded(conversationId: ID!) → Message` — Streams new messages over WebSocket via the `graphql-transport-ws` protocol mounted at `/graphql`.
+
+**Legacy (deprecated, kept for reference):**
+- `analyzeQuickLog` and `confirmQuickLog` — Synchronous one-shot mutations. Superseded by `createQuickLogConversation` + the agent thread flow. Will be removed in a future cleanup.
 
 **Planned (not yet implemented):**
 - `POST /api/teacher/classes` — Get assigned classes and their kids.
