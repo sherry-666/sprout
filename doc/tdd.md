@@ -28,7 +28,7 @@ The system consists of a centralized Python backend service communicating with a
 ## 2. Tech Stack
 - **Database**: MongoDB (Atlas for managed cloud hosting, integrates easily with Railway).
 - **Backend**: Python 3.12+ with FastAPI. Uses Motor (async MongoDB driver) for database access.
-- **Mobile App**: React Native (Expo SDK 54, RN 0.81.5) for cross-platform (iOS/Android). Apollo Client for GraphQL. `@react-navigation/native` v7 for navigation (bottom tabs + native stacks). `@react-native-async-storage/async-storage` for JWT storage.
+- **Mobile App**: React Native (Expo SDK 54, RN 0.81.5) for cross-platform (iOS/Android). Apollo Client for GraphQL. `@react-navigation/native` v7 for navigation (bottom tabs + native stacks). `@react-native-async-storage/async-storage` for JWT storage and language persistence. `i18next` + `react-i18next` for EN/ZH/FR internationalisation (language saved under key `sprout_lang` in AsyncStorage).
 - **Web Admin**: React (Vite + TypeScript) with react-i18next for EN/ZH/FR internationalisation.
 - **AI/ML Libraries**:
   - `google-generativeai` — Gemini API for LLM text generation and vision tasks.
@@ -231,8 +231,16 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
 
 ### Navigation structure
 - `AppNavigator` (root) → role-aware routing: Login | EducatorNavigator | ParentNavigator | UnsupportedRoleScreen
-- `EducatorNavigator`: bottom tabs (Classes stack, Profile)
+- `EducatorNavigator`: three bottom tabs:
+  - **Classes** — `ClassesStack`: ClassesScreen → RosterScreen → LogActivityScreen (params: classId, className, optional kidId/kidName)
+  - **Quick Log** — `QuickLogScreen`: standalone tab; loads educator's classes, shows horizontal chip selector + activity form; submits via `createUpdate` mutation scoped to a class (no kidId)
+  - **Settings** — `SettingsStack`: SettingsScreen (language picker + My Profile link) → ProfileScreen
 - `ParentNavigator`: bottom tabs (Feed stack → KidDetail → Summary, Profile)
+
+### Mobile i18n
+- Translations live in `mobile/src/i18n/index.ts` (EN, ZH, FR). Keys: `tabs.*`, `profile.*`, `settings.*`, `language.*`, `roles.*`, `quickLog.*`.
+- On app start (`App.tsx` `useEffect`) `loadSavedLanguage()` reads `sprout_lang` from AsyncStorage and calls `i18n.changeLanguage()`.
+- `setLanguage(code)` (exported from `i18n/index.ts`) changes language at runtime and persists to AsyncStorage.
 
 ### Config
 - Backend URL is set in `mobile/src/config.ts` as `GRAPHQL_URL`. Change to the machine's LAN IP when testing on a physical device.

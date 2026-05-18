@@ -4,14 +4,13 @@ import {
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { gql, useQuery } from '@apollo/client';
-import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import { Colors, Spacing, Radius, Shadow } from '../../theme';
 
 const MY_CLASSES_QUERY = gql`
   query MyClasses {
     me {
       id
-      profile { firstName lastName }
       classes {
         id
         name
@@ -23,26 +22,20 @@ const MY_CLASSES_QUERY = gql`
 `;
 
 export default function ClassesScreen({ navigation }: any) {
-  const { user } = useAuth();
+  const { t } = useTranslation();
   const { data, loading, refetch } = useQuery(MY_CLASSES_QUERY, { fetchPolicy: 'cache-and-network' });
 
   const classes = data?.me?.classes ?? [];
-  const name = data?.me?.profile?.firstName ?? user?.firstName ?? '';
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Hello, {name}! 👋</Text>
-        <Text style={styles.subtitle}>Your assigned classes</Text>
-      </View>
-
       {loading && classes.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 40 }} size="large" color={Colors.primary} />
+        <ActivityIndicator style={{ marginTop: 60 }} size="large" color={Colors.primary} />
       ) : classes.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>📚</Text>
-          <Text style={styles.emptyText}>No classes assigned yet.</Text>
-          <Text style={styles.emptySubtext}>Ask your institution admin to assign you to a class.</Text>
+          <Text style={styles.emptyText}>{t('classes.noClasses')}</Text>
+          <Text style={styles.emptySubtext}>{t('classes.noClassesHint')}</Text>
         </View>
       ) : (
         <FlatList
@@ -64,7 +57,9 @@ export default function ClassesScreen({ navigation }: any) {
               <View style={styles.classInfo}>
                 <Text style={styles.className}>{item.name}</Text>
                 <Text style={styles.classMeta}>
-                  {item.kids?.length ?? 0} kids · {item.educators?.length ?? 0} educators
+                  {t('classes.kids', { count: item.kids?.length ?? 0 })}
+                  {' · '}
+                  {t('classes.educators', { count: item.educators?.length ?? 0 })}
                 </Text>
               </View>
               <Text style={styles.chevron}>›</Text>
@@ -78,14 +73,7 @@ export default function ClassesScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    backgroundColor: Colors.primary,
-    paddingTop: 20, paddingBottom: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-  },
-  greeting: { fontSize: 22, fontWeight: '700', color: Colors.white },
-  subtitle: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-  list: { padding: Spacing.md },
+  list: { padding: Spacing.md, paddingTop: Spacing.lg },
   card: {
     backgroundColor: Colors.card,
     borderRadius: Radius.md,

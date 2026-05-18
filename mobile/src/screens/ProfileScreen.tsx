@@ -1,28 +1,24 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { Colors, Spacing, Radius, Shadow } from '../theme';
 
-const ROLE_LABELS: Record<string, string> = {
-  educator: 'Educator',
-  parent: 'Parent',
-  admin: 'Institution Admin',
-  super_admin: 'System Admin',
-};
-
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    Alert.alert(t('profile.signOutTitle'), t('profile.signOutMsg'), [
+      { text: t('profile.cancel'), style: 'cancel' },
+      { text: t('profile.signOut'), style: 'destructive', onPress: signOut },
     ]);
   };
 
   if (!user) return null;
 
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+  const roleLabel = t(`roles.${user.role}`, { defaultValue: user.role });
 
   return (
     <View style={styles.container}>
@@ -32,19 +28,19 @@ export default function ProfileScreen() {
         </View>
         <Text style={styles.name}>{user.firstName} {user.lastName}</Text>
         <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>{ROLE_LABELS[user.role] ?? user.role}</Text>
+          <Text style={styles.roleText}>{roleLabel}</Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
+        <Text style={styles.sectionTitle}>{t('settings.accountSection')}</Text>
         <View style={styles.sectionCard}>
-          <Row label="Role" value={ROLE_LABELS[user.role] ?? user.role} />
+          <Row label={t('profile.role')} value={roleLabel} />
         </View>
       </View>
 
       <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.85}>
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -96,12 +92,12 @@ const styles = StyleSheet.create({
     ...Shadow.small,
   },
   row: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: Spacing.md, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  rowLabel: { fontSize: 15, color: Colors.textPrimary },
-  rowValue: { fontSize: 15, color: Colors.textSecondary },
+  rowLabel: { fontSize: 15, color: Colors.textPrimary, flexShrink: 0, marginRight: Spacing.sm },
+  rowValue: { fontSize: 15, color: Colors.textSecondary, flex: 1, textAlign: 'right' },
   signOutBtn: {
     backgroundColor: Colors.dangerLight,
     borderRadius: Radius.sm,

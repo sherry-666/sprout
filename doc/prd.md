@@ -106,11 +106,18 @@ The Mobile App is designed for on-the-go usage by Educators in the classroom and
 
 ### 4.1 Educator Flow
 **Purpose:** Fast, frictionless logging of activities with minimal screen time.
-- **Class Selection & Roster**: Educators view their assigned classes and a grid of children present that day.
-- **Quick Logging**: One-tap interfaces to log common activities (Meals, Naps, Potty, Learning).
-- **Smart Camera Integration**: Take or upload photos directly within the app. AI automatically identifies which kids are in the photo (via facial recognition) and tags them.
-- **AI-Assisted Updates**: Instead of typing long paragraphs, educators use quick tags (e.g., "nap 1hr", "ate all lunch"). The AI drafts a warm, professional, and parent-friendly message that the educator can review and send with one tap.
-- **Photo Enhancement**: Optional tools to apply AI-generated stickers, captions, or fun overlays to photos before sharing.
+
+The educator app has three bottom tabs:
+
+1. **Classes** — Browse assigned classes, tap a class to view its roster, then tap a child to open the full activity log form (activity type + free-text note). Logs are scoped to a specific child.
+2. **Quick Log** — A dedicated tab for fast whole-class logging. The educator picks a class from a horizontal chip selector, chooses an activity type (Meal, Nap, Activity, Photo), writes a note, and sends. No roster navigation needed.
+3. **Settings** — Contains:
+   - **My Profile**: Displays name and role.
+   - **Language**: Inline language picker (English / 中文 / Français). Selection persists across sessions.
+
+- **Smart Camera Integration**: Take or upload photos directly within the app. AI automatically identifies which kids are in the photo (via facial recognition) and tags them. *(Not yet implemented.)*
+- **AI-Assisted Updates**: Instead of typing long paragraphs, educators use quick tags (e.g., "nap 1hr", "ate all lunch"). The AI drafts a warm, professional, and parent-friendly message that the educator can review and send with one tap. *(Not yet implemented.)*
+- **Photo Enhancement**: Optional tools to apply AI-generated stickers, captions, or fun overlays to photos before sharing. *(Not yet implemented.)*
 
 ### 4.2 Parent Flow
 **Purpose:** Delightful, real-time connection to their child's day.
