@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Baby, Plus, Loader } from 'lucide-react';
+import { Baby, Plus, Loader, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
@@ -78,11 +78,14 @@ const Kids = () => {
                 <th style={{ padding: '12px 8px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('kids.dateOfBirth')}</th>
                 <th style={{ padding: '12px 8px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('kids.gender')}</th>
                 <th style={{ padding: '12px 8px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('kids.class')}</th>
+                <th style={{ padding: '12px 8px', width: '32px' }}></th>
               </tr>
             </thead>
             <tbody>
               {kids.map((kid: any) => (
-                <tr key={kid.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <tr key={kid.id} onClick={() => navigate(`/kids/${kid.id}`)} style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(79,70,229,0.03)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                   <td style={{ padding: '14px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       {kid.profilePhotoUrl ? (
@@ -111,6 +114,9 @@ const Kids = () => {
                     ) : (
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>—</span>
                     )}
+                  </td>
+                  <td style={{ padding: '14px 8px', color: 'var(--text-secondary)' }}>
+                    <ChevronRight size={16} />
                   </td>
                 </tr>
               ))}

@@ -194,6 +194,11 @@ sprout/
 - `POST /api/kids/register` — Register a kid. Requires `admin` JWT. Body: `{ firstName, lastName, gender, dateOfBirth (YYYY-MM-DD), profilePhotoUrl?, parents: [{ firstName, lastName, email, phone? }] }`. For each parent: if email already exists, links to existing account (no email sent); otherwise creates a pending parent user, generates an invitation token, and sends a parent activation email. Returns `{ success, kid_id, emails_invited }`.
 - `GET /api/kids` — List all kids for the caller's institution. Requires `admin` JWT. Returns array of `{ id, firstName, lastName, gender, dateOfBirth, profilePhotoUrl, parentCount }`.
 
+**Kid edit mutations (admin only):**
+- `updateKid(kidId, input: UpdateKidInput)` → `Kid` — updates any combination of `firstName`, `lastName`, `gender`, `dateOfBirth`. All fields optional.
+- `addKidParent(kidId, parent: ParentInput)` → `Kid` — links existing user if email found (sends new-kid notification); otherwise creates a pending parent account and sends an invitation email. Uses `$addToSet` so duplicate parent IDs are safe.
+- `removeKidParent(kidId, parentUserId)` → `Kid` — removes the parent from `parent_user_ids`. Does not delete the parent user account.
+
 **Photo upload (GraphQL mutations):**
 - `presignKidPhotoUpload(kidId, contentType)` → `{ uploadUrl, objectKey, expiresAt }` — Returns a 5-minute pre-signed PUT URL. Caller is admin, educator (same institution), or parent of the kid. Accepted content types: `image/jpeg`, `image/png`, `image/webp`. Raw object key: `institutions/{inst}/kids/{id}/raw-{uuid}.jpg`.
 - `confirmKidPhotoUpload(kidId, objectKey)` → `Kid` — Server downloads raw from S3, runs through `image_processor.process()` (EXIF strip + resize), uploads full (`profile.jpg`) and thumb (`profile-thumb.jpg`), deletes raw, stores `profilePhotoKey` in MongoDB. Returns updated Kid with fresh `profilePhotoUrl`.

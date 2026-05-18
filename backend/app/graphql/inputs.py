@@ -72,6 +72,14 @@ class RegisterKidInput:
 
 
 @strawberry.input
+class UpdateKidInput:
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    gender: Optional[Gender] = None
+    date_of_birth: Optional[str] = None  # YYYY-MM-DD
+
+
+@strawberry.input
 class CreateClassInput:
     name: str
 

@@ -12,6 +12,7 @@ import ClassDetail from './pages/ClassDetail';
 import StaffDetail from './pages/StaffDetail';
 import InstitutionDetail from './pages/InstitutionDetail';
 import Kids from './pages/Kids';
+import KidDetail from './pages/KidDetail';
 import RegisterKid from './pages/RegisterKid';
 import MyKids from './pages/MyKids';
 import CreateClass from './pages/CreateClass';
@@ -49,6 +50,7 @@ function App() {
         <Route path="/users/:id" element={<PrivateRoute><StaffDetail /></PrivateRoute>} />
         <Route path="/kids" element={<PrivateRoute><Kids /></PrivateRoute>} />
         <Route path="/kids/register" element={<PrivateRoute><RegisterKid /></PrivateRoute>} />
+        <Route path="/kids/:id" element={<PrivateRoute><KidDetail /></PrivateRoute>} />
         <Route path="/my-kids" element={<PrivateRoute><MyKids /></PrivateRoute>} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>

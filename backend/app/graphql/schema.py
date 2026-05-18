@@ -25,7 +25,7 @@ from app.graphql.enums import UserRole, UserStatus, InstitutionStatus
 from app.graphql.inputs import (
     LoginInput, ActivateInput, RegisterUserInput,
     CreateInstitutionInput, InviteEducatorInput,
-    RegisterKidInput, CreateClassInput, AssignClassInput, CreateUpdateInput,
+    RegisterKidInput, UpdateKidInput, ParentInput, CreateClassInput, AssignClassInput, CreateUpdateInput,
 )
 from app.graphql.types import (
     Node, User, Institution, Kid, Class, Update,
@@ -639,6 +639,141 @@ class Mutation:
         kid_doc = await db.kids.find_one({"_id": result.inserted_id})
 
         return KidRegistered(kid=Kid.from_doc(kid_doc), emails_invited=emails_invited)
+
+    # ── Kid edits ─────────────────────────────────────────────────────
+
+    @strawberry.mutation(permission_classes=[IsAdmin])
+    async def update_kid(
+        self,
+        info: Info[GraphQLContext, None],
+        kid_id: strawberry.ID,
+        input: UpdateKidInput,
+    ) -> Kid:
+        db = info.context.db
+        kid_doc = await db.kids.find_one({"_id": str(kid_id)})
+        if not kid_doc:
+            raise ValueError("Kid not found")
+        if kid_doc.get("institution_id") != info.context.viewer_institution_id:
+            raise PermissionError("Kid belongs to a different institution")
+
+        updates: dict = {}
+        if input.first_name is not None:
+            updates["firstName"] = input.first_name
+        if input.last_name is not None:
+            updates["lastName"] = input.last_name
+        if input.gender is not None:
+            updates["gender"] = input.gender.value
+        if input.date_of_birth is not None:
+            try:
+                updates["dateOfBirth"] = datetime.strptime(input.date_of_birth, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError("date_of_birth must be YYYY-MM-DD")
+
+        if updates:
+            await db.kids.update_one({"_id": str(kid_id)}, {"$set": updates})
+        updated = await db.kids.find_one({"_id": str(kid_id)})
+        return Kid.from_doc(updated)
+
+    @strawberry.mutation(permission_classes=[IsAdmin])
+    async def add_kid_parent(
+        self,
+        info: Info[GraphQLContext, None],
+        kid_id: strawberry.ID,
+        parent: ParentInput,
+    ) -> Kid:
+        db = info.context.db
+        institution_id = info.context.viewer_institution_id
+
+        kid_doc = await db.kids.find_one({"_id": str(kid_id)})
+        if not kid_doc:
+            raise ValueError("Kid not found")
+        if kid_doc.get("institution_id") != institution_id:
+            raise PermissionError("Kid belongs to a different institution")
+
+        institution = await db.institutions.find_one({"_id": institution_id})
+        if not institution:
+            raise ValueError("Institution not found")
+
+        kid_name = f"{kid_doc['firstName']} {kid_doc['lastName']}"
+        existing = await db.users.find_one({"email": parent.email})
+        if existing:
+            parent_id = str(existing["_id"])
+            if parent_id not in kid_doc.get("parent_user_ids", []):
+                await db.kids.update_one(
+                    {"_id": str(kid_id)},
+                    {"$addToSet": {"parent_user_ids": parent_id}},
+                )
+                try:
+                    if is_whitelisted(parent.email):
+                        send_parent_new_kid_notification(
+                            to_email=parent.email,
+                            institution_name=institution["name"],
+                            first_name=existing["profile"]["firstName"],
+                            kid_name=kid_name,
+                        )
+                except Exception as e:
+                    logger.error("Failed to send parent notification: %s", e)
+        else:
+            pending = UserInDB(
+                email=parent.email,
+                role=ModelUserRole.parent,
+                profile=UserProfile(
+                    firstName=parent.first_name,
+                    lastName=parent.last_name,
+                    phone=parent.phone,
+                ),
+                institution_id=institution_id,
+                status=ModelUserStatus.pending,
+            )
+            user_result = await db.users.insert_one(pending.model_dump(by_alias=True))
+            new_id = str(user_result.inserted_id)
+            token = secrets.token_urlsafe(32)
+            invitation = InvitationToken(
+                token=token,
+                user_id=user_result.inserted_id,
+                institution_id=institution_id,
+                role=ModelUserRole.parent,
+            )
+            await db.invitations.insert_one(invitation.model_dump())
+            await db.kids.update_one(
+                {"_id": str(kid_id)},
+                {"$addToSet": {"parent_user_ids": new_id}},
+            )
+            try:
+                if is_whitelisted(parent.email):
+                    send_parent_invite(
+                        to_email=parent.email,
+                        token=token,
+                        institution_name=institution["name"],
+                        first_name=parent.first_name,
+                        kid_name=kid_name,
+                    )
+            except Exception as e:
+                logger.error("Failed to send parent invite: %s", e)
+
+        updated = await db.kids.find_one({"_id": str(kid_id)})
+        return Kid.from_doc(updated)
+
+    @strawberry.mutation(permission_classes=[IsAdmin])
+    async def remove_kid_parent(
+        self,
+        info: Info[GraphQLContext, None],
+        kid_id: strawberry.ID,
+        parent_user_id: strawberry.ID,
+    ) -> Kid:
+        db = info.context.db
+        kid_doc = await db.kids.find_one({"_id": str(kid_id)})
+        if not kid_doc:
+            raise ValueError("Kid not found")
+        if kid_doc.get("institution_id") != info.context.viewer_institution_id:
+            raise PermissionError("Kid belongs to a different institution")
+
+        await db.kids.update_one(
+            {"_id": str(kid_id)},
+            {"$pull": {"parent_user_ids": str(parent_user_id)}},
+        )
+        updated = await db.kids.find_one({"_id": str(kid_id)})
+        return Kid.from_doc(updated)
 
     # ── Kid photos ────────────────────────────────────────────────────
 
