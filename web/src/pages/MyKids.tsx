@@ -20,14 +20,12 @@ const GET_MY_KIDS_QUERY = gql`
             id
             name
           }
-          class {
+          classes {
             id
             name
             educators {
               id
-              profile {
-                fullName
-              }
+              profile { fullName }
             }
           }
         }
@@ -44,7 +42,7 @@ interface KidSummary {
   dateOfBirth: string | null;
   profilePhotoUrl: string | null;
   institution: { id: string; name: string } | null;
-  class: { id: string; name: string } | null;
+  classes: { id: string; name: string }[];
   educators: { id: string; name: string }[];
 }
 
@@ -64,10 +62,8 @@ const MyKids = () => {
         dateOfBirth: kid.dateOfBirth,
         profilePhotoUrl: kid.profilePhotoUrl,
         institution: kid.institution ? { id: kid.institution.id, name: kid.institution.name } : null,
-        class: kid.class ? { id: kid.class.id, name: kid.class.name } : null,
-        educators: kid.class?.educators
-          ? kid.class.educators.map((e: any) => ({ id: e.id, name: e.profile?.fullName || '' }))
-          : [],
+        classes: kid.classes?.map((c: any) => ({ id: c.id, name: c.name })) ?? [],
+        educators: kid.classes?.flatMap((c: any) => c.educators ?? []).map((e: any) => ({ id: e.id, name: e.profile?.fullName || '' })) ?? [],
       }));
       setKids(mapped);
     }
@@ -129,7 +125,7 @@ const MyKids = () => {
                 <InfoRow
                   icon={<BookOpen size={16} />}
                   label={t('myKids.class')}
-                  value={kid.class?.name}
+                  value={kid.classes.length ? kid.classes.map(c => c.name).join(', ') : undefined}
                   empty={t('myKids.notEnrolled')}
                   color="#10b981"
                   bg="rgba(16,185,129,0.08)"

@@ -47,6 +47,8 @@ from app.models.kid import KidInDB
 
 logger = logging.getLogger(__name__)
 
+_ALLOWED_PHOTO_TYPES = frozenset({"image/jpeg", "image/jpg", "image/png", "image/webp"})
+
 
 # ─── Query ────────────────────────────────────────────────────────────
 
@@ -777,8 +779,6 @@ class Mutation:
 
     # ── Kid photos ────────────────────────────────────────────────────
 
-    _ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
-
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     async def presign_kid_photo_upload(
         self,
@@ -789,7 +789,7 @@ class Mutation:
         from app.core.storage import presign_put, storage_configured
         if not storage_configured():
             raise ValueError("Photo storage is not configured")
-        if content_type not in self._ALLOWED_PHOTO_TYPES:
+        if content_type not in _ALLOWED_PHOTO_TYPES:
             raise ValueError(f"content_type must be one of {self._ALLOWED_PHOTO_TYPES}")
 
         db = info.context.db
@@ -919,8 +919,6 @@ class Mutation:
             updates["educator_user_ids"] = [str(i) for i in input.educator_ids]
         if input.kid_ids is not None:
             updates["kid_ids"] = [str(i) for i in input.kid_ids]
-            for kid_id in updates["kid_ids"]:
-                await db.kids.update_one({"_id": kid_id}, {"$set": {"class_id": class_id}})
 
         if updates:
             await db.classes.update_one({"_id": actual_id}, {"$set": updates})
@@ -945,13 +943,6 @@ class Mutation:
         if not doc:
             return False
         actual_id = doc["_id"]
-
-        kid_ids = doc.get("kid_ids", [])
-        if kid_ids:
-            await db.kids.update_many(
-                {"_id": {"$in": kid_ids}},
-                {"$unset": {"class_id": ""}},
-            )
 
         await db.classes.delete_one({"_id": actual_id})
         return True

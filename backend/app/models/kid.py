@@ -10,7 +10,6 @@ class KidBase(BaseModel):
     gender: Optional[str] = None  # 'male' | 'female'
     dateOfBirth: Optional[datetime] = None
     parent_user_ids: List[str] = []
-    class_id: Optional[PyObjectId] = None
     institution_id: Optional[PyObjectId] = None
     profilePhotoKey: Optional[str] = None
 

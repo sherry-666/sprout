@@ -17,7 +17,7 @@ const GET_KIDS_QUERY = gql`
           gender
           dateOfBirth
           profilePhotoUrl
-          class { id name }
+          classes { id name }
         }
       }
       totalCount
@@ -77,7 +77,7 @@ const Kids = () => {
                 <th style={{ padding: '12px 8px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('kids.name')}</th>
                 <th style={{ padding: '12px 8px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('kids.dateOfBirth')}</th>
                 <th style={{ padding: '12px 8px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('kids.gender')}</th>
-                <th style={{ padding: '12px 8px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('kids.class')}</th>
+                <th style={{ padding: '12px 8px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Classes</th>
                 <th style={{ padding: '12px 8px', width: '32px' }}></th>
               </tr>
             </thead>
@@ -107,10 +107,14 @@ const Kids = () => {
                     </span>
                   </td>
                   <td style={{ padding: '14px 8px' }}>
-                    {kid.class ? (
-                      <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '3px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 500 }}>
-                        {kid.class.name}
-                      </span>
+                    {kid.classes?.length ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {kid.classes.map((c: any) => (
+                          <span key={c.id} style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '3px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 500 }}>
+                            {c.name}
+                          </span>
+                        ))}
+                      </div>
                     ) : (
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>—</span>
                     )}

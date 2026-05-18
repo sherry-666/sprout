@@ -18,7 +18,7 @@ const MY_KIDS_QUERY = gql`
           gender
           profilePhotoUrl
           institution { id name }
-          class {
+          classes {
             id
             name
             educators { id profile { firstName lastName } }

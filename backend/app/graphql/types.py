@@ -281,7 +281,6 @@ class Kid(Node):
     created_at: DateTime
 
     institution_id_: strawberry.Private[str]
-    class_id_: strawberry.Private[Optional[str]]
 
     @strawberry.field
     def full_name(self) -> str:
@@ -298,12 +297,10 @@ class Kid(Node):
         doc = await info.context.loaders.institution_by_id.load(self.institution_id_)
         return Institution.from_doc(doc) if doc else None
 
-    @strawberry.field(name="class")
-    async def class_(self, info: Info) -> Optional[Class]:
-        if not self.class_id_:
-            return None
-        doc = await info.context.loaders.class_by_id.load(str(self.class_id_))
-        return Class.from_doc(doc) if doc else None
+    @strawberry.field
+    async def classes(self, info: Info) -> List[Class]:
+        docs = await info.context.db.classes.find({"kid_ids": str(self.id)}).to_list(20)
+        return [Class.from_doc(d) for d in docs]
 
     @strawberry.field
     async def parents(self, info: Info) -> List[User]:
@@ -393,10 +390,9 @@ class Kid(Node):
 
         # Find an educator to associate with this summary
         educator_user_id = updates[0].get("educator_user_id")
+        class_doc = None
         if not educator_user_id:
-            class_doc = None
-            if self.class_id_:
-                class_doc = await db.classes.find_one({"_id": self.class_id_})
+            class_doc = await db.classes.find_one({"kid_ids": str(self.id)})
             if class_doc and class_doc.get("educator_user_ids"):
                 educator_user_id = class_doc["educator_user_ids"][0]
             else:
@@ -405,7 +401,7 @@ class Kid(Node):
         doc = {
             "kid_id": str(self.id),
             "educator_user_id": str(educator_user_id),
-            "class_id": str(self.class_id_) if self.class_id_ else "",
+            "class_id": str(class_doc["_id"]) if class_doc else "",
             "type": "daily_summary",
             "content": summary_content,
             "mediaUrls": [],
@@ -440,7 +436,6 @@ class Kid(Node):
             profile_photo_url=profile_photo_url,
             created_at=doc.get("createdAt", datetime.utcnow()),
             institution_id_=str(doc.get("institution_id", "")),
-            class_id_=str(doc["class_id"]) if doc.get("class_id") else None,
             _parent_count_=len(doc.get("parent_user_ids", [])),
         )
 
