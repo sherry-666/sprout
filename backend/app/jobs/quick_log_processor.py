@@ -97,12 +97,35 @@ async def _process_quick_log(job: dict) -> None:
                 kid_photo_map.setdefault(kid_id, []).append(pk)
 
         involved = set(voice_map.keys()) | {kid_id for ids in photo_kid_map.values() for kid_id in ids}
-        if not involved and transcript.strip():
+
+        # ── Empty-result diagnostics: tell the educator why ──────────────
+        if not involved:
+            reasons: list[str] = []
+            if transcript.strip():
+                reasons.append(
+                    "I couldn't pick out a specific child's name from your note "
+                    f"(\"{transcript[:80]}…\" if you'd like to retry with names)"
+                )
+            if photo_keys:
+                if not candidates:
+                    reasons.append(
+                        "none of the children in this class have a profile photo on file, "
+                        "so I had nothing to match faces against"
+                    )
+                elif not any(photo_kid_map.values()):
+                    reasons.append(
+                        "I couldn't match any faces in the photos to the kids' profile photos — "
+                        "the angle or lighting may be too different"
+                    )
+            if not reasons:
+                reasons.append("there wasn't enough information to identify any kids")
             await write_message(
                 db, convo_id, role=ROLE_AGENT, kind=KIND_TEXT,
-                content="I couldn't match the voice note to any specific child — "
-                        "you can still type and send an update manually from here.",
+                content="I couldn't draft any updates from this — " + "; ".join(reasons) +
+                        ". You can still tag kids manually from the Classes tab.",
             )
+            await update_conversation_status(db, convo_id, CONVO_AWAITING_REVIEW)
+            return
 
         for kid_id in involved:
             kid = kid_map.get(str(kid_id))

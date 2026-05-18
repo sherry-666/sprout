@@ -112,6 +112,13 @@ export default function ConversationScreen({ route, navigation }: any) {
   const drafts = messages.filter(m => m.kind === 'draft_card');
   const canSend = status === 'awaiting_review' && drafts.length > 0;
 
+  // Once the worker is done, collapse the progress trail — they're transient.
+  const isProcessing = status === 'pending' || status === 'processing';
+  const lastProgress = isProcessing
+    ? [...messages].reverse().find(m => m.kind === 'progress')
+    : null;
+  const visibleMessages = messages.filter(m => m.kind !== 'progress');
+
   // Auto-scroll to bottom when new messages arrive
   const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
@@ -144,7 +151,7 @@ export default function ConversationScreen({ route, navigation }: any) {
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
       >
-        {messages.map(m => (
+        {visibleMessages.map(m => (
           <MessageRow
             key={m.id}
             message={m}
@@ -153,10 +160,10 @@ export default function ConversationScreen({ route, navigation }: any) {
               setStreamed(prev => prev.filter(x => x.id !== m.id)))}
           />
         ))}
-        {status === 'processing' && (
+        {isProcessing && (
           <View style={s.typingRow}>
             <ActivityIndicator size="small" color={Colors.primary} />
-            <Text style={s.typingTxt}>Agent is working…</Text>
+            <Text style={s.typingTxt}>{lastProgress?.content ?? 'Agent is working…'}</Text>
           </View>
         )}
       </ScrollView>

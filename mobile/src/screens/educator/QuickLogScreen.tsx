@@ -189,10 +189,11 @@ export default function QuickLogScreen({ navigation }: any) {
       const convoId = cd?.createQuickLogConversation?.id;
       if (!convoId) throw new Error('No conversation returned');
       reset();
-      // Pop off the QuickLog screen so back button goes to Classes
+      // Pop QuickLog off the ClassesStack so back-from-Conversation lands on ClassesList
       navigation.goBack();
-      // Cross-tab nav: switch to Agents tab and push Conversation
-      navigation.getParent()?.getParent()?.navigate('Agents', {
+      // navigation.getParent() is the Tab navigator — jump to the Agents tab
+      // and push the Conversation screen in its stack.
+      navigation.getParent()?.navigate('Agents', {
         screen: 'Conversation',
         params: { conversationId: convoId },
       });

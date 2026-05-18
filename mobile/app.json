@@ -17,7 +17,8 @@
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Sprout uses speech recognition to transcribe your voice notes into text.",
         "NSMicrophoneUsageDescription": "Sprout needs microphone access to record voice notes."
-      }
+      },
+      "bundleIdentifier": "com.anonymous.sprout"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +29,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.anonymous.sprout"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,6 +38,11 @@
     "plugins": [
       "expo-secure-store",
       "expo-speech-recognition"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f864b777-6af4-43a5-98f1-8aefab4f52aa"
+      }
+    }
   }
 }
