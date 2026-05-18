@@ -634,7 +634,6 @@ class Mutation:
             dateOfBirth=dob,
             parent_user_ids=parent_user_ids,
             institution_id=institution_id,
-            profilePhotoUrl=input.profile_photo_url,
         )
         result = await db.kids.insert_one(kid.model_dump(by_alias=True))
         kid_doc = await db.kids.find_one({"_id": result.inserted_id})

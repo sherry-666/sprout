@@ -12,8 +12,7 @@ class KidBase(BaseModel):
     parent_user_ids: List[str] = []
     class_id: Optional[PyObjectId] = None
     institution_id: Optional[PyObjectId] = None
-    profilePhotoUrl: Optional[str] = None
-    profilePhotoKey: Optional[str] = None  # S3 object key; presence means photo is stored
+    profilePhotoKey: Optional[str] = None
 
 class KidCreate(KidBase):
     pass

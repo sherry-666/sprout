@@ -428,9 +428,9 @@ class Kid(Node):
                 from app.core.storage import safe_presign_get
                 profile_photo_url = safe_presign_get(key)
             except Exception:
-                profile_photo_url = doc.get("profilePhotoUrl")
+                profile_photo_url = None
         else:
-            profile_photo_url = doc.get("profilePhotoUrl")
+            profile_photo_url = None
         return cls(
             id=strawberry.ID(str(doc["_id"])),
             first_name=doc.get("firstName", ""),

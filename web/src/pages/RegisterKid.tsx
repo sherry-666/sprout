@@ -124,7 +124,6 @@ const RegisterKid = () => {
             lastName,
             gender,
             dateOfBirth,
-            profilePhotoUrl: null,
             parents: parents.map(p => ({
               firstName: p.firstName,
               lastName: p.lastName,

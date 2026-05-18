@@ -68,7 +68,6 @@ class RegisterKidInput:
     last_name: str
     gender: Gender
     date_of_birth: str  # YYYY-MM-DD
-    profile_photo_url: Optional[str] = None
     parents: List[ParentInput] = strawberry.field(default_factory=list)
 
 

@@ -103,8 +103,7 @@ sprout/
 - `class_id`: String
 - `institution_id`: String (FK → institutions._id)
 - `faceEmbedding`: Binary (128-d vector for face recognition, encrypted at rest)
-- `profilePhotoUrl`: String (optional, legacy — superseded by `profilePhotoKey`)
-- `profilePhotoKey`: String (optional) — S3 object key for the processed full-size profile photo. When present, `profilePhotoUrl` is resolved at read time via `safe_presign_get(key)` (1-hour pre-signed GET URL). Thumbnail is stored at `{key_prefix}/profile-thumb.jpg` by convention.
+- `profilePhotoKey`: String (optional) — S3 object key for the processed full-size profile photo. The GraphQL `profilePhotoUrl` field is resolved from this key at read time via `safe_presign_get(key)` (1-hour pre-signed GET URL). Thumbnail is at `{prefix}/profile-thumb.jpg` by convention.
 - `createdAt`: Date
 - `consent` *(TODO — required before any photo feature ships)*: Embedded document recording parental consent for media handling. Shape:
   ```
