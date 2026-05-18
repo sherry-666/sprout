@@ -70,50 +70,6 @@ Return ONLY a JSON array — no markdown, no explanation:
         return []
 
 
-async def identify_kids_in_photo(
-    photo_bytes: bytes,
-    kid_profiles: list[dict],  # [{"id": str, "name": str, "bytes": bytes}]
-) -> list[str]:
-    """
-    Use Gemini Vision to identify which enrolled kids appear in a group photo
-    by comparing faces against their stored profile photos.
-    Returns a list of matched kid IDs.
-    """
-    if not kid_profiles:
-        return []
-    try:
-        import PIL.Image
-        from app.ai.llm_service import get_flash_model
-        group_img = PIL.Image.open(io.BytesIO(photo_bytes))
-        parts: list = [
-            "This is a group photo taken at a daycare:",
-            group_img,
-            "\nBelow are profile photos of the children enrolled in this class:",
-        ]
-        name_to_id: dict[str, str] = {}
-        for kid in kid_profiles:
-            name = kid["name"]
-            parts.append(f"\n{name}:")
-            parts.append(PIL.Image.open(io.BytesIO(kid["bytes"])))
-            name_to_id[name] = kid["id"]
-
-        parts.append(
-            "\nBased on facial appearance, which of these children are visible in the group photo? "
-            "Return ONLY a JSON array of their full names, e.g. [\"Alice Smith\"]. "
-            "Only include confident matches. Return [] if none can be recognised."
-        )
-        model = get_flash_model()
-        response = model.generate_content(parts)
-        m = re.search(r'\[.*?\]', response.text.strip(), re.DOTALL)
-        if not m:
-            return []
-        matched = json.loads(m.group())
-        return [name_to_id[n] for n in matched if n in name_to_id]
-    except Exception as e:
-        log.warning("identify_kids_in_photo failed: %s", e)
-        return []
-
-
 async def generate_photo_update(
     kid_name: str,
     scene_description: str,

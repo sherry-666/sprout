@@ -1037,10 +1037,8 @@ class Mutation:
         transcript: Optional[str] = None,
         photo_keys: Optional[List[str]] = None,
     ) -> QuickLogAnalysis:
-        from app.ai.voice_parser import (
-            transcribe_audio, parse_transcript, describe_scene,
-            identify_kids_in_photo, generate_photo_update,
-        )
+        from app.ai.face_recognizer import match_faces
+        from app.ai.voice_parser import transcribe_audio, parse_transcript, describe_scene, generate_photo_update
         from app.core.storage import get_object, safe_presign_get
 
         db = info.context.db
@@ -1059,22 +1057,7 @@ class Mutation:
             kids = await db.kids.find({"_id": {"$in": all_kid_ids}}).to_list(500)
 
         kid_map = {k["_id"]: k for k in kids}
-
-        # Pre-fetch profile photos for Gemini Vision face matching (once, reused per photo)
-        kid_profiles_for_vision: list[dict] = []
-        for k in kids:
-            pk = k.get("profilePhotoKey")
-            if not pk:
-                continue
-            try:
-                profile_bytes = get_object(pk)
-                kid_profiles_for_vision.append({
-                    "id": k["_id"],
-                    "name": f"{k.get('firstName','')} {k.get('lastName','')}".strip(),
-                    "bytes": profile_bytes,
-                })
-            except Exception:
-                pass
+        candidates = {k["_id"]: k["faceEmbedding"] for k in kids if k.get("faceEmbedding")}
 
         eligible_kids = []
         for k in kids:
@@ -1114,14 +1097,11 @@ class Mutation:
                 log.warning("analyze_quick_log: cannot fetch photo %s: %s", pk, e)
                 continue
 
-            # Run scene description and face matching concurrently
-            import asyncio
-            scene, detected_ids = await asyncio.gather(
-                describe_scene(photo_bytes),
-                identify_kids_in_photo(photo_bytes, kid_profiles_for_vision),
-            )
-            log.info("analyze_quick_log: photo=%s scene=%s detected=%s", pk, scene[:80], detected_ids)
+            detected = match_faces(photo_bytes, candidates)
+            detected_ids = [kid_id for kid_id, _ in detected]
+            log.info("analyze_quick_log: photo=%s detected=%s", pk, detected_ids)
 
+            scene = await describe_scene(photo_bytes)
             photo_kid_map[pk] = detected_ids
             photo_url = safe_presign_get(pk) or ""
             photo_results.append(QuickLogPhotoResult(
