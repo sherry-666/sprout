@@ -790,7 +790,7 @@ class Mutation:
         if not storage_configured():
             raise ValueError("Photo storage is not configured")
         if content_type not in _ALLOWED_PHOTO_TYPES:
-            raise ValueError(f"content_type must be one of {self._ALLOWED_PHOTO_TYPES}")
+            raise ValueError(f"content_type must be one of {_ALLOWED_PHOTO_TYPES}")
 
         db = info.context.db
         kid_doc = await db.kids.find_one({"_id": str(kid_id)})
@@ -850,7 +850,11 @@ class Mutation:
         if not object_key.startswith(expected_prefix):
             raise ValueError("Invalid object key")
 
+        import logging
+        log = logging.getLogger(__name__)
+        log.info("confirm_kid_photo_upload: downloading raw key=%s", object_key)
         raw_bytes = get_object(object_key)
+        log.info("confirm_kid_photo_upload: raw downloaded (%d bytes), processing", len(raw_bytes))
         try:
             processed = process(raw_bytes)
         except ValueError as e:
@@ -859,6 +863,7 @@ class Mutation:
 
         full_key = f"institutions/{inst_id}/kids/{str(kid_id)}/profile.jpg"
         thumb_key = f"institutions/{inst_id}/kids/{str(kid_id)}/profile-thumb.jpg"
+        log.info("confirm_kid_photo_upload: uploading full=%s thumb=%s", full_key, thumb_key)
         put_object(full_key, processed.full, "image/jpeg")
         put_object(thumb_key, processed.thumbnail, "image/jpeg")
         delete(object_key)
@@ -867,6 +872,7 @@ class Mutation:
             {"_id": str(kid_id)},
             {"$set": {"profilePhotoKey": full_key}},
         )
+        log.info("confirm_kid_photo_upload: saved profilePhotoKey=%s for kid=%s", full_key, kid_id)
         updated = await db.kids.find_one({"_id": str(kid_id)})
         return Kid.from_doc(updated)
 

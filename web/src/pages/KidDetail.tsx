@@ -197,12 +197,15 @@ export default function KidDetail() {
         const contentType = editPhotoFile.type || 'image/jpeg';
         const { data: pd } = await presignPhotoMutate({ variables: { kidId: id, contentType } });
         const { uploadUrl, objectKey } = pd.presignKidPhotoUpload;
-        await fetch(uploadUrl, { method: 'PUT', body: editPhotoFile, headers: { 'Content-Type': contentType } });
+        const putRes = await fetch(uploadUrl, { method: 'PUT', body: editPhotoFile, headers: { 'Content-Type': contentType } });
+        if (!putRes.ok) throw new Error(`Photo upload failed (${putRes.status} ${putRes.statusText})`);
         await confirmPhotoMutate({ variables: { kidId: id, objectKey } });
       }
 
       await refetch();
       setEditing(false);
+      setEditPhotoFile(null);
+      setEditPhotoPreview(null);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e: any) {
