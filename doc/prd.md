@@ -128,14 +128,32 @@ The Mobile App is designed for on-the-go usage by Educators in the classroom and
 The educator app has three bottom tabs:
 
 1. **Classes** — Browse assigned classes, tap a class to view its roster, then tap a child to open the full activity log form (activity type + free-text note). Logs are scoped to a specific child.
-2. **Quick Log** — A dedicated tab for fast whole-class logging. The educator picks a class from a horizontal chip selector, chooses an activity type (Meal, Nap, Activity, Photo), writes a note, and sends. No roster navigation needed.
+2. **Quick Log** — AI-first whole-class logging in a 3-step wizard. See §4.1a for full detail.
 3. **Settings** — Contains:
    - **My Profile**: Displays name and role.
    - **Language**: Inline language picker (English / 中文 / Français). Selection persists across sessions.
 
-- **Smart Camera Integration**: Take or upload photos directly within the app. AI automatically identifies which kids are in the photo (via facial recognition) and tags them. *(Not yet implemented.)*
-- **AI-Assisted Updates**: Instead of typing long paragraphs, educators use quick tags (e.g., "nap 1hr", "ate all lunch"). The AI drafts a warm, professional, and parent-friendly message that the educator can review and send with one tap. *(Not yet implemented.)*
 - **Photo Enhancement**: Optional tools to apply AI-generated stickers, captions, or fun overlays to photos before sharing. *(Not yet implemented.)*
+
+### 4.1a AI Quick Log (Educator Mobile)
+**Purpose:** Let an educator capture a voice note and/or batch photos, have Gemini AI transcribe, identify kids, and draft per-kid parent updates — all reviewed and sent in one flow.
+
+**Step 1 — Input**
+- Optional class chip selector (defaults to all kids in educator's classes).
+- **Voice note**: press-and-hold mic button records audio (expo-av); release stops and encodes to base64.
+- **Photos**: tap to open multi-select image picker (up to 10 photos); each photo is presigned and uploaded to S3 immediately.
+- **Analyze** button sends voice + photo keys to the backend AI pipeline.
+
+**Step 2 — Photo Review** *(skipped if no photos)*
+- Each uploaded photo is shown with an AI-generated scene description.
+- Detected kids appear as removable tags (tap to untag).
+- A "＋" button opens a bottom-sheet kid picker to manually add kids to a photo.
+
+**Step 3 — Review & Confirm**
+- Per-kid cards with avatar, name, and an editable text field pre-filled by the AI.
+- Photo count badge shows how many photos are linked to each update.
+- AI transcript shown at top for reference.
+- "Send Updates" creates one update per kid (with linked photos) and notifies parents.
 
 ### 4.2 Parent Flow
 **Purpose:** Delightful, real-time connection to their child's day.

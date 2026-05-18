@@ -448,13 +448,21 @@ class Update(Node):
     type: UpdateType
     content: str
     ai_generated_content: Optional[str]
-    media_urls: List[str]
     timestamp: DateTime
 
     kid_id_: strawberry.Private[Optional[str]]
     educator_id_: strawberry.Private[str]
     class_id_: strawberry.Private[str]
     detected_kid_ids_: strawberry.Private[List[str]]
+    _media_keys: strawberry.Private[List[str]]
+    _media_urls_stored: strawberry.Private[List[str]]
+
+    @strawberry.field(name="mediaUrls")
+    def media_urls(self) -> List[str]:
+        if self._media_keys:
+            from app.core.storage import safe_presign_get
+            return [url for key in self._media_keys if (url := safe_presign_get(key))]
+        return self._media_urls_stored
 
     @strawberry.field
     async def kid(self, info: Info) -> Optional[Kid]:
@@ -487,13 +495,49 @@ class Update(Node):
             type=UpdateType(doc["type"]),
             content=doc.get("content", ""),
             ai_generated_content=doc.get("aiGeneratedContent"),
-            media_urls=doc.get("mediaUrls", []),
             timestamp=doc.get("timestamp", datetime.utcnow()),
             kid_id_=str(doc["kid_id"]) if doc.get("kid_id") else None,
             educator_id_=str(doc.get("educator_user_id", "")),
             class_id_=str(doc.get("class_id", "")),
             detected_kid_ids_=[str(k) for k in doc.get("detected_kid_ids", [])],
+            _media_keys=doc.get("mediaKeys", []),
+            _media_urls_stored=doc.get("mediaUrls", []),
         )
+
+
+# ─── Quick Log AI types ───────────────────────────────────────────────
+
+@strawberry.type
+class EligibleKid:
+    id: strawberry.ID
+    first_name: str
+    last_name: str
+    avatar_url: Optional[str]
+
+
+@strawberry.type
+class QuickLogPhotoResult:
+    photo_key: str
+    photo_url: str
+    detected_kid_ids: List[strawberry.ID]
+    scene_description: str
+
+
+@strawberry.type
+class QuickLogKidSuggestion:
+    kid_id: strawberry.ID
+    kid_name: str
+    avatar_url: Optional[str]
+    content: str
+    photo_keys: List[str]
+
+
+@strawberry.type
+class QuickLogAnalysis:
+    transcript: str
+    suggestions: List[QuickLogKidSuggestion]
+    photo_results: List[QuickLogPhotoResult]
+    eligible_kids: List[EligibleKid]
 
 
 # ─── Presigned upload ─────────────────────────────────────────────────

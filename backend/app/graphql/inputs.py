@@ -99,3 +99,10 @@ class CreateUpdateInput:
     content: str
     kid_id: Optional[strawberry.ID] = None
     media_urls: Optional[List[str]] = None
+
+
+@strawberry.input
+class QuickLogUpdateInput:
+    kid_id: strawberry.ID
+    content: str
+    photo_keys: List[str] = strawberry.field(default_factory=list)

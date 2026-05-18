@@ -1,4 +1,5 @@
 from __future__ import annotations
+import base64
 import secrets
 import logging
 import uuid as uuid_lib
@@ -26,12 +27,14 @@ from app.graphql.inputs import (
     LoginInput, ActivateInput, RegisterUserInput,
     CreateInstitutionInput, InviteEducatorInput,
     RegisterKidInput, UpdateKidInput, ParentInput, CreateClassInput, AssignClassInput, CreateUpdateInput,
+    QuickLogUpdateInput,
 )
 from app.graphql.types import (
     Node, User, Institution, Kid, Class, Update,
     KidConnection, KidEdge, UpdateConnection, UpdateEdge,
     AuthPayload, InvitationInfo, InvitationSent, KidRegistered, Profile, PageInfo,
     PresignedUpload,
+    EligibleKid, QuickLogPhotoResult, QuickLogKidSuggestion, QuickLogAnalysis,
 )
 from app.graphql.errors import (
     InvalidCredentialsError, AccountPendingError,
@@ -873,6 +876,20 @@ class Mutation:
             {"$set": {"profilePhotoKey": full_key}},
         )
         log.info("confirm_kid_photo_upload: saved profilePhotoKey=%s for kid=%s", full_key, kid_id)
+
+        # Generate and store face embedding from the thumbnail (non-fatal)
+        try:
+            from app.ai.face_recognizer import encode_face
+            embedding = encode_face(processed.thumbnail)
+            if embedding:
+                await db.kids.update_one(
+                    {"_id": str(kid_id)},
+                    {"$set": {"faceEmbedding": embedding}},
+                )
+                log.info("confirm_kid_photo_upload: stored face embedding for kid=%s (%d dims)", kid_id, len(embedding))
+        except Exception as emb_err:
+            log.info("confirm_kid_photo_upload: face embedding skipped: %s", emb_err)
+
         updated = await db.kids.find_one({"_id": str(kid_id)})
         return Kid.from_doc(updated)
 
@@ -975,6 +992,183 @@ class Mutation:
         result = await db.updates.insert_one(doc)
         created = await db.updates.find_one({"_id": result.inserted_id})
         return Update.from_doc(created)
+
+    # ── Quick Log ──────────────────────────────────────────────────────
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def presign_quick_log_photo(
+        self,
+        info: Info[GraphQLContext, None],
+        content_type: str,
+    ) -> PresignedUpload:
+        from app.core.storage import presign_put, storage_configured
+        if not storage_configured():
+            raise ValueError("Photo storage is not configured")
+        if content_type not in _ALLOWED_PHOTO_TYPES:
+            raise ValueError(f"content_type must be one of {_ALLOWED_PHOTO_TYPES}")
+        viewer_id = info.context.viewer_id
+        raw_key = f"quick-log/{viewer_id}/raw-{uuid_lib.uuid4().hex}.jpg"
+        ttl = 300
+        upload_url = presign_put(raw_key, content_type, expires_in=ttl)
+        return PresignedUpload(
+            upload_url=upload_url,
+            object_key=raw_key,
+            expires_at=datetime.utcnow() + timedelta(seconds=ttl),
+        )
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def analyze_quick_log(
+        self,
+        info: Info[GraphQLContext, None],
+        class_id: Optional[strawberry.ID] = None,
+        audio_base64: Optional[str] = None,
+        audio_mime_type: str = "audio/m4a",
+        photo_keys: Optional[List[str]] = None,
+    ) -> QuickLogAnalysis:
+        from app.ai.face_recognizer import match_faces
+        from app.ai.voice_parser import transcribe_audio, parse_transcript, describe_scene
+        from app.core.storage import get_object, safe_presign_get
+
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+
+        # ── Collect eligible kids ────────────────────────────────────
+        if class_id:
+            cls_doc = await db.classes.find_one({"_id": str(class_id)})
+            kid_ids = cls_doc.get("kid_ids", []) if cls_doc else []
+            kids = await db.kids.find({"_id": {"$in": kid_ids}}).to_list(200)
+        else:
+            educator_classes = await db.classes.find(
+                {"educator_user_ids": viewer_id}
+            ).to_list(50)
+            all_kid_ids = list({k for cls in educator_classes for k in cls.get("kid_ids", [])})
+            kids = await db.kids.find({"_id": {"$in": all_kid_ids}}).to_list(500)
+
+        kid_map = {k["_id"]: k for k in kids}
+        candidates = {k["_id"]: k["faceEmbedding"] for k in kids if k.get("faceEmbedding")}
+
+        eligible_kids = []
+        for k in kids:
+            pk = k.get("profilePhotoKey")
+            eligible_kids.append(EligibleKid(
+                id=strawberry.ID(k["_id"]),
+                first_name=k.get("firstName", ""),
+                last_name=k.get("lastName", ""),
+                avatar_url=safe_presign_get(pk) if pk else None,
+            ))
+
+        # ── Voice: transcribe + parse ────────────────────────────────
+        transcript = ""
+        voice_suggestions: list[dict] = []
+        if audio_base64:
+            audio_bytes = base64.b64decode(audio_base64)
+            kids_info = [
+                {"id": k["_id"], "name": f"{k.get('firstName','')} {k.get('lastName','')}".strip()}
+                for k in kids
+            ]
+            transcript = await transcribe_audio(audio_bytes, audio_mime_type)
+            log.info("analyze_quick_log: transcript=%s", transcript[:120])
+            voice_suggestions = await parse_transcript(transcript, kids_info)
+
+        voice_map = {s["kid_id"]: s["content"] for s in voice_suggestions}
+
+        # ── Photos: face recognition + scene description ─────────────
+        photo_results: list[QuickLogPhotoResult] = []
+        photo_kid_map: dict[str, list[str]] = {}  # photo_key → [kid_id]
+
+        for pk in (photo_keys or []):
+            try:
+                photo_bytes = get_object(pk)
+            except Exception as e:
+                log.warning("analyze_quick_log: cannot fetch photo %s: %s", pk, e)
+                continue
+
+            detected = match_faces(photo_bytes, candidates)
+            detected_ids = [kid_id for kid_id, _ in detected]
+            photo_kid_map[pk] = detected_ids
+
+            scene = await describe_scene(photo_bytes)
+            photo_url = safe_presign_get(pk) or ""
+            photo_results.append(QuickLogPhotoResult(
+                photo_key=pk,
+                photo_url=photo_url,
+                detected_kid_ids=[strawberry.ID(kid_id) for kid_id in detected_ids],
+                scene_description=scene,
+            ))
+
+        # ── Build per-kid update suggestions ────────────────────────
+        kid_photo_map: dict[str, list[str]] = {}
+        for pk, kid_ids in photo_kid_map.items():
+            for kid_id in kid_ids:
+                kid_photo_map.setdefault(kid_id, []).append(pk)
+
+        involved = set(voice_map.keys()) | {kid_id for ids in photo_kid_map.values() for kid_id in ids}
+        suggestions: list[QuickLogKidSuggestion] = []
+        for kid_id in involved:
+            kid = kid_map.get(str(kid_id))
+            if not kid:
+                continue
+            kid_name = f"{kid.get('firstName','')} {kid.get('lastName','')}".strip()
+            content = voice_map.get(str(kid_id), "")
+            if not content:
+                scenes = [
+                    pr.scene_description
+                    for pr in photo_results
+                    if kid_id in [str(i) for i in pr.detected_kid_ids] and pr.scene_description
+                ]
+                content = " ".join(scenes[:2]) if scenes else f"{kid.get('firstName','This child')} had a wonderful time today!"
+            pk = kid.get("profilePhotoKey")
+            suggestions.append(QuickLogKidSuggestion(
+                kid_id=strawberry.ID(str(kid_id)),
+                kid_name=kid_name,
+                avatar_url=safe_presign_get(pk) if pk else None,
+                content=content,
+                photo_keys=kid_photo_map.get(str(kid_id), []),
+            ))
+
+        return QuickLogAnalysis(
+            transcript=transcript,
+            suggestions=suggestions,
+            photo_results=photo_results,
+            eligible_kids=eligible_kids,
+        )
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def confirm_quick_log(
+        self,
+        info: Info[GraphQLContext, None],
+        updates: List[QuickLogUpdateInput],
+    ) -> List[Update]:
+        from app.core.storage import safe_presign_get
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+
+        created_updates: list[Update] = []
+        for upd in updates:
+            kid_doc = await db.kids.find_one({"_id": str(upd.kid_id)})
+            if not kid_doc:
+                continue
+            cls_doc = await db.classes.find_one({
+                "kid_ids": str(upd.kid_id),
+                "educator_user_ids": viewer_id,
+            })
+            doc = {
+                "kid_id": str(upd.kid_id),
+                "educator_user_id": viewer_id,
+                "class_id": str(cls_doc["_id"]) if cls_doc else "",
+                "type": "activity",
+                "content": upd.content,
+                "mediaUrls": [],
+                "mediaKeys": list(upd.photo_keys),
+                "detected_kid_ids": [],
+                "timestamp": datetime.utcnow(),
+            }
+            result = await db.updates.insert_one(doc)
+            doc["_id"] = result.inserted_id
+            created_updates.append(Update.from_doc(doc))
+
+        log.info("confirm_quick_log: created %d updates by educator %s", len(created_updates), viewer_id)
+        return created_updates
 
 
 # ─── Schema ────────────────────────────────────────────────────────────

@@ -31,9 +31,9 @@ The system consists of a centralized Python backend service communicating with a
 - **Mobile App**: React Native (Expo SDK 54, RN 0.81.5) for cross-platform (iOS/Android). Apollo Client for GraphQL. `@react-navigation/native` v7 for navigation (bottom tabs + native stacks). `@react-native-async-storage/async-storage` for JWT storage and language persistence. `i18next` + `react-i18next` for EN/ZH/FR internationalisation (language saved under key `sprout_lang` in AsyncStorage).
 - **Web Admin**: React (Vite + TypeScript) with react-i18next for EN/ZH/FR internationalisation.
 - **AI/ML Libraries**:
-  - `google-generativeai` — Gemini API for LLM text generation and vision tasks.
-  - `face_recognition` / `deepface` — Kid identification from photos. *(Not yet wired up.)*
-  - `Pillow` / `OpenCV` — Image manipulation (stickers, text overlays, captions). *(Not yet wired up.)*
+  - `google-generativeai` — Gemini Flash model for audio transcription, transcript parsing, and vision scene description (wired into Quick Log pipeline).
+  - `face_recognition` (dlib-based, 128-d embeddings) + `opencv-python-headless` — Face matching in Quick Log photos. Installed via `requirements.txt`; requires cmake/gcc in Docker.
+  - `Pillow` / `OpenCV` — Image manipulation (stickers, text overlays, captions). *(Sticker/overlay helpers not yet implemented.)*
 - **Email**: SendGrid (`sendgrid>=6.11.0`). Falls back to console logging if `SENDGRID_API_KEY` is not set.
 - **Hosting/Deployment**: Railway. Railway supports native deployment for Python and static sites.
 - **File Storage**: Railway Bucket (S3-compatible). Credentials live in env vars `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`. The backend wrapper is `app/core/storage.py` (boto3). Image pre-processing (EXIF strip, 1600px full, 400px thumbnail) is in `app/ai/image_processor.py` (Pillow). Profile photo URLs in MongoDB are stored as `null` until Phase 2 wires the upload mutation.
@@ -135,7 +135,8 @@ sprout/
 - `type`: Enum (`meal`, `nap`, `activity`, `photo`, `daily_summary`)
 - `content`: String (teacher's raw input or AI-generated text)
 - `aiGeneratedContent`: String (optional, LLM-drafted parent-friendly message)
-- `mediaUrls`: Array of Strings (photos, optionally AI-enhanced)
+- `mediaUrls`: Array of Strings (legacy bare URLs — present on older documents)
+- `mediaKeys`: Array of Strings (S3 object keys — used by Quick Log; `Update.mediaUrls` GraphQL field regenerates presigned GET URLs from these keys at read time via `safe_presign_get`)
 - `detectedKidIds`: Array of Strings (auto-detected kids from photos)
 - `timestamp`: Date
 
@@ -184,10 +185,20 @@ sprout/
 - `POST /api/kids` — Add a new kid.
 - `PUT /api/kids/{id}` — Update kid info.
 
-### Educator APIs *(planned)*
-- `GET /api/teacher/classes` — Get assigned classes and their kids.
-- `POST /api/updates` — Create a new update for a kid.
-- `POST /api/updates/photo` — Upload a photo; AI identifies kids and generates captions.
+### Educator APIs (GraphQL mutations)
+
+**Quick Log pipeline** (educator role required):
+- `presignQuickLogPhoto(contentType: String!) → PresignedUpload` — Returns a 5-minute pre-signed PUT URL for a raw photo. Object key: `quick-log/{educator_id}/raw-{uuid}.jpg`. Accepted types: `image/jpeg`, `image/png`, `image/webp`.
+- `analyzeQuickLog(classId: ID, audioBase64: String, audioMimeType: String, photoKeys: [String!]) → QuickLogAnalysis` — AI pipeline:
+  1. If `audioBase64` supplied: Gemini Flash transcribes audio → `parse_transcript` identifies mentioned kids and drafts per-kid updates.
+  2. For each `photoKey`: `match_faces` compares detected face embeddings against kids with stored `faceEmbedding`; `describe_scene` generates a 1–2 sentence scene description.
+  3. Merges voice and photo signals into per-kid suggestions.
+  - `classId` scopes eligible kids to one class; omitting it uses all kids in the educator's classes.
+  - Returns: `{ transcript, suggestions[{ kidId, kidName, avatarUrl, content, photoKeys }], photoResults[{ photoKey, photoUrl, detectedKidIds, sceneDescription }], eligibleKids[{ id, firstName, lastName, avatarUrl }] }`.
+- `confirmQuickLog(updates: [QuickLogUpdateInput!]!) → [Update]` — Creates one Update document per kid. `QuickLogUpdateInput`: `{ kidId, content, photoKeys }`. Photos are stored as `mediaKeys` (not `mediaUrls`) so presigned GET URLs are regenerated at read time.
+
+**Planned (not yet implemented):**
+- `POST /api/teacher/classes` — Get assigned classes and their kids.
 - `POST /api/ai/draft-update` — Generate an AI-drafted parent-friendly message from quick tags.
 
 ### Kids APIs
@@ -220,17 +231,18 @@ sprout/
 
 ## 7. AI Module Design (`backend/app/ai/`)
 
-Stub files exist; none are wired into routes yet.
-
 ### 7.1 Face Recognition (`face_recognizer.py`)
-- On kid onboarding, admin uploads a reference photo. The system generates a 128-d face embedding and stores it in the Kids collection.
-- When an educator uploads a photo, the system extracts faces, generates embeddings, and matches against stored kid embeddings.
+- `encode_face(image_bytes) → list[float] | None` — Converts bytes to RGB via Pillow, detects all faces with `face_recognition`, returns the 128-d embedding for the largest face (by bounding-box area). Returns `None` if no face detected or library unavailable.
+- `match_faces(image_bytes, candidates: dict[str, list[float]]) → list[tuple[str, float]]` — Detects all faces in an image, compares each against `candidates` (kid_id → embedding), returns sorted `[(kid_id, confidence)]` where `confidence = 1 - face_distance`. Threshold `_TOLERANCE = 0.5`.
+- **Embedding storage**: `confirmKidPhotoUpload` stores the embedding in `kids.faceEmbedding` after every profile photo upload (non-fatal — failure is logged and skipped).
+- **Quick Log usage**: `analyzeQuickLog` reads `faceEmbedding` from all eligible kids and passes them to `match_faces` for each uploaded photo.
 
-### 7.2 LLM Service (`llm_service.py`)
-- Uses Google Gemini API.
-- **Draft Update**: Takes educator's quick tags + context and generates a warm parent-friendly message.
-- **Photo Summarisation**: Uses Gemini Vision to analyse a photo and return a text description of the activity.
-- **Daily Summary**: Aggregates all updates for a kid on a given day and generates a comprehensive narrative.
+### 7.2 LLM Service (`llm_service.py` + `voice_parser.py`)
+- `get_flash_model()` — Returns a Gemini Flash model client (cached module-level).
+- **Voice transcription** (`voice_parser.transcribe_audio`): Sends audio bytes as base64 `inline_data` to Gemini Flash. Returns plain transcript string.
+- **Transcript parsing** (`voice_parser.parse_transcript`): Sends transcript + kid list to Gemini Flash with a structured prompt; returns `[{ kid_id, kid_name, content }]` per identified kid. Uses regex to extract JSON array from response.
+- **Scene description** (`voice_parser.describe_scene`): Sends a PIL image to Gemini Vision; returns a 1–2 sentence warm scene description.
+- **Daily Summary**: Aggregates all updates for a kid on a given day and generates a comprehensive narrative. *(Wired up in `SummaryScreen`.)*
 
 ### 7.3 Image Processor (`image_processor.py`)
 Processing pipeline for every uploaded photo. Returns a `ProcessedImage(full, thumbnail)` named tuple.
@@ -249,6 +261,12 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
 - **ClassesScreen**: `query { me { classes { id name kids { id } educators { id } } } }` — uses the `User.classes` sub-field (filters by `educator_user_ids`), not the admin-restricted `classes` query.
 - **RosterScreen**: `query { class(id) { id name kids { ... } educators { ... } } }` — visible to any authenticated user.
 - **LogActivityScreen**: `mutation createUpdate(input: { classId, type, content, kidId? })` — logs a meal, nap, activity, or photo update.
+- **QuickLogScreen**: 3-step AI wizard (see PRD §4.1a). Uses:
+  - `query { me { classes { id name } } }` — load class chips.
+  - `mutation presignQuickLogPhoto(contentType)` — per-photo before upload.
+  - `mutation analyzeQuickLog(classId?, audioBase64?, audioMimeType?, photoKeys?)` — AI pipeline.
+  - `mutation confirmQuickLog(updates: [QuickLogUpdateInput!]!)` — creates Update documents.
+  - Audio recorded via expo-av (`Audio.Recording`), base64-encoded via expo-file-system. Photos selected via expo-image-picker multi-select (≤10), PUT directly to S3 presigned URL from the app.
 
 ### Parent screens
 - **FeedScreen**: `query { kids(first: 50) { edges { node { ... institution { ... } class { ... educators { ... } } } } } }` — `kids` query is scoped to the caller's kids when the JWT role is `parent`.
@@ -259,7 +277,7 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
 - `AppNavigator` (root) → role-aware routing: Login | EducatorNavigator | ParentNavigator | UnsupportedRoleScreen
 - `EducatorNavigator`: three bottom tabs:
   - **Classes** — `ClassesStack`: ClassesScreen → RosterScreen → LogActivityScreen (params: classId, className, optional kidId/kidName)
-  - **Quick Log** — `QuickLogScreen`: standalone tab; loads educator's classes, shows horizontal chip selector + activity form; submits via `createUpdate` mutation scoped to a class (no kidId)
+  - **Quick Log** — `QuickLogScreen`: standalone tab; 3-step AI wizard — voice + photos → Gemini analysis → per-kid review → confirm (see PRD §4.1a)
   - **Settings** — `SettingsStack`: SettingsScreen (language picker + My Profile link) → ProfileScreen
 - `ParentNavigator`: bottom tabs (Feed stack → KidDetail → Summary, Profile)
 

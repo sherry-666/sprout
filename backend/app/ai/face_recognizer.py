@@ -1,51 +1,92 @@
-import face_recognition
+"""
+Face recognition using the face_recognition library (dlib backend).
+Embeddings are 128-d float64 vectors stored in MongoDB on the Kid document.
+
+encode_face(image_bytes)  → Optional[List[float]]  — extract dominant face
+match_faces(image_bytes, candidates) → List[Tuple[str, float]]  — match all faces
+"""
+from __future__ import annotations
+import io
+import logging
 import numpy as np
-from typing import List, Tuple
+from typing import Optional
+from PIL import Image as PILImage
 
-def get_face_embedding(image_path: str) -> bytes:
+log = logging.getLogger(__name__)
+
+_TOLERANCE = 0.5  # cosine distance threshold; lower = stricter
+
+
+def _to_rgb_array(image_bytes: bytes) -> np.ndarray:
+    img = PILImage.open(io.BytesIO(image_bytes)).convert("RGB")
+    return np.array(img)
+
+
+def encode_face(image_bytes: bytes) -> Optional[list[float]]:
     """
-    Extracts the 128-d face embedding from an image file.
-    Returns the first face found as bytes, or None if no face is detected.
+    Extract a 128-d face embedding from image bytes.
+    Returns the embedding of the largest (most prominent) face, or None if
+    no face is detected or face_recognition is unavailable.
     """
-    image = face_recognition.load_image_file(image_path)
-    face_encodings = face_recognition.face_encodings(image)
-    
-    if not face_encodings:
+    try:
+        import face_recognition
+        img = _to_rgb_array(image_bytes)
+        locations = face_recognition.face_locations(img, model="hog")
+        if not locations:
+            return None
+        encodings = face_recognition.face_encodings(img, locations)
+        if not encodings:
+            return None
+        if len(locations) > 1:
+            # Pick largest face by bounding-box area
+            areas = [(b - t) * (r - l) for (t, r, b, l) in locations]
+            idx = max(range(len(areas)), key=lambda i: areas[i])
+            return encodings[idx].tolist()
+        return encodings[0].tolist()
+    except ImportError:
+        log.warning("face_recognition not installed — face embedding skipped")
         return None
-        
-    # Return the first detected face as bytes for storage in MongoDB
-    return face_encodings[0].tobytes()
+    except Exception as e:
+        log.warning("encode_face failed: %s", e)
+        return None
 
-def identify_kids_in_photo(photo_path: str, known_embeddings: dict) -> List[str]:
+
+def match_faces(
+    image_bytes: bytes,
+    candidates: dict[str, list[float]],  # {kid_id: embedding}
+) -> list[tuple[str, float]]:
     """
-    Takes a photo path and a dictionary of known embeddings {kid_id: embedding_bytes}.
-    Returns a list of kid_ids that were detected in the photo.
+    Detect every face in the image and compare against stored kid embeddings.
+    Returns a list of (kid_id, confidence) tuples for all matches within tolerance,
+    sorted by descending confidence.  Confidence = 1 - face_distance (0–1 scale).
     """
-    image = face_recognition.load_image_file(photo_path)
-    face_encodings = face_recognition.face_encodings(image)
-    
-    if not face_encodings:
+    if not candidates:
         return []
-        
-    detected_kid_ids = set()
-    
-    # Convert known embeddings back to numpy arrays
-    known_encodings = []
-    kid_ids = []
-    for kid_id, emb_bytes in known_embeddings.items():
-        if emb_bytes:
-            known_encodings.append(np.frombuffer(emb_bytes, dtype=np.float64))
-            kid_ids.append(kid_id)
-            
-    if not known_encodings:
+    try:
+        import face_recognition
+        img = _to_rgb_array(image_bytes)
+        unknown_encodings = face_recognition.face_encodings(img)
+        if not unknown_encodings:
+            return []
+
+        kid_ids = list(candidates.keys())
+        known = [np.array(candidates[kid_id]) for kid_id in kid_ids]
+
+        matched: dict[str, float] = {}
+        for unk in unknown_encodings:
+            distances = face_recognition.face_distance(known, unk)
+            for i, dist in enumerate(distances):
+                if dist <= _TOLERANCE:
+                    confidence = round(float(1.0 - dist), 3)
+                    # Keep highest confidence per kid across multiple detected faces
+                    kid_id = kid_ids[i]
+                    if confidence > matched.get(kid_id, 0):
+                        matched[kid_id] = confidence
+
+        return sorted(matched.items(), key=lambda x: -x[1])
+    except ImportError:
+        log.warning("face_recognition not installed — face matching skipped")
         return []
-        
-    for unknown_encoding in face_encodings:
-        # Compare unknown face with all known kids
-        results = face_recognition.compare_faces(known_encodings, unknown_encoding, tolerance=0.5)
-        
-        for i, is_match in enumerate(results):
-            if is_match:
-                detected_kid_ids.add(kid_ids[i])
-                
-    return list(detected_kid_ids)
+    except Exception as e:
+        log.warning("match_faces failed: %s", e)
+        return []
