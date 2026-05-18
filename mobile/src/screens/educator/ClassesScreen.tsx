@@ -29,6 +29,9 @@ export default function ClassesScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('QuickLog')} activeOpacity={0.85}>
+        <Text style={styles.fabText}>✏️  Quick Log</Text>
+      </TouchableOpacity>
       {loading && classes.length === 0 ? (
         <ActivityIndicator style={{ marginTop: 60 }} size="large" color={Colors.primary} />
       ) : classes.length === 0 ? (
@@ -98,4 +101,19 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
   emptyText: { fontSize: 17, fontWeight: '600', color: Colors.textPrimary, textAlign: 'center' },
   emptySubtext: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', marginTop: 6, lineHeight: 20 },
+  fab: {
+    position: 'absolute', bottom: 24, right: 20, zIndex: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabText: { color: Colors.white, fontSize: 15, fontWeight: '700' },
 });

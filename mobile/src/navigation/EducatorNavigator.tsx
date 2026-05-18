@@ -76,6 +76,7 @@ function ClassesStackNav() {
       <ClassesStack.Screen name="ClassesList" component={ClassesScreen} options={{ title: t('classes.title') }} />
       <ClassesStack.Screen name="Roster" component={RosterScreen} options={({ route }: any) => ({ title: route.params?.className ?? 'Roster' })} />
       <ClassesStack.Screen name="LogActivity" component={LogActivityScreen} options={({ route }: any) => ({ title: route.params?.kidName ? `Log for ${route.params.kidName}` : 'Log Activity' })} />
+      <ClassesStack.Screen name="QuickLog" component={QuickLogScreen} options={{ title: 'Quick Log' }} />
     </ClassesStack.Navigator>
   );
 }
@@ -113,18 +114,6 @@ export default function EducatorNavigator() {
           tabBarLabel: t('tabs.classes'),
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📚</Text>,
           tabBarButton: tabButton,
-        }}
-      />
-      <Tab.Screen
-        name="QuickLog"
-        component={QuickLogScreen}
-        options={{
-          tabBarLabel: t('tabs.quickLog'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>✏️</Text>,
-          tabBarButton: tabButton,
-          headerShown: true,
-          ...NAV_OPTS,
-          title: t('quickLog.title'),
         }}
       />
       <Tab.Screen

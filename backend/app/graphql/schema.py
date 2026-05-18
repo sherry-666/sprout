@@ -1017,12 +1017,24 @@ class Mutation:
         )
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def transcribe_audio(
+        self,
+        info: Info[GraphQLContext, None],
+        audio_base64: str,
+        audio_mime_type: str = "audio/m4a",
+    ) -> str:
+        from app.ai.voice_parser import transcribe_audio as _transcribe
+        audio_bytes = base64.b64decode(audio_base64)
+        return await _transcribe(audio_bytes, audio_mime_type)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
     async def analyze_quick_log(
         self,
         info: Info[GraphQLContext, None],
         class_id: Optional[strawberry.ID] = None,
         audio_base64: Optional[str] = None,
         audio_mime_type: str = "audio/m4a",
+        transcript: Optional[str] = None,
         photo_keys: Optional[List[str]] = None,
     ) -> QuickLogAnalysis:
         from app.ai.face_recognizer import match_faces
@@ -1058,18 +1070,20 @@ class Mutation:
             ))
 
         # ── Voice: transcribe + parse ────────────────────────────────
-        transcript = ""
+        final_transcript = transcript or ""
         voice_suggestions: list[dict] = []
-        if audio_base64:
+        if not final_transcript and audio_base64:
             audio_bytes = base64.b64decode(audio_base64)
+            final_transcript = await transcribe_audio(audio_bytes, audio_mime_type)
+            log.info("analyze_quick_log: transcript=%s", final_transcript[:120])
+        if final_transcript:
             kids_info = [
                 {"id": k["_id"], "name": f"{k.get('firstName','')} {k.get('lastName','')}".strip()}
                 for k in kids
             ]
-            transcript = await transcribe_audio(audio_bytes, audio_mime_type)
-            log.info("analyze_quick_log: transcript=%s", transcript[:120])
-            voice_suggestions = await parse_transcript(transcript, kids_info)
+            voice_suggestions = await parse_transcript(final_transcript, kids_info)
 
+        transcript = final_transcript
         voice_map = {s["kid_id"]: s["content"] for s in voice_suggestions}
 
         # ── Photos: face recognition + scene description ─────────────
