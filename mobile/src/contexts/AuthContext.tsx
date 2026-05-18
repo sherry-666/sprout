@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apolloClient } from '../apollo/client';
+import { apolloClient, setAuthErrorHandler } from '../apollo/client';
 
 interface UserInfo {
   id: string;
@@ -43,12 +43,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(newUser);
   };
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await AsyncStorage.multiRemove(['jwt', 'user']);
     await apolloClient.clearStore();
     setToken(null);
     setUser(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    setAuthErrorHandler(signOut);
+  }, [signOut]);
 
   return (
     <AuthContext.Provider value={{ token, user, loading, signIn, signOut }}>
