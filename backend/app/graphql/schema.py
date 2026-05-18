@@ -1,7 +1,8 @@
 from __future__ import annotations
 import secrets
 import logging
-from datetime import datetime
+import uuid as uuid_lib
+from datetime import datetime, timedelta
 from typing import Optional, List, Annotated
 from bson import ObjectId
 
@@ -30,6 +31,7 @@ from app.graphql.types import (
     Node, User, Institution, Kid, Class, Update,
     KidConnection, KidEdge, UpdateConnection, UpdateEdge,
     AuthPayload, InvitationInfo, InvitationSent, KidRegistered, Profile, PageInfo,
+    PresignedUpload,
 )
 from app.graphql.errors import (
     InvalidCredentialsError, AccountPendingError,
@@ -638,6 +640,101 @@ class Mutation:
         kid_doc = await db.kids.find_one({"_id": result.inserted_id})
 
         return KidRegistered(kid=Kid.from_doc(kid_doc), emails_invited=emails_invited)
+
+    # ── Kid photos ────────────────────────────────────────────────────
+
+    _ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def presign_kid_photo_upload(
+        self,
+        info: Info[GraphQLContext, None],
+        kid_id: strawberry.ID,
+        content_type: str,
+    ) -> PresignedUpload:
+        from app.core.storage import presign_put, storage_configured
+        if not storage_configured():
+            raise ValueError("Photo storage is not configured")
+        if content_type not in self._ALLOWED_PHOTO_TYPES:
+            raise ValueError(f"content_type must be one of {self._ALLOWED_PHOTO_TYPES}")
+
+        db = info.context.db
+        kid_doc = await db.kids.find_one({"_id": str(kid_id)})
+        if not kid_doc:
+            raise ValueError("Kid not found")
+
+        role = info.context.viewer_role
+        inst_id = kid_doc.get("institution_id", "")
+        if role == "parent":
+            if info.context.viewer_id not in kid_doc.get("parent_user_ids", []):
+                raise PermissionError("Not a parent of this kid")
+        elif role in ("admin", "educator"):
+            if info.context.viewer_institution_id != inst_id:
+                raise PermissionError("Kid belongs to a different institution")
+        elif role != "super_admin":
+            raise PermissionError("Insufficient permissions")
+
+        raw_uuid = uuid_lib.uuid4().hex
+        object_key = f"institutions/{inst_id}/kids/{str(kid_id)}/raw-{raw_uuid}.jpg"
+        ttl = 300  # 5 minutes
+        upload_url = presign_put(object_key, content_type, expires_in=ttl)
+        return PresignedUpload(
+            upload_url=upload_url,
+            object_key=object_key,
+            expires_at=datetime.utcnow() + timedelta(seconds=ttl),
+        )
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def confirm_kid_photo_upload(
+        self,
+        info: Info[GraphQLContext, None],
+        kid_id: strawberry.ID,
+        object_key: str,
+    ) -> Kid:
+        from app.core.storage import get_object, put_object, delete, storage_configured
+        from app.ai.image_processor import process
+        if not storage_configured():
+            raise ValueError("Photo storage is not configured")
+
+        db = info.context.db
+        kid_doc = await db.kids.find_one({"_id": str(kid_id)})
+        if not kid_doc:
+            raise ValueError("Kid not found")
+
+        inst_id = kid_doc.get("institution_id", "")
+        role = info.context.viewer_role
+        if role == "parent":
+            if info.context.viewer_id not in kid_doc.get("parent_user_ids", []):
+                raise PermissionError("Not a parent of this kid")
+        elif role in ("admin", "educator"):
+            if info.context.viewer_institution_id != inst_id:
+                raise PermissionError("Kid belongs to a different institution")
+        elif role != "super_admin":
+            raise PermissionError("Insufficient permissions")
+
+        expected_prefix = f"institutions/{inst_id}/kids/{str(kid_id)}/"
+        if not object_key.startswith(expected_prefix):
+            raise ValueError("Invalid object key")
+
+        raw_bytes = get_object(object_key)
+        try:
+            processed = process(raw_bytes)
+        except ValueError as e:
+            delete(object_key)
+            raise ValueError(f"Image processing failed: {e}") from e
+
+        full_key = f"institutions/{inst_id}/kids/{str(kid_id)}/profile.jpg"
+        thumb_key = f"institutions/{inst_id}/kids/{str(kid_id)}/profile-thumb.jpg"
+        put_object(full_key, processed.full, "image/jpeg")
+        put_object(thumb_key, processed.thumbnail, "image/jpeg")
+        delete(object_key)
+
+        await db.kids.update_one(
+            {"_id": str(kid_id)},
+            {"$set": {"profilePhotoKey": full_key}},
+        )
+        updated = await db.kids.find_one({"_id": str(kid_id)})
+        return Kid.from_doc(updated)
 
     # ── Classes ────────────────────────────────────────────────────────
 

@@ -422,13 +422,22 @@ class Kid(Node):
         dob = doc.get("dateOfBirth")
         if isinstance(dob, datetime):
             dob = dob.date()
+        key = doc.get("profilePhotoKey")
+        if key:
+            try:
+                from app.core.storage import safe_presign_get
+                profile_photo_url = safe_presign_get(key)
+            except Exception:
+                profile_photo_url = doc.get("profilePhotoUrl")
+        else:
+            profile_photo_url = doc.get("profilePhotoUrl")
         return cls(
             id=strawberry.ID(str(doc["_id"])),
             first_name=doc.get("firstName", ""),
             last_name=doc.get("lastName", ""),
             gender=Gender(doc["gender"]) if doc.get("gender") else None,
             date_of_birth=dob,
-            profile_photo_url=doc.get("profilePhotoUrl"),
+            profile_photo_url=profile_photo_url,
             created_at=doc.get("createdAt", datetime.utcnow()),
             institution_id_=str(doc.get("institution_id", "")),
             class_id_=str(doc["class_id"]) if doc.get("class_id") else None,
@@ -490,6 +499,15 @@ class Update(Node):
             class_id_=str(doc.get("class_id", "")),
             detected_kid_ids_=[str(k) for k in doc.get("detected_kid_ids", [])],
         )
+
+
+# ─── Presigned upload ─────────────────────────────────────────────────
+
+@strawberry.type
+class PresignedUpload:
+    upload_url: str
+    object_key: str
+    expires_at: DateTime
 
 
 # ─── Auth payloads ────────────────────────────────────────────────────

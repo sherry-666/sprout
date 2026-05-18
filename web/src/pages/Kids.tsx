@@ -16,10 +16,8 @@ const GET_KIDS_QUERY = gql`
           lastName
           gender
           dateOfBirth
-          class {
-            id
-            name
-          }
+          profilePhotoUrl
+          class { id name }
         }
       }
       totalCount
@@ -87,9 +85,13 @@ const Kids = () => {
                 <tr key={kid.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '14px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: genderColor(kid.gender), display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>
-                        {kid.firstName?.charAt(0)}
-                      </div>
+                      {kid.profilePhotoUrl ? (
+                        <img src={kid.profilePhotoUrl} alt="" style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: genderColor(kid.gender), display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0 }}>
+                          {kid.firstName?.charAt(0)}
+                        </div>
+                      )}
                       <span style={{ fontWeight: 500 }}>{kid.firstName} {kid.lastName}</span>
                     </div>
                   </td>

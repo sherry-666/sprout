@@ -112,6 +112,26 @@ def list_under_prefix(prefix: str) -> list[str]:
         raise StorageError(f"list_under_prefix failed: {e}") from e
 
 
+def get_object(key: str) -> bytes:
+    """Download an object and return its raw bytes (used for server-side processing)."""
+    try:
+        client = _client()
+        response = client.get_object(Bucket=settings.S3_BUCKET, Key=key)
+        return response["Body"].read()
+    except ClientError as e:
+        raise StorageError(f"get_object failed: {e}") from e
+
+
+def safe_presign_get(key: str, expires_in: int = 3600) -> Optional[str]:
+    """Return a pre-signed GET URL, or None if storage is not configured or key is empty."""
+    if not key or not storage_configured():
+        return None
+    try:
+        return presign_get(key, expires_in)
+    except StorageError:
+        return None
+
+
 def storage_configured() -> bool:
     """Return True only when all required S3 env vars are set."""
     return bool(

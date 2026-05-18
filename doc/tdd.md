@@ -103,7 +103,8 @@ sprout/
 - `class_id`: String
 - `institution_id`: String (FK → institutions._id)
 - `faceEmbedding`: Binary (128-d vector for face recognition, encrypted at rest)
-- `profilePhotoUrl`: String (optional)
+- `profilePhotoUrl`: String (optional, legacy — superseded by `profilePhotoKey`)
+- `profilePhotoKey`: String (optional) — S3 object key for the processed full-size profile photo. When present, `profilePhotoUrl` is resolved at read time via `safe_presign_get(key)` (1-hour pre-signed GET URL). Thumbnail is stored at `{key_prefix}/profile-thumb.jpg` by convention.
 - `createdAt`: Date
 - `consent` *(TODO — required before any photo feature ships)*: Embedded document recording parental consent for media handling. Shape:
   ```
@@ -193,6 +194,10 @@ sprout/
 ### Kids APIs
 - `POST /api/kids/register` — Register a kid. Requires `admin` JWT. Body: `{ firstName, lastName, gender, dateOfBirth (YYYY-MM-DD), profilePhotoUrl?, parents: [{ firstName, lastName, email, phone? }] }`. For each parent: if email already exists, links to existing account (no email sent); otherwise creates a pending parent user, generates an invitation token, and sends a parent activation email. Returns `{ success, kid_id, emails_invited }`.
 - `GET /api/kids` — List all kids for the caller's institution. Requires `admin` JWT. Returns array of `{ id, firstName, lastName, gender, dateOfBirth, profilePhotoUrl, parentCount }`.
+
+**Photo upload (GraphQL mutations):**
+- `presignKidPhotoUpload(kidId, contentType)` → `{ uploadUrl, objectKey, expiresAt }` — Returns a 5-minute pre-signed PUT URL. Caller is admin, educator (same institution), or parent of the kid. Accepted content types: `image/jpeg`, `image/png`, `image/webp`. Raw object key: `institutions/{inst}/kids/{id}/raw-{uuid}.jpg`.
+- `confirmKidPhotoUpload(kidId, objectKey)` → `Kid` — Server downloads raw from S3, runs through `image_processor.process()` (EXIF strip + resize), uploads full (`profile.jpg`) and thumb (`profile-thumb.jpg`), deletes raw, stores `profilePhotoKey` in MongoDB. Returns updated Kid with fresh `profilePhotoUrl`.
 
 ### Parent APIs
 - `GET /api/parent/kids` — List all kids linked to the authenticated parent. Requires `parent` JWT. For each kid returns: `id`, `firstName`, `lastName`, `gender`, `dateOfBirth`, `profilePhotoUrl`, `institution` (id, name), `class` (id, name), `educators` (id, name). Class and educator fields are `null` if not yet assigned.

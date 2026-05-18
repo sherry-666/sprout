@@ -27,6 +27,7 @@ const GET_CLASS_QUERY = gql`
         lastName
         gender
         dateOfBirth
+        profilePhotoUrl
       }
     }
   }
@@ -214,9 +215,13 @@ const ClassDetail = () => {
                 <tr key={kid.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '12px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: kid.gender === 'male' ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : 'linear-gradient(135deg, #EC4899, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
-                        {kid.firstName?.charAt(0)}
-                      </div>
+                      {kid.profilePhotoUrl ? (
+                        <img src={kid.profilePhotoUrl} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: kid.gender === 'male' ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : 'linear-gradient(135deg, #EC4899, #F59E0B)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
+                          {kid.firstName?.charAt(0)}
+                        </div>
+                      )}
                       <span style={{ fontWeight: 500 }}>{kid.firstName} {kid.lastName}</span>
                     </div>
                   </td>

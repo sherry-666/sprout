@@ -11,17 +11,27 @@ const REGISTER_KID_MUTATION = gql`
     registerKid(input: $input) {
       __typename
       ... on KidRegistered {
-        kid {
-          id
-          firstName
-          lastName
-        }
+        kid { id firstName lastName }
         emailsInvited
       }
-      ... on ValidationError {
-        field
-        message
-      }
+      ... on ValidationError { field message }
+    }
+  }
+`;
+
+const PRESIGN_KID_PHOTO = gql`
+  mutation PresignKidPhotoUpload($kidId: ID!, $contentType: String!) {
+    presignKidPhotoUpload(kidId: $kidId, contentType: $contentType) {
+      uploadUrl
+      objectKey
+    }
+  }
+`;
+
+const CONFIRM_KID_PHOTO = gql`
+  mutation ConfirmKidPhotoUpload($kidId: ID!, $objectKey: String!) {
+    confirmKidPhotoUpload(kidId: $kidId, objectKey: $objectKey) {
+      id profilePhotoUrl
     }
   }
 `;
@@ -52,6 +62,7 @@ const RegisterKid = () => {
   const [gender, setGender] = useState<'male' | 'female' | ''>('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Parents
@@ -65,10 +76,13 @@ const RegisterKid = () => {
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
 
   const [registerKidMutate] = useMutation<any>(REGISTER_KID_MUTATION);
+  const [presignPhotoMutate] = useMutation<any>(PRESIGN_KID_PHOTO);
+  const [confirmPhotoMutate] = useMutation<any>(CONFIRM_KID_PHOTO);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPhotoFile(file);
     const reader = new FileReader();
     reader.onload = () => setPhotoPreview(reader.result as string);
     reader.readAsDataURL(file);
@@ -130,6 +144,24 @@ const RegisterKid = () => {
         setShowReview(false);
         setErrors([`${res.field}: ${res.message}`]);
         return;
+      }
+
+      // Upload profile photo if one was selected
+      const kidId = res.kid?.id;
+      if (photoFile && kidId) {
+        try {
+          const contentType = photoFile.type || 'image/jpeg';
+          const { data: presignData } = await presignPhotoMutate({ variables: { kidId, contentType } });
+          const { uploadUrl, objectKey } = presignData.presignKidPhotoUpload;
+          await fetch(uploadUrl, {
+            method: 'PUT',
+            body: photoFile,
+            headers: { 'Content-Type': contentType },
+          });
+          await confirmPhotoMutate({ variables: { kidId, objectKey } });
+        } catch {
+          // Kid was registered; photo upload failure is non-fatal
+        }
       }
 
       setInvitedEmails(res.emailsInvited || []);
