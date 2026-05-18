@@ -14,7 +14,11 @@ const resources = {
         settings: "Settings",
         kids: "Kids",
         myKids: "My Kids",
-        signOut: "Sign Out"
+        signOut: "Sign Out",
+        signOutConfirm: "Are you sure you want to sign out?"
+      },
+      common: {
+        cancel: "Cancel"
       },
       roles: {
         systemAdmin: "System Admin",
@@ -303,7 +307,11 @@ const resources = {
         settings: "设置",
         kids: "儿童",
         myKids: "我的孩子",
-        signOut: "退出登录"
+        signOut: "退出登录",
+        signOutConfirm: "确定要退出登录吗？"
+      },
+      common: {
+        cancel: "取消"
       },
       roles: {
         systemAdmin: "系统管理员",
@@ -593,7 +601,11 @@ const resources = {
         settings: "Paramètres",
         kids: "Enfants",
         myKids: "Mes enfants",
-        signOut: "Se déconnecter"
+        signOut: "Se déconnecter",
+        signOutConfirm: "Êtes-vous sûr de vouloir vous déconnecter ?"
+      },
+      common: {
+        cancel: "Annuler"
       },
       roles: {
         systemAdmin: "Administrateur système",

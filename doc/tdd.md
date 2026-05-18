@@ -36,7 +36,7 @@ The system consists of a centralized Python backend service communicating with a
   - `Pillow` / `OpenCV` — Image manipulation (stickers, text overlays, captions). *(Not yet wired up.)*
 - **Email**: SendGrid (`sendgrid>=6.11.0`). Falls back to console logging if `SENDGRID_API_KEY` is not set.
 - **Hosting/Deployment**: Railway. Railway supports native deployment for Python and static sites.
-- **File Storage** *(TODO)*: No file storage is configured yet. Profile photos (kids, users) are accepted by the frontend UI but `profilePhotoUrl` is always stored as `null`. Requires a cloud storage solution (e.g. AWS S3, Cloudinary, or Railway volume) and a `POST /api/upload` endpoint that returns a URL. Until implemented, profile photos are not persisted.
+- **File Storage**: Railway Bucket (S3-compatible). Credentials live in env vars `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`. The backend wrapper is `app/core/storage.py` (boto3). Image pre-processing (EXIF strip, 1600px full, 400px thumbnail) is in `app/ai/image_processor.py` (Pillow). Profile photo URLs in MongoDB are stored as `null` until Phase 2 wires the upload mutation.
 
 ## 3. Project Structure
 ```
@@ -105,6 +105,19 @@ sprout/
 - `faceEmbedding`: Binary (128-d vector for face recognition, encrypted at rest)
 - `profilePhotoUrl`: String (optional)
 - `createdAt`: Date
+- `consent` *(TODO — required before any photo feature ships)*: Embedded document recording parental consent for media handling. Shape:
+  ```
+  consent: {
+    photoStorage:    { granted: bool, by_user_id: str, at: datetime, revoked_at?: datetime },
+    aiProcessing:    { granted: bool, by_user_id: str, at: datetime, revoked_at?: datetime },
+    faceRecognition: { granted: bool, by_user_id: str, at: datetime, revoked_at?: datetime },
+  }
+  ```
+  Default for all three is `granted: false` (opt-in, not opt-out). Backend enforcement:
+  - Photo upload mutation rejects when `photoStorage.granted` is false for any kid featured in the upload.
+  - The face-embedding job skips kids where `faceRecognition.granted` is false (and deletes any previously stored `faceEmbedding`).
+  - The AI captioning job skips photos when *any* featured kid has `aiProcessing.granted = false`.
+  - Revoking any flag triggers the deletion job in [Section 9.1](#91-photo-storage-todo).
 
 ### 4.3 Classes Collection
 - `_id`: String
@@ -211,9 +224,13 @@ Stub files exist; none are wired into routes yet.
 - **Daily Summary**: Aggregates all updates for a kid on a given day and generates a comprehensive narrative.
 
 ### 7.3 Image Processor (`image_processor.py`)
-- Uses Pillow and/or OpenCV.
-- **Sticker Overlay**: Composites stickers onto photos.
-- **Text Overlay**: Adds captions with customisable fonts/colours.
+Processing pipeline for every uploaded photo. Returns a `ProcessedImage(full, thumbnail)` named tuple.
+- **EXIF strip**: `ImageOps.exif_transpose` corrects orientation then a clean RGB copy is built — no metadata in stored object.
+- **Full image**: longest side ≤ 1600 px, JPEG @ 80% quality (never upscaled).
+- **Thumbnail**: longest side ≤ 400 px, JPEG @ 75% quality — used for feed previews.
+- Raises `ValueError` for non-image input so the caller can return a 400.
+
+Sticker/caption overlay helpers are deferred to Phase 4 (AI photo enhancement).
 
 ## 8. Mobile App — GraphQL Usage
 
@@ -262,3 +279,19 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
 - **Environment Variables**: `MONGODB_URL`, `DATABASE_NAME`, `JWT_SECRET`, `GEMINI_API_KEY`, `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `FRONTEND_URL`, `EMAIL_WHITELIST_ENABLED`, `EMAIL_WHITELIST`.
 - **CI/CD**: GitHub integration with Railway. Pushes to `main` automatically trigger builds and deployments.
 - **File Storage**: Cloud storage (e.g., AWS S3 or Cloudflare R2) for photos and media. URLs stored in MongoDB. *(Not yet configured.)*
+
+### 9.1 Photo Storage *(TODO)*
+
+Planned: **Railway Buckets** (S3-compatible object storage, same project as the backend). All vendor-specific bits (endpoint, region, key, secret, bucket name) live in env vars (`S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`) so the backend can swap to R2 / S3 / GCS later without code changes.
+
+Required pieces before launch:
+
+- **Pre-signed upload mutation**: `presignPhotoUpload(input: { kidIds: [ID!]!, contentType }) → { uploadUrl, objectKey, expiresAt }`. Backend verifies the educator owns the class, all `kidIds` have `consent.photoStorage.granted = true`, and returns a one-time PUT URL (TTL 5 min). Object key format: `institutions/{inst_id}/kids/{primary_kid_id}/{uuid}.jpg`.
+- **Pre-signed read URLs**: `Update.mediaUrls` field resolves to time-limited GET URLs (TTL 15 min) instead of bare object paths. The bucket itself stays private.
+- **Image preprocessing**: an `ImageProcessor` step on upload that (a) strips EXIF metadata (location data leaks home addresses), (b) resizes to max 1600px wide JPEG @ 80% quality, (c) generates a 400px thumbnail. Stored under `…/{uuid}.jpg` and `…/{uuid}_thumb.jpg`.
+- **Delete-on-revocation hook**: when `consent.photoStorage` is revoked OR a kid is removed OR an institution is deleted, an async job:
+  1. Enumerates all `updates` documents where `detectedKidIds` contains the kid.
+  2. For each, removes the kid from `detectedKidIds`. If the kid was the *only* tagged kid, deletes the bucket objects (`{key}` and `{key}_thumb`) and the update document.
+  3. Deletes the kid's `faceEmbedding` field.
+- **Orphan-reconciliation cron**: weekly job that lists all bucket objects under `institutions/…` and removes any whose object key is not referenced by any `updates.mediaUrls` or `kids.profilePhotoUrl`.
+- **Audit log collection**: a new `consent_audit` collection records every consent grant/revoke event (`kid_id`, `flag`, `granted`, `by_user_id`, `at`) for compliance retention.

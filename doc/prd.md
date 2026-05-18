@@ -99,6 +99,24 @@ The Web Portal is a React-based application designed for System and Institution 
 - User opts in from the Settings page; enabling 2FA requires verifying the phone number first via a test SMS.
 - On login, after correct password, user is prompted to enter the SMS code before being granted access.
 - Requires an SMS provider (e.g. Twilio) and a `POST /api/auth/verify-otp` endpoint.
+
+### 3.10 Photo Storage & Parental Consent *(TODO)*
+**Purpose:** Legally and ethically store children's photos with explicit, granular parental consent.
+
+Photos of minors fall under **COPPA** (US, under-13) and **GDPR** (EU). Before any photo upload feature ships, the following must be in place:
+
+- **Granular consent at kid registration / activation**. Parents must opt in (or out) separately for:
+  1. Storing photos of their child on Sprout servers.
+  2. AI analysis of those photos (captioning, scene understanding via Gemini).
+  3. Face recognition (storing a face embedding and using it to auto-tag the child in group photos).
+- Each consent flag is recorded on the `Kid` document with a timestamp and the consenting parent's `user_id` (audit trail). Parents can revoke any of the three at any time from the parent app.
+- **Photo capture / display gating**: educators cannot upload a photo *featuring* a kid who hasn't consented to photo storage. The AI pipeline must skip embedding/captioning for kids who haven't consented to AI processing.
+- **Right-to-delete**: when a parent revokes consent, when a kid leaves the institution, or when an institution is deleted, the system must purge:
+  - All photo objects from the bucket (not just MongoDB references).
+  - The kid's face embedding (and any cached AI metadata).
+  - Any photo updates that *only* feature that kid.
+- A weekly background job reconciles MongoDB photo references against the bucket and deletes orphaned objects.
+- A consent dashboard in the parent app shows the current state of all three flags and the date each was granted/revoked.
 - System admins are out of scope (they do not use the app login flow).
 
 ## 4. Mobile App Experience (React Native)

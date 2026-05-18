@@ -1,43 +1,69 @@
-from PIL import Image, ImageDraw, ImageFont
+"""
+Image processing pipeline for uploaded photos.
+
+Responsibilities:
+- Strip EXIF metadata (privacy — removes GPS, device info)
+- Resize full-size image to max 1600px on longest side, JPEG @ 80%
+- Generate 400px thumbnail, JPEG @ 75%
+
+Returns (full_bytes, thumb_bytes) as a named tuple.
+"""
 import io
+from typing import NamedTuple
+from PIL import Image, ImageOps
 
-def add_sticker(base_image_path: str, sticker_path: str, position: tuple = (0, 0)) -> bytes:
+
+MAX_FULL_PX = 1600
+MAX_THUMB_PX = 400
+FULL_QUALITY = 80
+THUMB_QUALITY = 75
+
+
+class ProcessedImage(NamedTuple):
+    full: bytes       # resized full image
+    thumbnail: bytes  # small thumbnail
+
+
+def process(data: bytes) -> ProcessedImage:
     """
-    Composites a sticker (PNG with transparency) onto the base image.
-    Returns the resulting image as bytes.
+    Accept raw upload bytes, return (full, thumbnail) without EXIF.
+    Raises ValueError for unrecognised image formats.
     """
     try:
-        base_img = Image.open(base_image_path).convert("RGBA")
-        sticker_img = Image.open(sticker_path).convert("RGBA")
-        
-        # Paste the sticker using its own alpha channel as the mask
-        base_img.paste(sticker_img, position, sticker_img)
-        
-        # Convert back to RGB to save as JPEG if needed, or keep RGBA
-        output_img = base_img.convert("RGB")
-        
-        img_byte_arr = io.BytesIO()
-        output_img.save(img_byte_arr, format='JPEG')
-        return img_byte_arr.getvalue()
+        img = Image.open(io.BytesIO(data))
     except Exception as e:
-        print(f"Error adding sticker: {e}")
-        return None
+        raise ValueError(f"Cannot open image: {e}") from e
 
-def add_caption(base_image_path: str, text: str, position: tuple = (50, 50)) -> bytes:
-    """
-    Adds a text caption overlay to the photo.
-    """
-    try:
-        img = Image.open(base_image_path).convert("RGB")
-        draw = ImageDraw.Draw(img)
-        
-        # In a real scenario, you'd load a TTF font file. 
-        # Using default bitmap font here as a fallback.
-        draw.text(position, text, fill=(255, 255, 255))
-        
-        img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='JPEG')
-        return img_byte_arr.getvalue()
-    except Exception as e:
-        print(f"Error adding caption: {e}")
-        return None
+    # Correct orientation from EXIF before stripping (handles phone uploads)
+    img = ImageOps.exif_transpose(img)
+
+    # Strip EXIF by converting through a clean RGB copy
+    clean = Image.new(img.mode, img.size)
+    clean.putdata(list(img.getdata()))
+    clean = clean.convert("RGB")
+
+    full = _resize(clean, MAX_FULL_PX)
+    thumb = _resize(clean, MAX_THUMB_PX)
+
+    return ProcessedImage(
+        full=_encode(full, FULL_QUALITY),
+        thumbnail=_encode(thumb, THUMB_QUALITY),
+    )
+
+
+def _resize(img: Image.Image, max_px: int) -> Image.Image:
+    """Downscale so longest side ≤ max_px; never upscale."""
+    w, h = img.size
+    if max(w, h) <= max_px:
+        return img
+    if w >= h:
+        new_w, new_h = max_px, int(h * max_px / w)
+    else:
+        new_w, new_h = int(w * max_px / h), max_px
+    return img.resize((new_w, new_h), Image.LANCZOS)
+
+
+def _encode(img: Image.Image, quality: int) -> bytes:
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=quality, optimize=True)
+    return buf.getvalue()

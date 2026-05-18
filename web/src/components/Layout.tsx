@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, School, Users, BookOpen, Settings, LogOut, Baby } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const isSuperAdmin = user?.role === Role.SuperAdmin;
   const isEducator = user?.role === Role.Educator;
   const isParent = user?.role === Role.Parent;
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const handleSignOut = () => {
     clearSession();
@@ -74,7 +75,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
           <button className="nav-link"
             style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444' }}
-            onClick={handleSignOut}>
+            onClick={() => setConfirmSignOut(true)}>
             <LogOut size={20} /> {t('nav.signOut')}
           </button>
         </div>
@@ -83,6 +84,27 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       <main className="main-content">
         {children}
       </main>
+
+      {confirmSignOut && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-card" style={{ maxWidth: '380px', width: '90%', padding: '32px' }}>
+            <h2 style={{ margin: '0 0 12px' }}>{t('nav.signOut')}</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 24px' }}>
+              {t('nav.signOutConfirm')}
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmSignOut(false)}
+                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '8px', padding: '10px 20px', fontWeight: 600, cursor: 'pointer' }}>
+                {t('common.cancel')}
+              </button>
+              <button onClick={handleSignOut}
+                style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', fontWeight: 600, cursor: 'pointer' }}>
+                {t('nav.signOut')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

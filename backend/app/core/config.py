@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     # Comma-separated allowed CORS origins (e.g. https://sprout-web.railway.app,http://localhost:5173)
     ALLOWED_ORIGINS: str = "http://localhost:5173"
 
+    # S3-compatible object storage (Railway Bucket)
+    S3_ENDPOINT: str = ""
+    S3_REGION: str = "auto"
+    S3_ACCESS_KEY: str = ""
+    S3_SECRET_KEY: str = ""
+    S3_BUCKET: str = ""
+
     # Dev email whitelist (comma-separated base Gmail addresses, dots/+suffix stripped)
     EMAIL_WHITELIST_ENABLED: bool = True
     EMAIL_WHITELIST: str = "csjingtao@gmail.com"

@@ -29,6 +29,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginMutation, { loading }] = useMutation(LOGIN_MUTATION);
 
   const handleLogin = async () => {
@@ -83,16 +84,26 @@ export default function LoginScreen() {
 
         <View style={styles.field}>
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor={Colors.textSecondary}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            onSubmitEditing={handleLogin}
-            returnKeyType="done"
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="••••••••"
+              placeholderTextColor={Colors.textSecondary}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+              onSubmitEditing={handleLogin}
+              returnKeyType="done"
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(v => !v)}
+              style={styles.eyeBtn}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
@@ -150,6 +161,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 15, color: Colors.textPrimary, backgroundColor: '#FAFAFA',
   },
+  passwordRow: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.sm,
+    backgroundColor: '#FAFAFA',
+  },
+  passwordInput: {
+    flex: 1, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: Colors.textPrimary,
+  },
+  eyeBtn: { paddingHorizontal: 12 },
+  eyeIcon: { fontSize: 18 },
   button: {
     backgroundColor: Colors.primary, borderRadius: Radius.sm,
     paddingVertical: 14, alignItems: 'center', marginTop: 4,
