@@ -170,14 +170,11 @@ export default function QuickLogScreen({ navigation }: any) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
 
-  // Pager
-  const pagerRef = useRef<ScrollView>(null);
-  const [pagerPage, setPagerPage] = useState(0);
-
   // Voice
   const isRecordingRef = useRef(false);
   const [isRecording, setIsRecording] = useState(false);
   const [note, setNote] = useState('');
+  const preRecordNoteRef = useRef('');
   const noteInputRef = useRef<TextInput>(null);
 
   // Photos
@@ -197,7 +194,10 @@ export default function QuickLogScreen({ navigation }: any) {
 
   useSpeechRecognitionEvent('result', event => {
     const text = event.results[0]?.transcript ?? '';
-    if (text) setNote(text);
+    if (text) {
+      const prefix = preRecordNoteRef.current ? preRecordNoteRef.current + ' ' : '';
+      setNote(prefix + text);
+    }
   });
 
   useSpeechRecognitionEvent('end', () => {
@@ -208,18 +208,10 @@ export default function QuickLogScreen({ navigation }: any) {
   useSpeechRecognitionEvent('error', event => {
     isRecordingRef.current = false;
     setIsRecording(false);
-    // 'no-speech' is normal if user releases quickly; other errors are real failures
     if (event.error !== 'no-speech' && event.error !== 'aborted') {
       setNote(prev => prev || t('quickLog.transcribeFailed'));
     }
   });
-
-  // ── Pager ─────────────────────────────────────────────────────────────────
-
-  const scrollToPage = (page: number) => {
-    pagerRef.current?.scrollTo({ x: page * SCREEN_W, animated: true });
-    setPagerPage(page);
-  };
 
   // ── Audio ─────────────────────────────────────────────────────────────────
 
@@ -230,7 +222,7 @@ export default function QuickLogScreen({ navigation }: any) {
       Alert.alert(t('quickLog.micAccess'), t('quickLog.micAccessBody'));
       return;
     }
-    setNote('');
+    preRecordNoteRef.current = note.trim();
     isRecordingRef.current = true;
     setIsRecording(true);
     ExpoSpeechRecognitionModule.start({
@@ -244,6 +236,11 @@ export default function QuickLogScreen({ navigation }: any) {
     isRecordingRef.current = false;
     setIsRecording(false);
     ExpoSpeechRecognitionModule.stop();
+  };
+
+  const toggleRecording = () => {
+    if (isRecordingRef.current) stopRecording();
+    else startRecording();
   };
 
   // ── Photos ────────────────────────────────────────────────────────────────
@@ -372,8 +369,6 @@ export default function QuickLogScreen({ navigation }: any) {
     setStep(1); setSelectedClassId(null); setNote('');
     setPhotos([]); setTranscript(''); setEligibleKids([]);
     setPhotoAssignments([]); setKidUpdates([]);
-    setPagerPage(0);
-    pagerRef.current?.scrollTo({ x: 0, animated: false });
   };
 
   const uploadingAny = photos.some(p => p.uploading);
@@ -387,12 +382,11 @@ export default function QuickLogScreen({ navigation }: any) {
       {/* ── Step 1 ── */}
       {step === 1 && (
         <>
-          <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" style={s.scrollArea}>
-
-            {/* Class chips */}
+          {/* CLASS section */}
+          <View style={s.classSection}>
             <Text style={s.label}>{t('quickLog.classLabel')}</Text>
             {classesLoading && classes.length === 0
-              ? <ActivityIndicator color={Colors.primary} style={{ marginBottom: Spacing.md }} />
+              ? <ActivityIndicator color={Colors.primary} />
               : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
                   <TouchableOpacity
@@ -412,114 +406,84 @@ export default function QuickLogScreen({ navigation }: any) {
                   ))}
                 </ScrollView>
               )}
+          </View>
 
-            {/* Horizontal voice / photo pager */}
-            <ScrollView
-              ref={pagerRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              scrollEventThrottle={16}
-              nestedScrollEnabled
-              onMomentumScrollEnd={e => setPagerPage(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
-              style={s.pager}
-            >
-              {/* ── Page 0: Voice ── */}
-              <View style={s.page}>
-                <Pressable
-                  style={[s.pageCard, isRecording && s.pageCardRec]}
-                  onPress={() => noteInputRef.current?.focus()}
-                  onLongPress={startRecording}
-                  onPressOut={() => { if (isRecordingRef.current) stopRecording(); }}
-                  delayLongPress={350}
-                  android_ripple={undefined}
+          {/* Main input card — fills all space between CLASS and footer */}
+          <View style={s.cardWrapper}>
+            <View style={[s.inputCard, isRecording && s.inputCardRec]}>
+
+              {/* Text + photos scroll area */}
+              <ScrollView
+                style={s.cardScroll}
+                contentContainerStyle={s.cardScrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <TextInput
+                  ref={noteInputRef}
+                  style={s.noteInput}
+                  value={note}
+                  onChangeText={setNote}
+                  multiline
+                  placeholder={t('quickLog.notePlaceholder')}
+                  placeholderTextColor={Colors.textSecondary}
+                  textAlignVertical="top"
+                  editable={!isRecording}
+                  scrollEnabled={false}
+                />
+
+                {/* Waveform — shown while recording */}
+                {isRecording && (
+                  <View style={s.waveformRow}>
+                    <WaveformBars active />
+                    <Text style={s.recLabel}>{t('quickLog.recordingRelease')}</Text>
+                  </View>
+                )}
+
+                {/* Photo grid — wraps vertically */}
+                {photos.length > 0 && (
+                  <View style={s.photoGrid}>
+                    {photos.map(p => (
+                      <View key={p.localUri} style={s.thumb}>
+                        <Image source={{ uri: p.localUri }} style={s.thumbImg} />
+                        {p.uploading
+                          ? <View style={s.thumbOver}><ActivityIndicator color={Colors.white} size="small" /></View>
+                          : (
+                            <TouchableOpacity
+                              style={s.thumbX}
+                              onPress={() => setPhotos(prev => prev.filter(x => x.localUri !== p.localUri))}
+                            >
+                              <Text style={s.thumbXTxt}>✕</Text>
+                            </TouchableOpacity>
+                          )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Card bottom bar */}
+              <View style={s.cardBar}>
+                {photos.length < 10 && (
+                  <TouchableOpacity style={s.addPhotoBtn} onPress={pickPhotos}>
+                    <Text style={s.addPhotoBtnTxt}>
+                      📷  {photos.length === 0 ? t('quickLog.addPhotos') : t('quickLog.addMore')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                  style={[s.micBtn, isRecording && s.micBtnRec]}
+                  onPress={toggleRecording}
+                  activeOpacity={0.8}
                 >
-                  {/* Note — updates in real-time as speech is recognised */}
-                  <View style={s.noteArea}>
-                    <TextInput
-                      ref={noteInputRef}
-                      style={s.cardNote}
-                      value={note}
-                      onChangeText={setNote}
-                      multiline
-                      placeholder={t('quickLog.notePlaceholder')}
-                      placeholderTextColor={Colors.textSecondary}
-                      textAlignVertical="top"
-                      editable={!isRecording}
-                      scrollEnabled={false}
-                    />
-                  </View>
-
-                  {/* Bottom strip */}
-                  <View style={[s.cardBottom, isRecording && s.cardBottomRec]}>
-                    {isRecording ? (
-                      <>
-                        <WaveformBars active />
-                        <Text style={s.recLabel}>{t('quickLog.recordingRelease')}</Text>
-                      </>
-                    ) : (
-                      <Text style={s.holdLabel}>{t('quickLog.holdToRecord')}</Text>
-                    )}
-                  </View>
-
-                  {/* Swipe hint */}
-                  <TouchableOpacity style={s.swipeHintRight} onPress={() => scrollToPage(1)} activeOpacity={0.6}>
-                    <Text style={s.swipeHintTxt}>{t('quickLog.swipeForPhotos')}</Text>
-                  </TouchableOpacity>
-                </Pressable>
+                  <Text style={s.micIcon}>{isRecording ? '⏹' : '🎙'}</Text>
+                </TouchableOpacity>
               </View>
 
-              {/* ── Page 1: Photos ── */}
-              <View style={s.page}>
-                <View style={s.pageCard}>
-                  <TouchableOpacity style={s.swipeHintLeft} onPress={() => scrollToPage(0)} activeOpacity={0.6}>
-                    <Text style={s.swipeHintTxt}>{t('quickLog.swipeForVoice')}</Text>
-                  </TouchableOpacity>
-                  <View style={s.photoPageContent}>
-                    {photos.length > 0 && (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled style={{ marginBottom: Spacing.sm }}>
-                        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                          {photos.map(p => (
-                            <View key={p.localUri} style={s.thumb}>
-                              <Image source={{ uri: p.localUri }} style={s.thumbImg} />
-                              {p.uploading
-                                ? <View style={s.thumbOver}><ActivityIndicator color={Colors.white} size="small" /></View>
-                                : (
-                                  <TouchableOpacity
-                                    style={s.thumbX}
-                                    onPress={() => setPhotos(prev => prev.filter(x => x.localUri !== p.localUri))}
-                                  >
-                                    <Text style={{ color: Colors.white, fontSize: 11, fontWeight: '700' }}>✕</Text>
-                                  </TouchableOpacity>
-                                )}
-                            </View>
-                          ))}
-                        </View>
-                      </ScrollView>
-                    )}
-                    {photos.length < 10 && (
-                      <TouchableOpacity style={s.addPhotoBtn} onPress={pickPhotos}>
-                        <Text style={s.addPhotoBtnTxt}>
-                          📷  {photos.length === 0 ? t('quickLog.addPhotos') : t('quickLog.addMore')}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                    {photos.length === 0 && (
-                      <Text style={s.photosEmpty}>{t('quickLog.noPhotos')}</Text>
-                    )}
-                  </View>
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Page dots */}
-            <View style={s.dots}>
-              <View style={[s.dot, pagerPage === 0 && s.dotActive]} />
-              <View style={[s.dot, pagerPage === 1 && s.dotActive]} />
             </View>
+          </View>
 
-          </ScrollView>
-
+          {/* Fixed footer */}
           <View style={s.footer}>
             <TouchableOpacity
               style={[s.nextBtn, busy && s.btnOff]}
@@ -646,14 +610,21 @@ export default function QuickLogScreen({ navigation }: any) {
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 
+const THUMB_SIZE = (SCREEN_W - Spacing.md * 2 - Spacing.md * 2 - Spacing.sm * 2) / 3;
+
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   scrollArea: { flex: 1 },
   content: { padding: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
 
+  // CLASS section
+  classSection: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+  },
   label: {
     fontSize: 11, fontWeight: '700', color: Colors.textSecondary,
-    letterSpacing: 0.7, marginBottom: Spacing.sm, marginTop: Spacing.sm,
+    letterSpacing: 0.7, marginBottom: Spacing.sm,
   },
   chipRow: { gap: Spacing.sm, paddingBottom: Spacing.sm },
   chip: {
@@ -665,50 +636,95 @@ const s = StyleSheet.create({
   chipTxt: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
   chipTxtOn: { color: Colors.primary },
 
-  // Pager
-  pager: { height: 260, marginTop: Spacing.sm, marginHorizontal: -Spacing.md, width: SCREEN_W },
-  page: { width: SCREEN_W, height: 260, paddingHorizontal: Spacing.md },
-  pageCard: {
-    flex: 1, backgroundColor: Colors.card,
-    borderRadius: Radius.md, overflow: 'hidden', ...Shadow.small,
-    borderWidth: 1.5, borderColor: 'transparent',
+  // Main input card
+  cardWrapper: {
+    flex: 1,
+    padding: Spacing.md,
+    paddingTop: Spacing.sm,
   },
-  pageCardRec: { borderColor: '#ef4444' },
+  inputCard: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    ...Shadow.small,
+    overflow: 'hidden',
+  },
+  inputCardRec: {
+    borderColor: '#ef4444',
+  },
 
-  // Voice card internals
-  noteArea: { flex: 1, padding: Spacing.md },
-  cardNote: { flex: 1, fontSize: 15, color: Colors.textPrimary, textAlignVertical: 'top' },
-  cardBottom: {
+  // Scrollable content inside card
+  cardScroll: { flex: 1 },
+  cardScrollContent: { padding: Spacing.md, paddingBottom: Spacing.sm },
+
+  noteInput: {
+    fontSize: 15,
+    color: Colors.textPrimary,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+
+  // Waveform row
+  waveformRow: {
     alignItems: 'center',
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
-    gap: 4,
+    gap: 6,
   },
-  cardBottomRec: { borderTopColor: '#ef4444', backgroundColor: '#fff5f5' },
-  holdLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500', textAlign: 'center' },
   recLabel: { fontSize: 12, color: '#ef4444', fontWeight: '600' },
 
-  // Swipe hints
-  swipeHintRight: { position: 'absolute', right: 12, top: 10 },
-  swipeHintLeft: { position: 'absolute', left: 12, top: 10 },
-  swipeHintTxt: { fontSize: 11, color: Colors.primary, fontWeight: '600', opacity: 0.7 },
-
-  // Photos page
-  photoPageContent: { flex: 1, padding: Spacing.md, justifyContent: 'center' },
-  photosEmpty: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.md },
-  thumb: { width: 80, height: 80, borderRadius: Radius.sm, overflow: 'hidden' },
-  thumbImg: { width: 80, height: 80 },
+  // Photo grid — wraps vertically in 3-column grid
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  thumb: {
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
+  },
+  thumbImg: { width: '100%', height: '100%' },
   thumbOver: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
-  thumbX: { position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  addPhotoBtn: { height: 44, borderRadius: Radius.sm, borderWidth: 1.5, borderColor: Colors.primary, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
+  thumbX: {
+    position: 'absolute', top: 4, right: 4,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  thumbXTxt: { color: Colors.white, fontSize: 11, fontWeight: '700' },
+
+  // Card bottom bar
+  cardBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
+  addPhotoBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+  },
   addPhotoBtnTxt: { fontSize: 14, fontWeight: '600', color: Colors.primary },
 
-  // Page dots
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: Spacing.sm },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.border },
-  dotActive: { width: 18, backgroundColor: Colors.primary },
+  // Mic button — small round, bottom-right of card
+  micBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: Colors.primaryLight,
+    borderWidth: 1.5, borderColor: Colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    ...Shadow.small,
+  },
+  micBtnRec: {
+    backgroundColor: '#fee2e2',
+    borderColor: '#ef4444',
+  },
+  micIcon: { fontSize: 20 },
 
   // Fixed footer
   footer: {
@@ -719,21 +735,19 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },
-
   nextBtn: {
     backgroundColor: Colors.primary, borderRadius: Radius.sm,
     paddingVertical: 15, alignItems: 'center', ...Shadow.small,
   },
   nextBtnTxt: { color: Colors.white, fontSize: 16, fontWeight: '700' },
   btnOff: { opacity: 0.45 },
-
   backBtn: { alignItems: 'center', marginTop: Spacing.sm, paddingVertical: 6 },
   backBtnTxt: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
 
   pageTitle: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
   pageHint: { fontSize: 13, color: Colors.textSecondary, marginBottom: Spacing.lg },
 
-  // Photo review
+  // Photo review (step 2)
   photoCard: { backgroundColor: Colors.card, borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.md, ...Shadow.small },
   photoCardImg: { width: '100%', height: 200 },
   sceneDesc: { fontSize: 13, color: Colors.textSecondary, lineHeight: 18, paddingHorizontal: Spacing.md, paddingTop: 10 },
@@ -743,7 +757,7 @@ const s = StyleSheet.create({
   addKidBtn: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   addKidBtnTxt: { fontSize: 18, color: Colors.primary, lineHeight: 22 },
 
-  // Update review
+  // Update review (step 3)
   transcriptBox: { backgroundColor: Colors.card, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.md, borderLeftWidth: 3, borderLeftColor: Colors.primary },
   transcriptLbl: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 0.6, marginBottom: 4 },
   transcriptTxt: { fontSize: 13, color: Colors.textPrimary, lineHeight: 20 },
