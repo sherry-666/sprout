@@ -2,14 +2,17 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, TextInput,
   ScrollView, ActivityIndicator, Alert, Image, Modal,
-  FlatList, Pressable, Animated, Dimensions,
+  FlatList, Pressable, Animated, Dimensions, Keyboard,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Audio } from 'expo-av';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { gql, useQuery, useMutation } from '@apollo/client';
 import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import { Colors, Spacing, Radius, Shadow } from '../../theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -19,12 +22,6 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const MY_CLASSES_QUERY = gql`
   query QuickLogClasses {
     me { classes { id name } }
-  }
-`;
-
-const TRANSCRIBE_MUTATION = gql`
-  mutation TranscribeAudio($audioBase64: String!, $audioMimeType: String!) {
-    transcribeAudio(audioBase64: $audioBase64, audioMimeType: $audioMimeType)
   }
 `;
 
@@ -50,6 +47,15 @@ const CONFIRM_MUTATION = gql`
     confirmQuickLog(updates: $updates) { id }
   }
 `;
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function getLangCode(): string {
+  const lang = i18n.language;
+  if (lang === 'zh') return 'zh-CN';
+  if (lang === 'fr') return 'fr-FR';
+  return 'en-US';
+}
 
 // ─── Waveform ──────────────────────────────────────────────────────────────
 
@@ -97,8 +103,8 @@ function WaveformBars({ active }: { active: boolean }) {
 }
 
 const wave = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', height: 48, gap: 5 },
-  bar: { width: 5, height: 48, borderRadius: 3, backgroundColor: '#ef4444' },
+  row: { flexDirection: 'row', alignItems: 'center', height: 36, gap: 5 },
+  bar: { width: 4, height: 36, borderRadius: 2, backgroundColor: '#ef4444' },
 });
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -148,14 +154,12 @@ function KidPickerModal({ visible, kids, excludeIds, onSelect, onClose, t }: {
 export default function QuickLogScreen({ navigation }: any) {
   const { t } = useTranslation();
   const { data, loading: classesLoading } = useQuery(MY_CLASSES_QUERY, { fetchPolicy: 'cache-and-network' });
-  const [doTranscribe] = useMutation(TRANSCRIBE_MUTATION);
   const [presignPhoto] = useMutation(PRESIGN_PHOTO_MUTATION);
   const [analyzeQL] = useMutation(ANALYZE_MUTATION);
   const [confirmQL] = useMutation(CONFIRM_MUTATION);
 
   const classes: { id: string; name: string }[] = data?.me?.classes ?? [];
 
-  // Hide tab bar while on this screen
   useFocusEffect(
     useCallback(() => {
       navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
@@ -171,10 +175,10 @@ export default function QuickLogScreen({ navigation }: any) {
   const [pagerPage, setPagerPage] = useState(0);
 
   // Voice
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const isRecordingRef = useRef(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
   const [note, setNote] = useState('');
+  const noteInputRef = useRef<TextInput>(null);
 
   // Photos
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -187,61 +191,62 @@ export default function QuickLogScreen({ navigation }: any) {
   const [kidUpdates, setKidUpdates] = useState<KidUpdate[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerPhotoKey, setPickerPhotoKey] = useState<string | null>(null);
-
   const [confirming, setConfirming] = useState(false);
+
+  // ── Speech recognition events ─────────────────────────────────────────────
+
+  useSpeechRecognitionEvent('result', event => {
+    const text = event.results[0]?.transcript ?? '';
+    if (text) setNote(text);
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    isRecordingRef.current = false;
+    setIsRecording(false);
+  });
+
+  useSpeechRecognitionEvent('error', event => {
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    // 'no-speech' is normal if user releases quickly; other errors are real failures
+    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      setNote(prev => prev || t('quickLog.transcribeFailed'));
+    }
+  });
+
+  // ── Pager ─────────────────────────────────────────────────────────────────
 
   const scrollToPage = (page: number) => {
     pagerRef.current?.scrollTo({ x: page * SCREEN_W, animated: true });
-    // setPagerPage is updated by onMomentumScrollEnd, but also set here for tap navigation
     setPagerPage(page);
   };
 
-  // ── Audio ────────────────────────────────────────────────────────────────
+  // ── Audio ─────────────────────────────────────────────────────────────────
 
   const startRecording = async () => {
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') {
+    Keyboard.dismiss();
+    const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!granted) {
       Alert.alert(t('quickLog.micAccess'), t('quickLog.micAccessBody'));
       return;
     }
-    try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = recording;
-      setIsRecording(true);
-      setNote('');
-    } catch {
-      Alert.alert(t('quickLog.micAccess'), t('quickLog.micAccessBody'));
-    }
+    setNote('');
+    isRecordingRef.current = true;
+    setIsRecording(true);
+    ExpoSpeechRecognitionModule.start({
+      lang: getLangCode(),
+      interimResults: true,
+      continuous: true,
+    });
   };
 
-  const stopRecording = async () => {
-    if (!recordingRef.current) return;
-    const rec = recordingRef.current;
-    recordingRef.current = null;
+  const stopRecording = () => {
+    isRecordingRef.current = false;
     setIsRecording(false);
-    try {
-      await rec.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-      const uri = rec.getURI();
-      if (!uri) return;
-
-      setTranscribing(true);
-      setNote(t('quickLog.transcribing'));
-      const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      const { data: td } = await doTranscribe({
-        variables: { audioBase64: b64, audioMimeType: 'audio/m4a' },
-      });
-      setNote(td?.transcribeAudio ?? '');
-    } catch (e: any) {
-      setNote('');
-      // Silently allow manual typing if transcription fails
-    } finally {
-      setTranscribing(false);
-    }
+    ExpoSpeechRecognitionModule.stop();
   };
 
-  // ── Photos ───────────────────────────────────────────────────────────────
+  // ── Photos ────────────────────────────────────────────────────────────────
 
   const pickPhotos = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -274,7 +279,7 @@ export default function QuickLogScreen({ navigation }: any) {
     }
   };
 
-  // ── Next ─────────────────────────────────────────────────────────────────
+  // ── Next ──────────────────────────────────────────────────────────────────
 
   const handleNext = async () => {
     const uploadedKeys = photos.filter(p => p.key).map(p => p.key as string);
@@ -311,7 +316,7 @@ export default function QuickLogScreen({ navigation }: any) {
     }
   };
 
-  // ── Step 2 ───────────────────────────────────────────────────────────────
+  // ── Step 2 ────────────────────────────────────────────────────────────────
 
   const getKidName = (id: string) => {
     const k = eligibleKids.find(k => k.id === id);
@@ -341,7 +346,7 @@ export default function QuickLogScreen({ navigation }: any) {
     setStep(3);
   };
 
-  // ── Confirm ──────────────────────────────────────────────────────────────
+  // ── Confirm ───────────────────────────────────────────────────────────────
 
   const handleConfirm = async () => {
     const valid = kidUpdates.filter(u => u.content.trim());
@@ -372,7 +377,7 @@ export default function QuickLogScreen({ navigation }: any) {
   };
 
   const uploadingAny = photos.some(p => p.uploading);
-  const busy = analyzing || uploadingAny || transcribing;
+  const busy = analyzing || uploadingAny;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -381,235 +386,250 @@ export default function QuickLogScreen({ navigation }: any) {
 
       {/* ── Step 1 ── */}
       {step === 1 && (
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+        <>
+          <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" style={s.scrollArea}>
 
-          {/* Class chips */}
-          <Text style={s.label}>{t('quickLog.classLabel')}</Text>
-          {classesLoading && classes.length === 0
-            ? <ActivityIndicator color={Colors.primary} style={{ marginBottom: Spacing.md }} />
-            : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
-                <TouchableOpacity
-                  style={[s.chip, !selectedClassId && s.chipOn]}
-                  onPress={() => setSelectedClassId(null)}
-                >
-                  <Text style={[s.chipTxt, !selectedClassId && s.chipTxtOn]}>{t('quickLog.allKids')}</Text>
-                </TouchableOpacity>
-                {classes.map(cls => (
+            {/* Class chips */}
+            <Text style={s.label}>{t('quickLog.classLabel')}</Text>
+            {classesLoading && classes.length === 0
+              ? <ActivityIndicator color={Colors.primary} style={{ marginBottom: Spacing.md }} />
+              : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
                   <TouchableOpacity
-                    key={cls.id}
-                    style={[s.chip, selectedClassId === cls.id && s.chipOn]}
-                    onPress={() => setSelectedClassId(selectedClassId === cls.id ? null : cls.id)}
+                    style={[s.chip, !selectedClassId && s.chipOn]}
+                    onPress={() => setSelectedClassId(null)}
                   >
-                    <Text style={[s.chipTxt, selectedClassId === cls.id && s.chipTxtOn]}>{cls.name}</Text>
+                    <Text style={[s.chipTxt, !selectedClassId && s.chipTxtOn]}>{t('quickLog.allKids')}</Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
+                  {classes.map(cls => (
+                    <TouchableOpacity
+                      key={cls.id}
+                      style={[s.chip, selectedClassId === cls.id && s.chipOn]}
+                      onPress={() => setSelectedClassId(selectedClassId === cls.id ? null : cls.id)}
+                    >
+                      <Text style={[s.chipTxt, selectedClassId === cls.id && s.chipTxtOn]}>{cls.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
 
-          {/* Horizontal voice / photo pager */}
-          <ScrollView
-            ref={pagerRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            scrollEventThrottle={16}
-            nestedScrollEnabled
-            onMomentumScrollEnd={e => setPagerPage(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
-            style={s.pager}
-          >
-            {/* ── Page 0: Voice ── */}
-            <View style={s.page}>
-              <View style={s.pageCard}>
-              <View style={s.micSection}>
-                <TouchableOpacity
-                  style={[s.micBtn, isRecording && s.micBtnRec]}
-                  onPressIn={startRecording}
-                  onPressOut={stopRecording}
-                  activeOpacity={0.9}
+            {/* Horizontal voice / photo pager */}
+            <ScrollView
+              ref={pagerRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              scrollEventThrottle={16}
+              nestedScrollEnabled
+              onMomentumScrollEnd={e => setPagerPage(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
+              style={s.pager}
+            >
+              {/* ── Page 0: Voice ── */}
+              <View style={s.page}>
+                <Pressable
+                  style={[s.pageCard, isRecording && s.pageCardRec]}
+                  onPress={() => noteInputRef.current?.focus()}
+                  onLongPress={startRecording}
+                  onPressOut={() => { if (isRecordingRef.current) stopRecording(); }}
+                  delayLongPress={350}
+                  android_ripple={undefined}
                 >
-                  <Text style={s.micIcon}>{isRecording ? '⏹' : '🎙'}</Text>
-                </TouchableOpacity>
-                <Text style={s.micLabel}>
-                  {isRecording ? t('quickLog.recordingRelease') : t('quickLog.holdToRecord')}
-                </Text>
-                {isRecording && <WaveformBars active />}
+                  {/* Note — updates in real-time as speech is recognised */}
+                  <View style={s.noteArea}>
+                    <TextInput
+                      ref={noteInputRef}
+                      style={s.cardNote}
+                      value={note}
+                      onChangeText={setNote}
+                      multiline
+                      placeholder={t('quickLog.notePlaceholder')}
+                      placeholderTextColor={Colors.textSecondary}
+                      textAlignVertical="top"
+                      editable={!isRecording}
+                      scrollEnabled={false}
+                    />
+                  </View>
+
+                  {/* Bottom strip */}
+                  <View style={[s.cardBottom, isRecording && s.cardBottomRec]}>
+                    {isRecording ? (
+                      <>
+                        <WaveformBars active />
+                        <Text style={s.recLabel}>{t('quickLog.recordingRelease')}</Text>
+                      </>
+                    ) : (
+                      <Text style={s.holdLabel}>{t('quickLog.holdToRecord')}</Text>
+                    )}
+                  </View>
+
+                  {/* Swipe hint */}
+                  <TouchableOpacity style={s.swipeHintRight} onPress={() => scrollToPage(1)} activeOpacity={0.6}>
+                    <Text style={s.swipeHintTxt}>{t('quickLog.swipeForPhotos')}</Text>
+                  </TouchableOpacity>
+                </Pressable>
               </View>
-              {/* Swipe hint */}
-              <TouchableOpacity style={s.swipeHintRight} onPress={() => scrollToPage(1)} activeOpacity={0.6}>
-                <Text style={s.swipeHintTxt}>{t('quickLog.swipeForPhotos')}</Text>
-              </TouchableOpacity>
+
+              {/* ── Page 1: Photos ── */}
+              <View style={s.page}>
+                <View style={s.pageCard}>
+                  <TouchableOpacity style={s.swipeHintLeft} onPress={() => scrollToPage(0)} activeOpacity={0.6}>
+                    <Text style={s.swipeHintTxt}>{t('quickLog.swipeForVoice')}</Text>
+                  </TouchableOpacity>
+                  <View style={s.photoPageContent}>
+                    {photos.length > 0 && (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled style={{ marginBottom: Spacing.sm }}>
+                        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                          {photos.map(p => (
+                            <View key={p.localUri} style={s.thumb}>
+                              <Image source={{ uri: p.localUri }} style={s.thumbImg} />
+                              {p.uploading
+                                ? <View style={s.thumbOver}><ActivityIndicator color={Colors.white} size="small" /></View>
+                                : (
+                                  <TouchableOpacity
+                                    style={s.thumbX}
+                                    onPress={() => setPhotos(prev => prev.filter(x => x.localUri !== p.localUri))}
+                                  >
+                                    <Text style={{ color: Colors.white, fontSize: 11, fontWeight: '700' }}>✕</Text>
+                                  </TouchableOpacity>
+                                )}
+                            </View>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    )}
+                    {photos.length < 10 && (
+                      <TouchableOpacity style={s.addPhotoBtn} onPress={pickPhotos}>
+                        <Text style={s.addPhotoBtnTxt}>
+                          📷  {photos.length === 0 ? t('quickLog.addPhotos') : t('quickLog.addMore')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    {photos.length === 0 && (
+                      <Text style={s.photosEmpty}>{t('quickLog.noPhotos')}</Text>
+                    )}
+                  </View>
+                </View>
               </View>
+            </ScrollView>
+
+            {/* Page dots */}
+            <View style={s.dots}>
+              <View style={[s.dot, pagerPage === 0 && s.dotActive]} />
+              <View style={[s.dot, pagerPage === 1 && s.dotActive]} />
             </View>
 
-            {/* ── Page 1: Photos ── */}
-            <View style={s.page}>
-              <View style={s.pageCard}>
-              {/* Swipe hint */}
-              <TouchableOpacity style={s.swipeHintLeft} onPress={() => scrollToPage(0)} activeOpacity={0.6}>
-                <Text style={s.swipeHintTxt}>{t('quickLog.swipeForVoice')}</Text>
-              </TouchableOpacity>
-              <View style={s.photoPageContent}>
-                {photos.length > 0 && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled style={{ marginBottom: Spacing.sm }}>
-                    <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                      {photos.map(p => (
-                        <View key={p.localUri} style={s.thumb}>
-                          <Image source={{ uri: p.localUri }} style={s.thumbImg} />
-                          {p.uploading
-                            ? <View style={s.thumbOver}><ActivityIndicator color={Colors.white} size="small" /></View>
-                            : (
-                              <TouchableOpacity
-                                style={s.thumbX}
-                                onPress={() => setPhotos(prev => prev.filter(x => x.localUri !== p.localUri))}
-                              >
-                                <Text style={{ color: Colors.white, fontSize: 11, fontWeight: '700' }}>✕</Text>
-                              </TouchableOpacity>
-                            )}
-                        </View>
-                      ))}
-                    </View>
-                  </ScrollView>
-                )}
-                {photos.length < 10 && (
-                  <TouchableOpacity style={s.addPhotoBtn} onPress={pickPhotos}>
-                    <Text style={s.addPhotoBtnTxt}>
-                      📷  {photos.length === 0 ? t('quickLog.addPhotos') : t('quickLog.addMore')}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {photos.length === 0 && (
-                  <Text style={s.photosEmpty}>No photos yet</Text>
-                )}
-              </View>
-              </View>
-            </View>
           </ScrollView>
 
-          {/* Page dots */}
-          <View style={s.dots}>
-            <View style={[s.dot, pagerPage === 0 && s.dotActive]} />
-            <View style={[s.dot, pagerPage === 1 && s.dotActive]} />
+          <View style={s.footer}>
+            <TouchableOpacity
+              style={[s.nextBtn, busy && s.btnOff]}
+              onPress={handleNext}
+              disabled={busy}
+              activeOpacity={0.85}
+            >
+              {analyzing
+                ? <ActivityIndicator color={Colors.white} />
+                : <Text style={s.nextBtnTxt}>{t('quickLog.next')}</Text>}
+            </TouchableOpacity>
           </View>
-
-          {/* Transcript / note */}
-          <TextInput
-            style={s.noteInput}
-            value={note}
-            onChangeText={setNote}
-            multiline
-            placeholder={t('quickLog.notePlaceholder')}
-            placeholderTextColor={Colors.textSecondary}
-            textAlignVertical="top"
-            editable={!isRecording && !transcribing}
-          />
-          {transcribing && (
-            <View style={s.transcribingRow}>
-              <ActivityIndicator size="small" color={Colors.primary} />
-              <Text style={s.transcribingTxt}>{t('quickLog.transcribing')}</Text>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={[s.nextBtn, busy && s.btnOff]}
-            onPress={handleNext}
-            disabled={busy}
-            activeOpacity={0.85}
-          >
-            {analyzing
-              ? <ActivityIndicator color={Colors.white} />
-              : <Text style={s.nextBtnTxt}>{t('quickLog.next')}</Text>}
-          </TouchableOpacity>
-        </ScrollView>
+        </>
       )}
 
       {/* ── Step 2: Photo Review ── */}
       {step === 2 && (
-        <ScrollView contentContainerStyle={s.content}>
-          <Text style={s.pageTitle}>{t('quickLog.photoReview')}</Text>
-          <Text style={s.pageHint}>{t('quickLog.photoReviewHint')}</Text>
+        <>
+          <ScrollView contentContainerStyle={s.content} style={s.scrollArea}>
+            <Text style={s.pageTitle}>{t('quickLog.photoReview')}</Text>
+            <Text style={s.pageHint}>{t('quickLog.photoReviewHint')}</Text>
 
-          {photoAssignments.map(pa => (
-            <View key={pa.photoKey} style={s.photoCard}>
-              <Image source={{ uri: pa.photoUrl }} style={s.photoCardImg} resizeMode="cover" />
-              {!!pa.sceneDescription && <Text style={s.sceneDesc}>{pa.sceneDescription}</Text>}
-              <View style={s.tagRow}>
-                {pa.assignedKidIds.map(kidId => (
-                  <TouchableOpacity key={kidId} style={s.kidTag} onPress={() => removeKidFromPhoto(pa.photoKey, kidId)}>
-                    <Text style={s.kidTagTxt}>{getKidName(kidId)}  ✕</Text>
+            {photoAssignments.map(pa => (
+              <View key={pa.photoKey} style={s.photoCard}>
+                <Image source={{ uri: pa.photoUrl }} style={s.photoCardImg} resizeMode="cover" />
+                {!!pa.sceneDescription && <Text style={s.sceneDesc}>{pa.sceneDescription}</Text>}
+                <View style={s.tagRow}>
+                  {pa.assignedKidIds.map(kidId => (
+                    <TouchableOpacity key={kidId} style={s.kidTag} onPress={() => removeKidFromPhoto(pa.photoKey, kidId)}>
+                      <Text style={s.kidTagTxt}>{getKidName(kidId)}  ✕</Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity style={s.addKidBtn} onPress={() => { setPickerPhotoKey(pa.photoKey); setPickerOpen(true); }}>
+                    <Text style={s.addKidBtnTxt}>＋</Text>
                   </TouchableOpacity>
-                ))}
-                <TouchableOpacity style={s.addKidBtn} onPress={() => { setPickerPhotoKey(pa.photoKey); setPickerOpen(true); }}>
-                  <Text style={s.addKidBtnTxt}>＋</Text>
-                </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
+          </ScrollView>
 
-          <TouchableOpacity style={s.nextBtn} onPress={proceedToStep3} activeOpacity={0.85}>
-            <Text style={s.nextBtnTxt}>{t('quickLog.next')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.backBtn} onPress={() => setStep(1)}>
-            <Text style={s.backBtnTxt}>{t('quickLog.back')}</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          <View style={s.footer}>
+            <TouchableOpacity style={s.nextBtn} onPress={proceedToStep3} activeOpacity={0.85}>
+              <Text style={s.nextBtnTxt}>{t('quickLog.next')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.backBtn} onPress={() => setStep(1)}>
+              <Text style={s.backBtnTxt}>{t('quickLog.back')}</Text>
+            </TouchableOpacity>
+          </View>
+        </>
       )}
 
       {/* ── Step 3: Review & Confirm ── */}
       {step === 3 && (
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-          <Text style={s.pageTitle}>{t('quickLog.reviewTitle')}</Text>
-          <Text style={s.pageHint}>{t('quickLog.reviewHint')}</Text>
+        <>
+          <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" style={s.scrollArea}>
+            <Text style={s.pageTitle}>{t('quickLog.reviewTitle')}</Text>
+            <Text style={s.pageHint}>{t('quickLog.reviewHint')}</Text>
 
-          {!!transcript && (
-            <View style={s.transcriptBox}>
-              <Text style={s.transcriptLbl}>{t('quickLog.transcriptLabel')}</Text>
-              <Text style={s.transcriptTxt}>{transcript}</Text>
-            </View>
-          )}
-
-          {kidUpdates.length === 0
-            ? (
-              <View style={s.emptyCard}>
-                <Text style={s.emptyTitle}>{t('quickLog.noKids')}</Text>
-                <Text style={s.emptyHint}>{t('quickLog.noKidsHint')}</Text>
+            {!!transcript && (
+              <View style={s.transcriptBox}>
+                <Text style={s.transcriptLbl}>{t('quickLog.transcriptLabel')}</Text>
+                <Text style={s.transcriptTxt}>{transcript}</Text>
               </View>
-            )
-            : kidUpdates.map((u, idx) => (
-              <View key={u.kidId} style={s.updateCard}>
-                <View style={s.updateHeader}>
-                  {u.avatarUrl
-                    ? <Image source={{ uri: u.avatarUrl }} style={s.updateAvatar} />
-                    : <View style={[s.updateAvatar, s.fallback]}><Text style={s.fallbackTxt}>{u.kidName[0]}</Text></View>}
-                  <Text style={s.updateName}>{u.kidName}</Text>
-                  {u.photoKeys.length > 0 && (
-                    <View style={s.photoBadge}><Text style={s.photoBadgeTxt}>📷 {u.photoKeys.length}</Text></View>
-                  )}
+            )}
+
+            {kidUpdates.length === 0
+              ? (
+                <View style={s.emptyCard}>
+                  <Text style={s.emptyTitle}>{t('quickLog.noKids')}</Text>
+                  <Text style={s.emptyHint}>{t('quickLog.noKidsHint')}</Text>
                 </View>
-                <TextInput
-                  style={s.updateInput}
-                  value={u.content}
-                  onChangeText={text => setKidUpdates(prev => prev.map((x, i) => i === idx ? { ...x, content: text } : x))}
-                  multiline
-                  placeholder={t('quickLog.writePlaceholder')}
-                  placeholderTextColor={Colors.textSecondary}
-                  textAlignVertical="top"
-                />
-              </View>
-            ))}
+              )
+              : kidUpdates.map((u, idx) => (
+                <View key={u.kidId} style={s.updateCard}>
+                  <View style={s.updateHeader}>
+                    {u.avatarUrl
+                      ? <Image source={{ uri: u.avatarUrl }} style={s.updateAvatar} />
+                      : <View style={[s.updateAvatar, s.fallback]}><Text style={s.fallbackTxt}>{u.kidName[0]}</Text></View>}
+                    <Text style={s.updateName}>{u.kidName}</Text>
+                    {u.photoKeys.length > 0 && (
+                      <View style={s.photoBadge}><Text style={s.photoBadgeTxt}>📷 {u.photoKeys.length}</Text></View>
+                    )}
+                  </View>
+                  <TextInput
+                    style={s.updateInput}
+                    value={u.content}
+                    onChangeText={text => setKidUpdates(prev => prev.map((x, i) => i === idx ? { ...x, content: text } : x))}
+                    multiline
+                    placeholder={t('quickLog.writePlaceholder')}
+                    placeholderTextColor={Colors.textSecondary}
+                    textAlignVertical="top"
+                  />
+                </View>
+              ))}
+          </ScrollView>
 
-          <TouchableOpacity
-            style={[s.nextBtn, (confirming || !kidUpdates.some(u => u.content.trim())) && s.btnOff]}
-            onPress={handleConfirm}
-            disabled={confirming || !kidUpdates.some(u => u.content.trim())}
-            activeOpacity={0.85}
-          >
-            {confirming ? <ActivityIndicator color={Colors.white} /> : <Text style={s.nextBtnTxt}>{t('quickLog.sendUpdates')}</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity style={s.backBtn} onPress={() => setStep(photoAssignments.length > 0 ? 2 : 1)}>
-            <Text style={s.backBtnTxt}>{t('quickLog.back')}</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          <View style={s.footer}>
+            <TouchableOpacity
+              style={[s.nextBtn, (confirming || !kidUpdates.some(u => u.content.trim())) && s.btnOff]}
+              onPress={handleConfirm}
+              disabled={confirming || !kidUpdates.some(u => u.content.trim())}
+              activeOpacity={0.85}
+            >
+              {confirming ? <ActivityIndicator color={Colors.white} /> : <Text style={s.nextBtnTxt}>{t('quickLog.sendUpdates')}</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={s.backBtn} onPress={() => setStep(photoAssignments.length > 0 ? 2 : 1)}>
+              <Text style={s.backBtnTxt}>{t('quickLog.back')}</Text>
+            </TouchableOpacity>
+          </View>
+        </>
       )}
 
       <KidPickerModal
@@ -628,7 +648,8 @@ export default function QuickLogScreen({ navigation }: any) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.md, paddingTop: Spacing.sm, paddingBottom: 48 },
+  scrollArea: { flex: 1 },
+  content: { padding: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.lg },
 
   label: {
     fontSize: 11, fontWeight: '700', color: Colors.textSecondary,
@@ -644,37 +665,35 @@ const s = StyleSheet.create({
   chipTxt: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
   chipTxtOn: { color: Colors.primary },
 
-  // Pager — extends to full screen width (negates horizontal padding)
-  pager: { height: 220, marginTop: Spacing.sm, marginHorizontal: -Spacing.md, width: SCREEN_W },
-  page: { width: SCREEN_W, height: 220, paddingHorizontal: Spacing.md },
+  // Pager
+  pager: { height: 260, marginTop: Spacing.sm, marginHorizontal: -Spacing.md, width: SCREEN_W },
+  page: { width: SCREEN_W, height: 260, paddingHorizontal: Spacing.md },
   pageCard: {
     flex: 1, backgroundColor: Colors.card,
     borderRadius: Radius.md, overflow: 'hidden', ...Shadow.small,
+    borderWidth: 1.5, borderColor: 'transparent',
   },
+  pageCardRec: { borderColor: '#ef4444' },
 
-  // Voice page
-  micSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  micBtn: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.primaryLight,
-    borderWidth: 2.5, borderColor: Colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    ...Shadow.medium,
+  // Voice card internals
+  noteArea: { flex: 1, padding: Spacing.md },
+  cardNote: { flex: 1, fontSize: 15, color: Colors.textPrimary, textAlignVertical: 'top' },
+  cardBottom: {
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+    gap: 4,
   },
-  micBtnRec: { backgroundColor: '#fee2e2', borderColor: '#ef4444', transform: [{ scale: 1.08 }] },
-  micIcon: { fontSize: 30 },
-  micLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
+  cardBottomRec: { borderTopColor: '#ef4444', backgroundColor: '#fff5f5' },
+  holdLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500', textAlign: 'center' },
+  recLabel: { fontSize: 12, color: '#ef4444', fontWeight: '600' },
 
   // Swipe hints
-  swipeHintRight: {
-    position: 'absolute', right: 12, bottom: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-  },
-  swipeHintLeft: {
-    position: 'absolute', left: 12, bottom: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-  },
-  swipeHintTxt: { fontSize: 12, color: Colors.primary, fontWeight: '600', opacity: 0.75 },
+  swipeHintRight: { position: 'absolute', right: 12, top: 10 },
+  swipeHintLeft: { position: 'absolute', left: 12, top: 10 },
+  swipeHintTxt: { fontSize: 11, color: Colors.primary, fontWeight: '600', opacity: 0.7 },
 
   // Photos page
   photoPageContent: { flex: 1, padding: Spacing.md, justifyContent: 'center' },
@@ -691,23 +710,24 @@ const s = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.border },
   dotActive: { width: 18, backgroundColor: Colors.primary },
 
-  noteInput: {
-    backgroundColor: Colors.card, borderRadius: Radius.md,
-    borderWidth: 1, borderColor: Colors.border,
-    padding: Spacing.md, fontSize: 15, color: Colors.textPrimary,
-    minHeight: 90, marginTop: Spacing.sm, ...Shadow.small,
+  // Fixed footer
+  footer: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: 28,
+    backgroundColor: Colors.bg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
   },
-  transcribingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  transcribingTxt: { fontSize: 13, color: Colors.textSecondary },
 
   nextBtn: {
     backgroundColor: Colors.primary, borderRadius: Radius.sm,
-    paddingVertical: 15, alignItems: 'center', marginTop: Spacing.lg, ...Shadow.small,
+    paddingVertical: 15, alignItems: 'center', ...Shadow.small,
   },
   nextBtnTxt: { color: Colors.white, fontSize: 16, fontWeight: '700' },
   btnOff: { opacity: 0.45 },
 
-  backBtn: { alignItems: 'center', marginTop: Spacing.md, paddingVertical: 8 },
+  backBtn: { alignItems: 'center', marginTop: Spacing.sm, paddingVertical: 6 },
   backBtnTxt: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
 
   pageTitle: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4 },
