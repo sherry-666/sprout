@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Image,
 } from 'react-native';
 import { gql, useQuery } from '@apollo/client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -77,9 +77,13 @@ function KidCard({ kid, onPress }: { kid: any; onPress: () => void }) {
 
   return (
     <TouchableOpacity style={styles.kidCard} onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
-        <Text style={styles.avatarText}>{kid.firstName.charAt(0)}</Text>
-      </View>
+      {kid.profilePhotoUrl ? (
+        <Image source={{ uri: kid.profilePhotoUrl }} style={styles.avatar} />
+      ) : (
+        <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
+          <Text style={styles.avatarText}>{kid.firstName.charAt(0)}</Text>
+        </View>
+      )}
       <View style={styles.kidInfo}>
         <Text style={styles.kidName}>{kid.firstName} {kid.lastName}</Text>
         {kid.institution && (

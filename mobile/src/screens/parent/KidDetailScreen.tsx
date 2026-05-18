@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
-  RefreshControl, TouchableOpacity,
+  RefreshControl, TouchableOpacity, Image,
 } from 'react-native';
 import { gql, useQuery } from '@apollo/client';
 import { Colors, Spacing, Radius, Shadow } from '../../theme';
@@ -12,6 +12,7 @@ const KID_UPDATES_QUERY = gql`
       id
       firstName
       lastName
+      profilePhotoUrl
       updates(first: $first, after: $after) {
         edges {
           cursor
@@ -92,6 +93,20 @@ export default function KidDetailScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Kid header */}
+      {kid && (
+        <View style={styles.kidHeader}>
+          {kid.profilePhotoUrl ? (
+            <Image source={{ uri: kid.profilePhotoUrl }} style={styles.kidAvatar} />
+          ) : (
+            <View style={[styles.kidAvatar, styles.kidAvatarFallback]}>
+              <Text style={styles.kidAvatarText}>{kid.firstName.charAt(0)}</Text>
+            </View>
+          )}
+          <Text style={styles.kidHeaderName}>{kid.firstName} {kid.lastName}</Text>
+        </View>
+      )}
+
       {/* Summary button */}
       <TouchableOpacity
         style={styles.summaryBanner}
@@ -154,6 +169,24 @@ export default function KidDetailScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
+  kidHeader: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.lg,
+    alignItems: 'center',
+  },
+  kidAvatar: {
+    width: 72, height: 72, borderRadius: 36,
+    borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)',
+    marginBottom: Spacing.sm,
+  },
+  kidAvatarFallback: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  kidAvatarText: { color: Colors.white, fontSize: 28, fontWeight: '700' },
+  kidHeaderName: { color: Colors.white, fontSize: 18, fontWeight: '700' },
   summaryBanner: {
     backgroundColor: Colors.primary,
     flexDirection: 'row', alignItems: 'center',
