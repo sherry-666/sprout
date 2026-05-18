@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { ArrowLeft, Pencil, User, Users, Trash2, Plus, Loader, X, Camera, Check } from 'lucide-react';
+import { ArrowLeft, Pencil, User, Users, Trash2, Plus, Loader, X, Camera, Check, CheckCircle } from 'lucide-react';
 import { gql } from '@apollo/client';
 import { useQuery, useMutation } from '@apollo/client/react';
 import Cropper from 'react-easy-crop';
@@ -115,6 +115,7 @@ export default function KidDetail() {
   const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null);
   const [editPhotoPreview, setEditPhotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   // ── Crop state ───────────────────────────────────────────────────────────
@@ -202,6 +203,8 @@ export default function KidDetail() {
 
       await refetch();
       setEditing(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e: any) {
       alert(e.message || 'Save failed.');
     } finally {
@@ -247,6 +250,22 @@ export default function KidDetail() {
 
   return (
     <Layout>
+      {/* ── Saving overlay ───────────────────────────────────────────── */}
+      {saving && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 3000, gap: '16px' }}>
+          <Loader size={40} color="white" style={{ animation: 'spin 1s linear infinite' }} />
+          <p style={{ color: 'white', fontWeight: 600, fontSize: '1rem', margin: 0 }}>Saving changes…</p>
+        </div>
+      )}
+
+      {/* ── Success toast ─────────────────────────────────────────────── */}
+      {saveSuccess && (
+        <div style={{ position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', background: '#10b981', color: 'white', borderRadius: '12px', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 600, fontSize: '0.95rem', boxShadow: '0 4px 20px rgba(16,185,129,0.4)', zIndex: 3000, whiteSpace: 'nowrap' }}>
+          <CheckCircle size={20} />
+          Changes saved successfully!
+        </div>
+      )}
+
       {/* ── Crop modal ────────────────────────────────────────────────── */}
       {cropSrc && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '20px' }}>
