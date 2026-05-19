@@ -10,6 +10,7 @@ const resources = {
       tabs: {
         classes: 'Classes',
         quickLog: 'Quick Log',
+        ai: 'AI',
         settings: 'Settings',
       },
       profile: {
@@ -118,6 +119,7 @@ const resources = {
       tabs: {
         classes: '班级',
         quickLog: '快速记录',
+        ai: 'AI',
         settings: '设置',
       },
       profile: {
@@ -226,6 +228,7 @@ const resources = {
       tabs: {
         classes: 'Classes',
         quickLog: 'Journal rapide',
+        ai: 'IA',
         settings: 'Paramètres',
       },
       profile: {

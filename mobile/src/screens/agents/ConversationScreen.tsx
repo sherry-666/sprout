@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity,
-  ActivityIndicator, Image, Alert,
+  ActivityIndicator, Image, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { gql, useQuery, useMutation, useSubscription } from '@apollo/client';
 import { Colors, Spacing, Radius, Shadow } from '../../theme';
@@ -11,6 +11,7 @@ const CONVERSATION_QUERY = gql`
     conversation(id: $id) {
       id
       status
+      agentType
       title
       messages {
         id
@@ -62,6 +63,20 @@ const SEND_DRAFTS = gql`
   }
 `;
 
+const SEND_CHAT_MESSAGE = gql`
+  mutation SendChatMessage($conversationId: ID!, $content: String!) {
+    sendChatMessage(conversationId: $conversationId, content: $content) {
+      id
+      conversationId
+      role
+      kind
+      content
+      payloadJson
+      createdAt
+    }
+  }
+`;
+
 interface Message {
   id: string;
   role: string;
@@ -81,14 +96,20 @@ interface DraftPayload {
 
 export default function ConversationScreen({ route, navigation }: any) {
   const conversationId: string = route.params.conversationId;
+  const [isTerminal, setIsTerminal] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
   const { data, loading } = useQuery(CONVERSATION_QUERY, {
     variables: { id: conversationId },
     fetchPolicy: 'cache-and-network',
+    pollInterval: isTerminal ? 0 : 3000,
   });
 
   const [updateDraft] = useMutation(UPDATE_DRAFT);
   const [removeDraft] = useMutation(REMOVE_DRAFT);
   const [sendDrafts, { loading: sending }] = useMutation(SEND_DRAFTS);
+  const [sendChatMessage, { loading: sendingChat }] = useMutation(SEND_CHAT_MESSAGE);
 
   // Append new messages from the subscription
   const [streamed, setStreamed] = useState<Message[]>([]);
@@ -109,10 +130,17 @@ export default function ConversationScreen({ route, navigation }: any) {
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const status = data?.conversation?.status ?? 'pending';
+  const agentType = data?.conversation?.agentType ?? 'chat';
+
+  useEffect(() => {
+    if (status === 'sent' || status === 'failed') setIsTerminal(true);
+  }, [status]);
+
   const drafts = messages.filter(m => m.kind === 'draft_card');
   const canSend = status === 'awaiting_review' && drafts.length > 0;
+  const showInput = status !== 'sent';
 
-  // Once the worker is done, collapse the progress trail — they're transient.
+  // Once the worker is done, collapse progress messages
   const isProcessing = status === 'pending' || status === 'processing';
   const lastProgress = isProcessing
     ? [...messages].reverse().find(m => m.kind === 'progress')
@@ -125,13 +153,27 @@ export default function ConversationScreen({ route, navigation }: any) {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages.length]);
 
-  const handleSend = async () => {
+  const handleSendDrafts = async () => {
     try {
       await sendDrafts({ variables: { conversationId } });
       Alert.alert('Sent', `Sent ${drafts.length} update${drafts.length === 1 ? '' : 's'} to parents.`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]);
     } catch (e: any) {
       Alert.alert('Failed to send', e.message ?? 'Please try again');
+    }
+  };
+
+  const handleSendChat = async () => {
+    const text = inputText.trim();
+    if (!text) return;
+    setInputText('');
+    try {
+      const { data: d } = await sendChatMessage({ variables: { conversationId, content: text } });
+      const msg = d?.sendChatMessage;
+      if (msg) setStreamed(prev => prev.some(x => x.id === msg.id) ? prev : [...prev, msg]);
+    } catch (e: any) {
+      Alert.alert('Failed to send', e.message ?? 'Please try again');
+      setInputText(text); // restore on error
     }
   };
 
@@ -144,7 +186,11 @@ export default function ConversationScreen({ route, navigation }: any) {
   }
 
   return (
-    <View style={s.root}>
+    <KeyboardAvoidingView
+      style={s.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={90}
+    >
       <ScrollView
         ref={scrollRef}
         style={s.scroll}
@@ -172,7 +218,7 @@ export default function ConversationScreen({ route, navigation }: any) {
         <View style={s.footer}>
           <TouchableOpacity
             style={[s.sendBtn, sending && s.sendBtnOff]}
-            onPress={handleSend}
+            onPress={handleSendDrafts}
             disabled={sending}
             activeOpacity={0.85}
           >
@@ -182,7 +228,33 @@ export default function ConversationScreen({ route, navigation }: any) {
           </TouchableOpacity>
         </View>
       )}
-    </View>
+
+      {showInput && (
+        <View style={s.inputBar}>
+          <TextInput
+            ref={inputRef}
+            style={s.chatInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Message AI…"
+            placeholderTextColor={Colors.textSecondary}
+            multiline
+            maxLength={2000}
+            returnKeyType="default"
+          />
+          <TouchableOpacity
+            style={[s.chatSendBtn, (!inputText.trim() || sendingChat) && s.chatSendBtnOff]}
+            onPress={handleSendChat}
+            disabled={!inputText.trim() || sendingChat}
+            activeOpacity={0.75}
+          >
+            {sendingChat
+              ? <ActivityIndicator size="small" color={Colors.white} />
+              : <Text style={s.chatSendIcon}>↑</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -193,6 +265,15 @@ function MessageRow({ message, onUpdate, onRemove }: {
   onUpdate: (content: string) => Promise<any>;
   onRemove: () => Promise<any>;
 }) {
+  if (message.role === 'user' && message.kind === 'text') {
+    return (
+      <View style={s.userBubbleRow}>
+        <View style={s.userBubble}>
+          <Text style={s.userBubbleTxt}>{message.content}</Text>
+        </View>
+      </View>
+    );
+  }
   if (message.kind === 'text') {
     return (
       <View style={s.agentBubble}>
@@ -281,12 +362,22 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: Spacing.md, paddingBottom: Spacing.lg, gap: Spacing.sm },
 
+  // Agent (left) bubble
   agentBubble: {
     backgroundColor: Colors.card, borderRadius: Radius.md,
-    padding: Spacing.md, alignSelf: 'flex-start', maxWidth: '90%',
+    padding: Spacing.md, alignSelf: 'flex-start', maxWidth: '85%',
     ...Shadow.small,
   },
   agentBubbleTxt: { fontSize: 14, color: Colors.textPrimary, lineHeight: 20 },
+
+  // User (right) bubble
+  userBubbleRow: { alignItems: 'flex-end' },
+  userBubble: {
+    backgroundColor: Colors.primary, borderRadius: Radius.md,
+    padding: Spacing.md, maxWidth: '85%',
+    ...Shadow.small,
+  },
+  userBubbleTxt: { fontSize: 14, color: Colors.white, lineHeight: 20 },
 
   progressRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -294,9 +385,7 @@ const s = StyleSheet.create({
   },
   progressTxt: { fontSize: 13, color: Colors.textSecondary, fontStyle: 'italic' },
 
-  actionRow: {
-    paddingHorizontal: Spacing.md, paddingVertical: 6,
-  },
+  actionRow: { paddingHorizontal: Spacing.md, paddingVertical: 6 },
   actionTxt: { fontSize: 13, color: Colors.success, fontWeight: '600' },
 
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
@@ -322,7 +411,7 @@ const s = StyleSheet.create({
   draftPhoto: { width: 72, height: 72, borderRadius: Radius.sm, marginRight: 8 },
 
   footer: {
-    paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: 28,
+    paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: 8,
     backgroundColor: Colors.bg,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border,
   },
@@ -332,4 +421,32 @@ const s = StyleSheet.create({
   },
   sendBtnOff: { opacity: 0.5 },
   sendBtnTxt: { color: Colors.white, fontSize: 15, fontWeight: '700' },
+
+  // Chat input bar
+  inputBar: {
+    flexDirection: 'row', alignItems: 'flex-end',
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    paddingBottom: 24,
+    backgroundColor: Colors.bg,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    fontSize: 15, color: Colors.textPrimary,
+    maxHeight: 110,
+  },
+  chatSendBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    ...Shadow.small,
+  },
+  chatSendBtnOff: { opacity: 0.4 },
+  chatSendIcon: { color: Colors.white, fontSize: 20, fontWeight: '700', lineHeight: 22 },
 });

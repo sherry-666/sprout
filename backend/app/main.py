@@ -6,11 +6,13 @@ from app.core.config import settings
 from app.core import jobs as job_queue
 from app.graphql.schema import graphql_router
 from app.jobs.quick_log_processor import register_quick_log_handler
+from app.jobs.chat_response_processor import register_chat_handler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_to_mongo()
     register_quick_log_handler()
+    register_chat_handler()
     job_queue.start_worker()
     yield
     await job_queue.stop_worker()

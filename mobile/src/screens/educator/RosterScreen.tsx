@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Image,
 } from 'react-native';
 import { gql, useQuery } from '@apollo/client';
 import { Colors, Spacing, Radius, Shadow } from '../../theme';
@@ -18,6 +18,7 @@ const CLASS_DETAIL_QUERY = gql`
         lastName
         gender
         dateOfBirth
+        profilePhotoUrl
       }
     }
   }
@@ -71,9 +72,12 @@ export default function RosterScreen({ route, navigation }: any) {
                     })}
                     activeOpacity={0.8}
                   >
-                    <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
-                      <Text style={styles.avatarText}>{item.firstName.charAt(0)}</Text>
-                    </View>
+                    {item.profilePhotoUrl
+                      ? <Image source={{ uri: item.profilePhotoUrl }} style={styles.avatarImg} />
+                      : <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
+                          <Text style={styles.avatarText}>{item.firstName.charAt(0)}</Text>
+                        </View>
+                    }
                     <Text style={styles.kidName} numberOfLines={1}>
                       {item.firstName}
                     </Text>
@@ -120,6 +124,10 @@ const styles = StyleSheet.create({
   avatar: {
     width: 56, height: 56, borderRadius: 28,
     alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  avatarImg: {
+    width: 56, height: 56, borderRadius: 28,
     marginBottom: Spacing.sm,
   },
   avatarText: { color: Colors.white, fontSize: 22, fontWeight: '700' },

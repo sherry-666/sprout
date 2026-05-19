@@ -33,6 +33,10 @@ KIND_ACTION = "action"
 
 # Agent types — extensible registry
 AGENT_QUICK_LOG = "quick_log"
+AGENT_CHAT = "chat"
+
+# Conversation statuses
+CONVO_ACTIVE = "active"            # free-form chat, always open
 
 # Job statuses
 JOB_PENDING = "pending"
@@ -42,6 +46,7 @@ JOB_FAILED = "failed"
 
 # Job types
 JOB_QUICK_LOG_ANALYSIS = "quick_log_analysis"
+JOB_CHAT_RESPONSE = "chat_response"
 
 
 # ─── Pydantic models ───────────────────────────────────────────────────────

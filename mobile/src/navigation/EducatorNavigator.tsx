@@ -87,8 +87,8 @@ function ClassesStackNav() {
 function AgentsStackNav() {
   return (
     <AgentsStack.Navigator screenOptions={NAV_OPTS}>
-      <AgentsStack.Screen name="AgentsList" component={AgentsListScreen} options={{ title: 'Agents' }} />
-      <AgentsStack.Screen name="Conversation" component={ConversationScreen} options={{ title: 'Quick Log' }} />
+      <AgentsStack.Screen name="AgentsList" component={AgentsListScreen} options={{ title: 'AI' }} />
+      <AgentsStack.Screen name="Conversation" component={ConversationScreen} options={{ title: 'Chat' }} />
     </AgentsStack.Navigator>
   );
 }
@@ -132,7 +132,7 @@ export default function EducatorNavigator() {
         name="Agents"
         component={AgentsStackNav}
         options={{
-          tabBarLabel: 'Agents',
+          tabBarLabel: t('tabs.ai'),
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🤖</Text>,
           tabBarButton: tabButton,
         }}

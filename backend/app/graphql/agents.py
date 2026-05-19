@@ -24,10 +24,10 @@ from app.graphql.permissions import IsAuthenticated
 from app.graphql.scalars import DateTime
 from app.core import jobs as job_queue
 from app.models.conversation import (
-    CONVO_PENDING, CONVO_AWAITING_REVIEW, CONVO_SENT,
+    CONVO_PENDING, CONVO_AWAITING_REVIEW, CONVO_SENT, CONVO_ACTIVE,
     KIND_TEXT, KIND_PROGRESS, KIND_DRAFT_CARD, KIND_ACTION,
     ROLE_AGENT, ROLE_SYSTEM, ROLE_USER,
-    AGENT_QUICK_LOG, JOB_QUICK_LOG_ANALYSIS,
+    AGENT_QUICK_LOG, AGENT_CHAT, JOB_QUICK_LOG_ANALYSIS, JOB_CHAT_RESPONSE,
 )
 
 log = logging.getLogger(__name__)
@@ -231,6 +231,58 @@ class AgentsMutation:
         })
         doc = await db.conversations.find_one({"_id": convo_id})
         return Conversation.from_doc(doc)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def create_chat_conversation(
+        self,
+        info: Info[GraphQLContext, None],
+    ) -> Conversation:
+        """Create a new free-form chat conversation and return immediately with a greeting."""
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        now = datetime.utcnow()
+        convo_id = str(uuid.uuid4())
+        await db.conversations.insert_one({
+            "_id": convo_id,
+            "user_id": viewer_id,
+            "agent_type": AGENT_CHAT,
+            "status": CONVO_ACTIVE,
+            "title": "Chat",
+            "created_at": now,
+            "updated_at": now,
+        })
+        await write_message(
+            db, convo_id, role=ROLE_AGENT, kind=KIND_TEXT,
+            content="Hi! I'm your Sprout AI assistant. How can I help you today?",
+        )
+        doc = await db.conversations.find_one({"_id": convo_id})
+        return Conversation.from_doc(doc)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def send_chat_message(
+        self,
+        info: Info[GraphQLContext, None],
+        conversation_id: strawberry.ID,
+        content: str,
+    ) -> Message:
+        """Write a user message and enqueue an AI reply job."""
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        convo = await db.conversations.find_one(
+            {"_id": str(conversation_id), "user_id": viewer_id}
+        )
+        if not convo:
+            raise Exception("Conversation not found")
+        msg = await write_message(
+            db, str(conversation_id),
+            role=ROLE_USER, kind=KIND_TEXT,
+            content=content.strip(),
+        )
+        await job_queue.enqueue(db, JOB_CHAT_RESPONSE, {
+            "conversation_id": str(conversation_id),
+            "user_id": viewer_id,
+        })
+        return Message.from_doc(msg)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
     async def update_draft_message(
