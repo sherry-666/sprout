@@ -451,7 +451,7 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border,
     gap: Spacing.sm,
   },
-  inputBarKbOpen: { paddingBottom: Spacing.sm },
+  inputBarKbOpen: { paddingBottom: 16, marginBottom: 8 },
   chatInput: {
     flex: 1,
     backgroundColor: Colors.card,
