@@ -233,6 +233,24 @@ class AgentsMutation:
         return Conversation.from_doc(doc)
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def delete_conversation(
+        self,
+        info: Info[GraphQLContext, None],
+        conversation_id: strawberry.ID,
+    ) -> bool:
+        """Delete a conversation and all its messages."""
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        convo = await db.conversations.find_one(
+            {"_id": str(conversation_id), "user_id": viewer_id}
+        )
+        if not convo:
+            return False
+        await db.messages.delete_many({"conversation_id": str(conversation_id)})
+        await db.conversations.delete_one({"_id": str(conversation_id)})
+        return True
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
     async def create_chat_conversation(
         self,
         info: Info[GraphQLContext, None],

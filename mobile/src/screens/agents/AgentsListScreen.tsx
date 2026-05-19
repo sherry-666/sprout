@@ -1,8 +1,9 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Animated,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { gql, useQuery, useMutation } from '@apollo/client';
 import { Colors, Spacing, Radius } from '../../theme';
 
@@ -21,6 +22,12 @@ const MY_CONVERSATIONS = gql`
 const CREATE_CHAT = gql`
   mutation CreateChatConversation {
     createChatConversation { id }
+  }
+`;
+
+const DELETE_CONVERSATION = gql`
+  mutation DeleteConversation($conversationId: ID!) {
+    deleteConversation(conversationId: $conversationId)
   }
 `;
 
@@ -49,6 +56,9 @@ export default function AgentsListScreen({ navigation }: any) {
     pollInterval: 5000,
   });
   const [createChat, { loading: creating }] = useMutation(CREATE_CHAT);
+  const [deleteConversation] = useMutation(DELETE_CONVERSATION, {
+    refetchQueries: [{ query: MY_CONVERSATIONS }],
+  });
 
   const conversations = data?.myConversations ?? [];
 
@@ -98,22 +108,39 @@ export default function AgentsListScreen({ navigation }: any) {
           refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.primary} />}
           renderItem={({ item }: any) => {
             const meta = STATUS_META[item.status];
+            const renderRightActions = (progress: Animated.AnimatedInterpolation<number>) => {
+              const trans = progress.interpolate({
+                inputRange: [0, 1], outputRange: [80, 0],
+              });
+              return (
+                <Animated.View style={[s.deleteAction, { transform: [{ translateX: trans }] }]}>
+                  <TouchableOpacity
+                    style={s.deleteBtn}
+                    onPress={() => deleteConversation({ variables: { conversationId: item.id } })}
+                  >
+                    <Text style={s.deleteBtnTxt}>Delete</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            };
             return (
-              <TouchableOpacity
-                style={s.card}
-                onPress={() => navigation.navigate('Conversation', { conversationId: item.id })}
-                activeOpacity={0.8}
-              >
-                <View style={s.cardHead}>
-                  <Text style={s.cardTitle} numberOfLines={1}>{item.title || 'Chat'}</Text>
-                  {meta && (
-                    <View style={[s.badge, { backgroundColor: meta.bg }]}>
-                      <Text style={[s.badgeTxt, { color: meta.color }]}>{meta.label}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={s.cardMeta}>{timeAgo(item.updatedAt)}</Text>
-              </TouchableOpacity>
+              <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+                <TouchableOpacity
+                  style={s.card}
+                  onPress={() => navigation.navigate('Conversation', { conversationId: item.id })}
+                  activeOpacity={0.8}
+                >
+                  <View style={s.cardHead}>
+                    <Text style={s.cardTitle} numberOfLines={1}>{item.title || 'Chat'}</Text>
+                    {meta && (
+                      <View style={[s.badge, { backgroundColor: meta.bg }]}>
+                        <Text style={[s.badgeTxt, { color: meta.color }]}>{meta.label}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={s.cardMeta}>{timeAgo(item.updatedAt)}</Text>
+                </TouchableOpacity>
+              </Swipeable>
             );
           }}
         />
@@ -144,6 +171,12 @@ const s = StyleSheet.create({
   cardMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 6 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full },
   badgeTxt: { fontSize: 11, fontWeight: '700' },
+  deleteAction: { width: 80, justifyContent: 'center' },
+  deleteBtn: {
+    flex: 1, backgroundColor: Colors.danger,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  deleteBtnTxt: { color: Colors.white, fontSize: 13, fontWeight: '700' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
   emptyTitle: { fontSize: 17, fontWeight: '600', color: Colors.textPrimary },
