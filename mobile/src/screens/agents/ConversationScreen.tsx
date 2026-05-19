@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity,
   ActivityIndicator, Image, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { gql, useQuery, useMutation, useSubscription } from '@apollo/client';
 import { Colors, Spacing, Radius, Shadow } from '../../theme';
 
@@ -97,6 +98,14 @@ interface DraftPayload {
 export default function ConversationScreen({ route, navigation }: any) {
   const conversationId: string = route.params.conversationId;
   const [isTerminal, setIsTerminal] = useState(false);
+
+  // Hide tab bar so keyboard avoidance works correctly (no tab bar offset)
+  useFocusEffect(
+    useCallback(() => {
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+      return () => navigation.getParent()?.setOptions({ tabBarStyle: undefined });
+    }, [navigation])
+  );
   const [inputText, setInputText] = useState('');
   const inputRef = useRef<TextInput>(null);
 
