@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity,
-  ActivityIndicator, Image, Alert, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Image, Alert, Keyboard, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { gql, useQuery, useMutation, useSubscription } from '@apollo/client';
@@ -98,14 +98,25 @@ interface DraftPayload {
 export default function ConversationScreen({ route, navigation }: any) {
   const conversationId: string = route.params.conversationId;
   const [isTerminal, setIsTerminal] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  // Hide tab bar so keyboard avoidance works correctly (no tab bar offset)
+  // Hide tab bar so the input bar can sit at the screen edge
   useFocusEffect(
     useCallback(() => {
       navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
       return () => navigation.getParent()?.setOptions({ tabBarStyle: undefined });
     }, [navigation])
   );
+
+  // Manual keyboard tracking — KeyboardAvoidingView is unreliable in nested navigators
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
   const [inputText, setInputText] = useState('');
   const inputRef = useRef<TextInput>(null);
 
@@ -158,6 +169,13 @@ export default function ConversationScreen({ route, navigation }: any) {
 
   const scrollRef = useRef<ScrollView>(null);
 
+  // When keyboard opens, scroll to bottom so the latest message stays in view
+  useEffect(() => {
+    if (keyboardHeight > 0) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+    }
+  }, [keyboardHeight]);
+
   const handleSendDrafts = async () => {
     try {
       await sendDrafts({ variables: { conversationId } });
@@ -191,11 +209,7 @@ export default function ConversationScreen({ route, navigation }: any) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={s.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
+    <View style={[s.root, { paddingBottom: keyboardHeight }]}>
       <ScrollView
         ref={scrollRef}
         style={s.scroll}
@@ -236,7 +250,7 @@ export default function ConversationScreen({ route, navigation }: any) {
       )}
 
       {showInput && (
-        <View style={s.inputBar}>
+        <View style={[s.inputBar, keyboardHeight > 0 && s.inputBarKbOpen]}>
           <TextInput
             ref={inputRef}
             style={s.chatInput}
@@ -260,7 +274,7 @@ export default function ConversationScreen({ route, navigation }: any) {
           </TouchableOpacity>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -437,6 +451,7 @@ const s = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border,
     gap: Spacing.sm,
   },
+  inputBarKbOpen: { paddingBottom: Spacing.sm },
   chatInput: {
     flex: 1,
     backgroundColor: Colors.card,

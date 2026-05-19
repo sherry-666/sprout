@@ -27,8 +27,7 @@ _SYSTEM_PROMPT = (
 
 
 async def _process_chat_response(job: dict) -> None:
-    import google.generativeai as genai
-    from app.ai.llm_service import FLASH_MODEL
+    from app.ai.llm_service import get_flash_model
 
     payload = job.get("payload") or {}
     convo_id: str = payload["conversation_id"]
@@ -64,10 +63,7 @@ async def _process_chat_response(job: dict) -> None:
     prior_history = history[:-1]
 
     try:
-        model = genai.GenerativeModel(
-            FLASH_MODEL,
-            system_instruction=_SYSTEM_PROMPT,
-        )
+        model = get_flash_model(system_instruction=_SYSTEM_PROMPT)
         chat = model.start_chat(history=prior_history)
         response = await asyncio.to_thread(chat.send_message, last_text)
         reply = response.text.strip()
