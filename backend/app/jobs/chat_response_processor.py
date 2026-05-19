@@ -43,7 +43,7 @@ async def _process_chat_response(job: dict) -> None:
     if not docs:
         return
 
-    # Build Gemini multi-turn history
+    # Build Gemini multi-turn history (user↔model pairs only)
     history = [
         {
             "role": "user" if d.get("role") == ROLE_USER else "model",
@@ -51,6 +51,14 @@ async def _process_chat_response(job: dict) -> None:
         }
         for d in docs
     ]
+
+    # Gemini requires history to start with a 'user' turn — drop any leading
+    # model messages (e.g. the greeting written when the conversation is created)
+    while history and history[0]["role"] == "model":
+        history.pop(0)
+
+    if not history:
+        return
 
     last_text = history[-1]["parts"][0]["text"]
     prior_history = history[:-1]
@@ -64,8 +72,8 @@ async def _process_chat_response(job: dict) -> None:
         response = await asyncio.to_thread(chat.send_message, last_text)
         reply = response.text.strip()
     except Exception as e:
-        log.exception("chat_response_processor: gemini error for convo=%s", convo_id)
-        reply = "Sorry, I ran into an error. Please try again."
+        log.exception("chat_response_processor: gemini error for convo=%s: %s", convo_id, e)
+        reply = f"Sorry, something went wrong: {e}"
 
     await write_message(db, convo_id, role=ROLE_AGENT, kind=KIND_TEXT, content=reply)
 

@@ -4,7 +4,7 @@ import {
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { gql, useQuery, useMutation } from '@apollo/client';
-import { Colors, Spacing, Radius, Shadow } from '../../theme';
+import { Colors, Spacing, Radius } from '../../theme';
 
 const MY_CONVERSATIONS = gql`
   query MyConversations {
@@ -124,15 +124,20 @@ export default function AgentsListScreen({ navigation }: any) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  newBtn: { paddingHorizontal: Spacing.sm, paddingVertical: 6 },
-  newBtnTxt: { fontSize: 14, fontWeight: '700', color: Colors.primary },
-  list: { padding: Spacing.md, paddingTop: Spacing.lg },
+  newBtn: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderRadius: Radius.full,
+    paddingHorizontal: 14, paddingVertical: 6,
+    marginRight: 4,
+  },
+  newBtnTxt: { fontSize: 13, fontWeight: '700', color: Colors.white },
+  list: { paddingTop: 0 },
   card: {
     backgroundColor: Colors.card,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    ...Shadow.small,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
   cardTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, flex: 1 },
