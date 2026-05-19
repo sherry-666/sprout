@@ -4,8 +4,8 @@ from app.core.config import settings
 # Configure Gemini API
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
-FLASH_MODEL = 'gemini-1.5-flash'
-PRO_MODEL = 'gemini-1.5-flash'
+FLASH_MODEL = 'models/gemini-1.5-flash'
+PRO_MODEL = 'models/gemini-1.5-flash'
 
 def get_flash_model():
     return genai.GenerativeModel(FLASH_MODEL)

@@ -156,11 +156,7 @@ export default function ConversationScreen({ route, navigation }: any) {
     : null;
   const visibleMessages = messages.filter(m => m.kind !== 'progress');
 
-  // Auto-scroll to bottom when new messages arrive
   const scrollRef = useRef<ScrollView>(null);
-  useEffect(() => {
-    scrollRef.current?.scrollToEnd({ animated: true });
-  }, [messages.length]);
 
   const handleSendDrafts = async () => {
     try {
@@ -205,6 +201,7 @@ export default function ConversationScreen({ route, navigation }: any) {
         style={s.scroll}
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
         {visibleMessages.map(m => (
           <MessageRow
@@ -369,7 +366,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg },
   scroll: { flex: 1 },
-  content: { padding: Spacing.md, paddingBottom: Spacing.lg, gap: Spacing.sm },
+  content: { padding: Spacing.md, paddingBottom: 100, gap: Spacing.sm },
 
   // Agent (left) bubble
   agentBubble: {
