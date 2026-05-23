@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import {
-  Animated, Pressable, StyleSheet, Text,
+  Animated, Pressable, StyleSheet, Text, View,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -8,28 +8,20 @@ import { useTranslation } from 'react-i18next';
 import ClassesScreen from '../screens/educator/ClassesScreen';
 import RosterScreen from '../screens/educator/RosterScreen';
 import LogActivityScreen from '../screens/educator/LogActivityScreen';
-import QuickLogScreen from '../screens/educator/QuickLogScreen';
 import AgentsListScreen from '../screens/agents/AgentsListScreen';
 import ConversationScreen from '../screens/agents/ConversationScreen';
-import QuickLogReviewScreen from '../screens/agents/QuickLogReviewScreen';
-import PhotoClassificationScreen from '../screens/agents/PhotoClassificationScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import KidChatScreen from '../screens/chat/KidChatScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { Colors } from '../theme';
+import { QuickLogProvider, useQuickLog } from '../contexts/QuickLogContext';
 
 const Tab = createBottomTabNavigator();
-const ClassesStack = createNativeStackNavigator();
+const HomeStack = createNativeStackNavigator();
 const AgentsStack = createNativeStackNavigator();
 const ChatStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
-
-const NAV_OPTS = {
-  headerStyle: { backgroundColor: Colors.primary },
-  headerTintColor: Colors.white,
-  headerTitleStyle: { fontWeight: '700' as const },
-};
 
 // ─── Animated tab button ───────────────────────────────────────────────────
 function AnimatedTabButton({ children, onPress, onLongPress, accessibilityState, style }: any) {
@@ -62,6 +54,19 @@ function AnimatedTabButton({ children, onPress, onLongPress, accessibilityState,
   );
 }
 
+// ─── AI tab icon with active-job badge ────────────────────────────────────
+function AITabIcon({ color }: { color: string }) {
+  const { activeConversationId } = useQuickLog();
+  return (
+    <View>
+      <Text style={{ fontSize: 20, color }}>✨</Text>
+      {!!activeConversationId && (
+        <View style={tabStyles.badge} />
+      )}
+    </View>
+  );
+}
+
 const tabStyles = StyleSheet.create({
   outer: { justifyContent: 'center', alignItems: 'center' },
   inner: {
@@ -74,35 +79,47 @@ const tabStyles = StyleSheet.create({
   focused: {
     backgroundColor: Colors.primaryLight,
   },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    borderWidth: 1.5,
+    borderColor: Colors.white,
+  },
 });
 
 // ─── Stack navigators ──────────────────────────────────────────────────────
-function ClassesStackNav() {
-  const { t } = useTranslation();
+function HomeStackNav() {
   return (
-    <ClassesStack.Navigator screenOptions={NAV_OPTS}>
-      <ClassesStack.Screen name="ClassesList" component={ClassesScreen} options={{ title: t('classes.title') }} />
-      <ClassesStack.Screen name="Roster" component={RosterScreen} options={({ route }: any) => ({ title: route.params?.className ?? 'Roster' })} />
-      <ClassesStack.Screen name="LogActivity" component={LogActivityScreen} options={({ route }: any) => ({ title: route.params?.kidName ? `Log for ${route.params.kidName}` : 'Log Activity' })} />
-      <ClassesStack.Screen name="QuickLog" component={QuickLogScreen} options={{ title: 'Quick Log' }} />
-    </ClassesStack.Navigator>
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="ClassesList" component={ClassesScreen} />
+      <HomeStack.Screen name="Roster" component={RosterScreen} />
+      <HomeStack.Screen name="LogActivity" component={LogActivityScreen} />
+    </HomeStack.Navigator>
   );
 }
 
 function AgentsStackNav() {
   return (
-    <AgentsStack.Navigator screenOptions={NAV_OPTS}>
-      <AgentsStack.Screen name="AgentsList" component={AgentsListScreen} options={{ title: 'AI' }} />
-      <AgentsStack.Screen name="Conversation" component={ConversationScreen} options={{ title: 'Chat' }} />
-      <AgentsStack.Screen name="QuickLogReview" component={QuickLogReviewScreen} options={{ title: 'Review Quick Log' }} />
-      <AgentsStack.Screen name="PhotoClassification" component={PhotoClassificationScreen} options={{ title: 'Review Photos' }} />
+    <AgentsStack.Navigator screenOptions={{ headerShown: false }}>
+      <AgentsStack.Screen name="AgentsList" component={AgentsListScreen} />
+      <AgentsStack.Screen name="Conversation" component={ConversationScreen} />
     </AgentsStack.Navigator>
   );
 }
 
 function ChatStackNav() {
+  const { t } = useTranslation();
   return (
-    <ChatStack.Navigator screenOptions={NAV_OPTS}>
+    <ChatStack.Navigator screenOptions={{
+      headerStyle: { backgroundColor: Colors.primary },
+      headerTintColor: Colors.white,
+      headerTitleStyle: { fontWeight: '700' as const },
+    }}>
       <ChatStack.Screen name="ChatList" component={ChatListScreen} options={{ title: 'Messages' }} />
       <ChatStack.Screen name="KidChat" component={KidChatScreen} options={({ route }: any) => ({ title: route.params?.kidName ?? 'Chat' })} />
     </ChatStack.Navigator>
@@ -112,17 +129,20 @@ function ChatStackNav() {
 function SettingsStackNav() {
   const { t } = useTranslation();
   return (
-    <SettingsStack.Navigator screenOptions={NAV_OPTS}>
+    <SettingsStack.Navigator screenOptions={{
+      headerStyle: { backgroundColor: Colors.primary },
+      headerTintColor: Colors.white,
+      headerTitleStyle: { fontWeight: '700' as const },
+    }}>
       <SettingsStack.Screen name="SettingsHome" component={SettingsScreen} options={{ title: t('settings.title') }} />
       <SettingsStack.Screen name="Profile" component={ProfileScreen} options={{ title: t('profile.title') }} />
     </SettingsStack.Navigator>
   );
 }
 
-// ─── Tab navigator ─────────────────────────────────────────────────────────
-export default function EducatorNavigator() {
+// ─── Tab navigator (inner, needs QuickLogContext) ──────────────────────────
+function TabNavigator() {
   const { t } = useTranslation();
-
   const tabButton = (props: any) => <AnimatedTabButton {...props} />;
 
   return (
@@ -136,11 +156,11 @@ export default function EducatorNavigator() {
       }}
     >
       <Tab.Screen
-        name="Classes"
-        component={ClassesStackNav}
+        name="Home"
+        component={HomeStackNav}
         options={{
-          tabBarLabel: t('tabs.classes'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📚</Text>,
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text>,
           tabBarButton: tabButton,
         }}
       />
@@ -148,8 +168,8 @@ export default function EducatorNavigator() {
         name="Agents"
         component={AgentsStackNav}
         options={{
-          tabBarLabel: t('tabs.ai'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🤖</Text>,
+          tabBarLabel: 'AI',
+          tabBarIcon: ({ color }) => <AITabIcon color={color} />,
           tabBarButton: tabButton,
         }}
       />
@@ -172,5 +192,14 @@ export default function EducatorNavigator() {
         }}
       />
     </Tab.Navigator>
+  );
+}
+
+// ─── Root export (provides context) ───────────────────────────────────────
+export default function EducatorNavigator() {
+  return (
+    <QuickLogProvider>
+      <TabNavigator />
+    </QuickLogProvider>
   );
 }
