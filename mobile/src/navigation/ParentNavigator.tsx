@@ -5,11 +5,14 @@ import { Text } from 'react-native';
 import FeedScreen from '../screens/parent/FeedScreen';
 import KidDetailScreen from '../screens/parent/KidDetailScreen';
 import SummaryScreen from '../screens/parent/SummaryScreen';
+import ChatListScreen from '../screens/chat/ChatListScreen';
+import KidChatScreen from '../screens/chat/KidChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { Colors } from '../theme';
 
 const Tab = createBottomTabNavigator();
 const FeedStack = createNativeStackNavigator();
+const ChatStack = createNativeStackNavigator();
 
 function FeedStackNav() {
   return (
@@ -27,6 +30,21 @@ function FeedStackNav() {
   );
 }
 
+const NAV_OPTS = {
+  headerStyle: { backgroundColor: Colors.primary },
+  headerTintColor: Colors.white,
+  headerTitleStyle: { fontWeight: '700' as const },
+};
+
+function ChatStackNav() {
+  return (
+    <ChatStack.Navigator screenOptions={NAV_OPTS}>
+      <ChatStack.Screen name="ChatList" component={ChatListScreen} options={{ title: 'Messages' }} />
+      <ChatStack.Screen name="KidChat" component={KidChatScreen} options={({ route }: any) => ({ title: route.params?.kidName ?? 'Chat' })} />
+    </ChatStack.Navigator>
+  );
+}
+
 export default function ParentNavigator() {
   return (
     <Tab.Navigator
@@ -41,6 +59,11 @@ export default function ParentNavigator() {
         name="Feed"
         component={FeedStackNav}
         options={{ tabBarLabel: 'My Kids', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👶</Text> }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={ChatStackNav}
+        options={{ tabBarLabel: 'Chat', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>💬</Text> }}
       />
       <Tab.Screen
         name="Profile"

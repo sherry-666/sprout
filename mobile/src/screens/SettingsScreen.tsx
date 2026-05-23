@@ -1,8 +1,15 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { gql, useMutation } from '@apollo/client';
 import { setLanguage } from '../i18n';
 import { Colors, Spacing, Radius, Shadow } from '../theme';
+
+const REGENERATE_EMBEDDINGS = gql`
+  mutation RegenerateFaceEmbeddings {
+    regenerateFaceEmbeddings
+  }
+`;
 
 const LANGUAGES = [
   { code: 'en', key: 'language.en' },
@@ -13,6 +20,19 @@ const LANGUAGES = [
 export default function SettingsScreen({ navigation }: any) {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.language;
+  const [regenerate, { loading: regenerating }] = useMutation(REGENERATE_EMBEDDINGS);
+
+  const handleRegenerate = async () => {
+    try {
+      const { data } = await regenerate();
+      const count = data?.regenerateFaceEmbeddings ?? 0;
+      Alert.alert('Done', count > 0
+        ? `Updated face data for ${count} child${count === 1 ? '' : 'ren'}.`
+        : 'All children already have face data — nothing to update.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Could not regenerate face data');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -51,6 +71,23 @@ export default function SettingsScreen({ navigation }: any) {
               ))}
             </View>
           </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Admin</Text>
+        <View style={styles.sectionCard}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={handleRegenerate}
+            disabled={regenerating}
+            activeOpacity={0.7}
+          >
+            {regenerating
+              ? <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: 10 }} />
+              : null}
+            <Text style={styles.rowLabel}>Regenerate Face Data</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

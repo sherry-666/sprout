@@ -11,6 +11,10 @@ import LogActivityScreen from '../screens/educator/LogActivityScreen';
 import QuickLogScreen from '../screens/educator/QuickLogScreen';
 import AgentsListScreen from '../screens/agents/AgentsListScreen';
 import ConversationScreen from '../screens/agents/ConversationScreen';
+import QuickLogReviewScreen from '../screens/agents/QuickLogReviewScreen';
+import PhotoClassificationScreen from '../screens/agents/PhotoClassificationScreen';
+import ChatListScreen from '../screens/chat/ChatListScreen';
+import KidChatScreen from '../screens/chat/KidChatScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { Colors } from '../theme';
@@ -18,6 +22,7 @@ import { Colors } from '../theme';
 const Tab = createBottomTabNavigator();
 const ClassesStack = createNativeStackNavigator();
 const AgentsStack = createNativeStackNavigator();
+const ChatStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 
 const NAV_OPTS = {
@@ -89,7 +94,18 @@ function AgentsStackNav() {
     <AgentsStack.Navigator screenOptions={NAV_OPTS}>
       <AgentsStack.Screen name="AgentsList" component={AgentsListScreen} options={{ title: 'AI' }} />
       <AgentsStack.Screen name="Conversation" component={ConversationScreen} options={{ title: 'Chat' }} />
+      <AgentsStack.Screen name="QuickLogReview" component={QuickLogReviewScreen} options={{ title: 'Review Quick Log' }} />
+      <AgentsStack.Screen name="PhotoClassification" component={PhotoClassificationScreen} options={{ title: 'Review Photos' }} />
     </AgentsStack.Navigator>
+  );
+}
+
+function ChatStackNav() {
+  return (
+    <ChatStack.Navigator screenOptions={NAV_OPTS}>
+      <ChatStack.Screen name="ChatList" component={ChatListScreen} options={{ title: 'Messages' }} />
+      <ChatStack.Screen name="KidChat" component={KidChatScreen} options={({ route }: any) => ({ title: route.params?.kidName ?? 'Chat' })} />
+    </ChatStack.Navigator>
   );
 }
 
@@ -134,6 +150,15 @@ export default function EducatorNavigator() {
         options={{
           tabBarLabel: t('tabs.ai'),
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🤖</Text>,
+          tabBarButton: tabButton,
+        }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={ChatStackNav}
+        options={{
+          tabBarLabel: 'Chat',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>💬</Text>,
           tabBarButton: tabButton,
         }}
       />

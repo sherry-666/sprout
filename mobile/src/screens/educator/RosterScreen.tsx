@@ -33,7 +33,7 @@ export default function RosterScreen({ route, navigation }: any) {
   const { classId, className } = route.params;
   const { data, loading, refetch } = useQuery(CLASS_DETAIL_QUERY, {
     variables: { id: classId },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
   });
 
   const cls = data?.class;
