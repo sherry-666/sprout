@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery, useMutation } from '@apollo/client';
 import { Colors } from '../../theme';
@@ -126,7 +127,12 @@ export default function AgentsListScreen({ navigation }: any) {
                   onPress={() => openConversation(active.id)}
                   activeOpacity={0.85}
                 >
-                  <View style={s.activeCard}>
+                  <LinearGradient
+                    colors={['rgba(79,70,229,0.13)', '#f3f4f8']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={s.activeCard}
+                  >
                     <View style={s.activeCardTop}>
                       <View style={s.sparkleAvatar}>
                         {/* Pulsing ring for processing states */}
@@ -152,7 +158,7 @@ export default function AgentsListScreen({ navigation }: any) {
                       <Text style={s.activeStatusTxt}>{phaseLabel(active.status)}</Text>
                       <Text style={{ color: Colors.primary, fontSize: 16 }}>›</Text>
                     </View>
-                  </View>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
@@ -276,11 +282,10 @@ const s = StyleSheet.create({
   },
   inProgressSection: { marginBottom: 22 },
 
-  // Active card — flat indigo tint approximates design gradient
   activeCard: {
-    backgroundColor: 'rgba(79,70,229,0.09)',
     borderRadius: 16, padding: 16,
     borderWidth: 1.5, borderColor: 'rgba(79,70,229,0.2)',
+    overflow: 'hidden',
   },
   activeCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   sparkleAvatar: {
