@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery } from '@apollo/client';
 import { Colors, Shadow } from '../../theme';
@@ -37,37 +38,18 @@ function greetingPrefix(): string {
   return 'Good evening';
 }
 
-// Deterministic color palette derived from class name
-const CLASS_PALETTES = [
-  { bg: '#fef3c7', ink: '#92400e' },
-  { bg: '#dcfce7', ink: '#166534' },
-  { bg: '#dbeafe', ink: '#1e40af' },
-  { bg: '#fce7f3', ink: '#9d174d' },
-  { bg: '#f3e8ff', ink: '#6b21a8' },
-  { bg: '#ffedd5', ink: '#c2410c' },
-  { bg: '#e0f2fe', ink: '#075985' },
-  { bg: '#fdf4ff', ink: '#86198f' },
-];
-
-function classPalette(name: string) {
+// Hue-based color palette matching the design system (proto-shared.jsx ClassGlyph)
+function nameToHue(s: string): number {
   let h = 0;
-  for (let i = 0; i < name.length; i++) h = ((h * 31 + name.charCodeAt(i)) >>> 0);
-  return CLASS_PALETTES[h % CLASS_PALETTES.length];
+  for (let i = 0; i < s.length; i++) h = ((h * 31 + s.charCodeAt(i)) >>> 0);
+  return h % 360;
 }
 
-// ── Shared primitives ──────────────────────────────────────────────────────
-
-function WorkingDots({ color }: { color: string }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 3, alignItems: 'center' }}>
-      {[0, 1, 2].map(i => (
-        <View
-          key={i}
-          style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: color, opacity: 0.6 }}
-        />
-      ))}
-    </View>
-  );
+function glyphColors(hue: number) {
+  return {
+    bg: `hsl(${hue}, 55%, 87%)`,
+    ink: `hsl(${hue}, 60%, 30%)`,
+  };
 }
 
 // ── HomeScreen ─────────────────────────────────────────────────────────────
@@ -123,8 +105,13 @@ export default function ClassesScreen({ navigation }: any) {
           </Text>
         </View>
 
-        {/* Quick Log entry card */}
-        <View style={s.quickLogCard}>
+        {/* Quick Log entry card — gradient matches design */}
+        <LinearGradient
+          colors={['rgba(79,70,229,0.13)', '#f3f4f8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={s.quickLogCard}
+        >
           <View style={s.qlRow}>
             <View style={s.qlMicCircle}>
               <Text style={{ fontSize: 18, color: Colors.white }}>🎙</Text>
@@ -133,7 +120,7 @@ export default function ClassesScreen({ navigation }: any) {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={s.qlTitle}>Quick Log</Text>
                 <View style={s.aiBadge}>
-                  <Text style={s.aiBadgeTxt}>✨ AI</Text>
+                  <Text style={s.aiBadgeTxt}>✦ AI</Text>
                 </View>
               </View>
               <Text style={s.qlSub}>Speak, snap, send to families</Text>
@@ -146,12 +133,16 @@ export default function ClassesScreen({ navigation }: any) {
           {/* Active job nudge */}
           {!!activeConversationId && (
             <TouchableOpacity style={s.qlNudge} onPress={openActiveConversation} activeOpacity={0.8}>
-              <WorkingDots color={Colors.primary} />
+              <View style={s.nudgeDots}>
+                {[0, 1, 2].map(i => (
+                  <View key={i} style={[s.nudgeDot, { opacity: 0.7 }]} />
+                ))}
+              </View>
               <Text style={s.qlNudgeTxt}>Today's Quick Log — open chat</Text>
-              <Text style={{ color: Colors.primary, fontSize: 18 }}>›</Text>
+              <Text style={{ color: Colors.primary, fontSize: 16 }}>›</Text>
             </TouchableOpacity>
           )}
-        </View>
+        </LinearGradient>
 
         {/* Today's Schedule */}
         {/* TODO: Build calendar import feature — support importing from Google Calendar,
@@ -179,7 +170,8 @@ export default function ClassesScreen({ navigation }: any) {
         ) : (
           <View style={{ gap: 8 }}>
             {classes.map(cls => {
-              const palette = classPalette(cls.name);
+              const hue = nameToHue(cls.name);
+              const { bg, ink } = glyphColors(hue);
               return (
                 <TouchableOpacity
                   key={cls.id}
@@ -189,14 +181,13 @@ export default function ClassesScreen({ navigation }: any) {
                   }
                   activeOpacity={0.8}
                 >
-                  <View style={[s.classGlyph, { backgroundColor: palette.bg }]}>
-                    <Text style={[s.classGlyphTxt, { color: palette.ink }]}>
+                  <View style={[s.classGlyph, { backgroundColor: bg }]}>
+                    <Text style={[s.classGlyphTxt, { color: ink }]}>
                       {cls.name.charAt(0).toUpperCase()}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.className}>{cls.name}</Text>
-                    {/* TODO: Add ageGroup field to class schema */}
                   </View>
                   <View style={s.kidCountPill}>
                     <Text style={s.kidCountNum}>{cls.kids?.length ?? 0}</Text>
@@ -223,23 +214,22 @@ export default function ClassesScreen({ navigation }: any) {
 // ── Styles ─────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f5f6f0' },
+  root: { flex: 1, backgroundColor: '#f3f4f8' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
 
   // Header
   header: { paddingTop: 16, paddingBottom: 4 },
   eyebrow: {
     fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
-    textTransform: 'uppercase', color: Colors.textSecondary,
+    textTransform: 'uppercase', color: 'rgba(60,60,67,0.55)',
   },
   title: {
-    fontSize: 28, fontWeight: '600', letterSpacing: -0.5,
-    color: Colors.textPrimary, marginTop: 4,
+    fontSize: 30, fontWeight: '600', letterSpacing: -0.6,
+    color: '#1d1d2a', marginTop: 4,
   },
 
   // Quick Log card
   quickLogCard: {
-    backgroundColor: Colors.primaryLight,
     borderRadius: 16, padding: 16,
     marginTop: 20,
     borderWidth: 1, borderColor: 'rgba(79,70,229,0.15)',
@@ -250,8 +240,8 @@ const s = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  qlTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
-  qlSub: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  qlTitle: { fontSize: 15, fontWeight: '600', color: '#1d1d2a' },
+  qlSub: { fontSize: 12, color: 'rgba(60,60,67,0.6)', marginTop: 2 },
   qlStartBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
@@ -263,31 +253,37 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.65)',
     borderRadius: 10,
   },
+  nudgeDots: { flexDirection: 'row', gap: 3, alignItems: 'center' },
+  nudgeDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: Colors.primary },
   qlNudgeTxt: { flex: 1, fontSize: 12, color: Colors.primary, fontWeight: '600' },
 
   // AI Badge
   aiBadge: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: 'rgba(79,70,229,0.12)',
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
   },
-  aiBadgeTxt: { fontSize: 10, fontWeight: '600', color: Colors.primary },
+  aiBadgeTxt: { fontSize: 10, fontWeight: '600', color: Colors.primary, letterSpacing: 0.3 },
 
   // Section headers
   sectionRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 8, marginTop: 22 },
   sectionEyebrow: {
     fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
-    textTransform: 'uppercase', color: Colors.textSecondary,
+    textTransform: 'uppercase', color: 'rgba(60,60,67,0.55)',
   },
 
   // Schedule card (placeholder)
   scheduleCard: {
     backgroundColor: Colors.card,
-    borderRadius: 14, padding: 28,
+    borderRadius: 16, padding: 28,
     alignItems: 'center',
-    ...Shadow.small,
+    shadowColor: '#1a2820',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 2,
   },
   schedulePlaceholder: {
-    fontSize: 13, color: Colors.textSecondary,
+    fontSize: 13, color: 'rgba(60,60,67,0.55)',
     textAlign: 'center', lineHeight: 20,
   },
 
@@ -296,23 +292,27 @@ const s = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 14, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    ...Shadow.small,
+    shadowColor: '#1a2820',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 2,
   },
   classGlyph: {
     width: 44, height: 44, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
-  classGlyphTxt: { fontSize: 18, fontWeight: '700' },
-  className: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
+  classGlyphTxt: { fontSize: 18, fontWeight: '700', letterSpacing: -0.4 },
+  className: { fontSize: 15, fontWeight: '600', color: '#1d1d2a' },
   kidCountPill: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.bg,
+    backgroundColor: '#f3f4f8',
     borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
   },
   kidCountNum: { fontSize: 12, fontWeight: '600', color: Colors.primary },
-  kidCountLabel: { fontSize: 12, color: Colors.textSecondary },
-  chevron: { fontSize: 18, color: Colors.textSecondary },
+  kidCountLabel: { fontSize: 12, color: 'rgba(60,60,67,0.55)' },
+  chevron: { fontSize: 18, color: 'rgba(60,60,67,0.4)' },
 
   empty: { alignItems: 'center', paddingVertical: 32 },
-  emptyTxt: { fontSize: 14, color: Colors.textSecondary },
+  emptyTxt: { fontSize: 14, color: 'rgba(60,60,67,0.55)' },
 });

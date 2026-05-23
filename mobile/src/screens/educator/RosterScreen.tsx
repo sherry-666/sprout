@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery } from '@apollo/client';
-import { Colors, Spacing, Radius, Shadow } from '../../theme';
+import { Colors } from '../../theme';
 import { useQuickLog } from '../../contexts/QuickLogContext';
 import ComposeSheet from './ComposeSheet';
 
@@ -25,39 +25,25 @@ const CLASS_DETAIL_QUERY = gql`
   }
 `;
 
-// Deterministic color palette for kid avatars
-const KID_PALETTES = [
-  { bg: '#fef3c7', ink: '#92400e' },
-  { bg: '#dcfce7', ink: '#166534' },
-  { bg: '#dbeafe', ink: '#1e40af' },
-  { bg: '#fce7f3', ink: '#9d174d' },
-  { bg: '#f3e8ff', ink: '#6b21a8' },
-  { bg: '#ffedd5', ink: '#c2410c' },
-  { bg: '#e0f2fe', ink: '#075985' },
-  { bg: '#fdf4ff', ink: '#86198f' },
-];
-
-function kidPalette(id: string) {
+// Hue-based color system matching the design (proto-shared.jsx KidAvatar / ClassGlyph)
+function nameToHue(s: string): number {
   let h = 0;
-  for (let i = 0; i < id.length; i++) h = ((h * 31 + id.charCodeAt(i)) >>> 0);
-  return KID_PALETTES[h % KID_PALETTES.length];
+  for (let i = 0; i < s.length; i++) h = ((h * 31 + s.charCodeAt(i)) >>> 0);
+  return h % 360;
 }
 
-const CLASS_PALETTES = [
-  { bg: '#fef3c7', ink: '#92400e' },
-  { bg: '#dcfce7', ink: '#166534' },
-  { bg: '#dbeafe', ink: '#1e40af' },
-  { bg: '#fce7f3', ink: '#9d174d' },
-  { bg: '#f3e8ff', ink: '#6b21a8' },
-  { bg: '#ffedd5', ink: '#c2410c' },
-  { bg: '#e0f2fe', ink: '#075985' },
-  { bg: '#fdf4ff', ink: '#86198f' },
-];
+function kidColors(hue: number) {
+  return {
+    bg: `hsl(${hue}, 50%, 86%)`,
+    ink: `hsl(${hue}, 50%, 28%)`,
+  };
+}
 
-function classPalette(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = ((h * 31 + name.charCodeAt(i)) >>> 0);
-  return CLASS_PALETTES[h % CLASS_PALETTES.length];
+function classColors(hue: number) {
+  return {
+    bg: `hsl(${hue}, 55%, 87%)`,
+    ink: `hsl(${hue}, 60%, 30%)`,
+  };
 }
 
 export default function RosterScreen({ route, navigation }: any) {
@@ -72,7 +58,9 @@ export default function RosterScreen({ route, navigation }: any) {
 
   const cls = data?.class;
   const kids: any[] = cls?.kids ?? [];
-  const palette = classPalette(className ?? '');
+
+  const classHue = nameToHue(className ?? '');
+  const { bg: classBg, ink: classInk } = classColors(classHue);
 
   const handleSheetSent = (conversationId: string) => {
     setSheetOpen(false);
@@ -98,8 +86,8 @@ export default function RosterScreen({ route, navigation }: any) {
         </TouchableOpacity>
 
         <View style={s.classInfo}>
-          <View style={[s.classGlyph, { backgroundColor: palette.bg }]}>
-            <Text style={[s.classGlyphTxt, { color: palette.ink }]}>
+          <View style={[s.classGlyph, { backgroundColor: classBg }]}>
+            <Text style={[s.classGlyphTxt, { color: classInk }]}>
               {(className ?? '').charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -127,22 +115,23 @@ export default function RosterScreen({ route, navigation }: any) {
           numColumns={NUM_COLUMNS}
           contentContainerStyle={s.grid}
           columnWrapperStyle={s.columnWrapper}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.primary} />
           }
           renderItem={({ item }) => {
-            const p = kidPalette(item.id);
+            const hue = nameToHue(item.id);
+            const { bg, ink } = kidColors(hue);
             const initials = `${item.firstName?.[0] ?? ''}${item.lastName?.[0] ?? ''}`.toUpperCase();
             return (
               <View style={s.kidCard}>
-                {/* Profile photo or gradient placeholder */}
-                <View style={[s.kidAvatar, { backgroundColor: p.bg }]}>
+                <View style={[s.kidAvatar, { backgroundColor: bg }]}>
                   {item.profilePhotoUrl ? (
-                    <Image source={{ uri: item.profilePhotoUrl }} style={StyleSheet.absoluteFill} />
+                    <Image source={{ uri: item.profilePhotoUrl }} style={StyleSheet.absoluteFill} borderRadius={12} />
                   ) : (
-                    <Text style={[s.kidAvatarTxt, { color: p.ink }]}>{initials}</Text>
+                    <Text style={[s.kidAvatarTxt, { color: ink }]}>{initials}</Text>
                   )}
-                  {/* Radial highlight overlay */}
+                  {/* Radial highlight to suggest depth, matching design */}
                   <View style={s.kidAvatarHighlight} />
                 </View>
                 <Text style={s.kidName} numberOfLines={1}>{item.firstName}</Text>
@@ -175,7 +164,7 @@ export default function RosterScreen({ route, navigation }: any) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bg },
+  root: { flex: 1, backgroundColor: '#f3f4f8' },
 
   // Header
   header: { paddingHorizontal: 20, paddingBottom: 14 },
@@ -186,9 +175,9 @@ const s = StyleSheet.create({
     width: 52, height: 52, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
   },
-  classGlyphTxt: { fontSize: 22, fontWeight: '700' },
-  className: { fontSize: 24, fontWeight: '600', letterSpacing: -0.3, color: Colors.textPrimary },
-  classSub: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  classGlyphTxt: { fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
+  className: { fontSize: 26, fontWeight: '600', letterSpacing: -0.4, color: '#1d1d2a' },
+  classSub: { fontSize: 13, color: 'rgba(60,60,67,0.6)', marginTop: 2 },
 
   // Grid
   grid: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 100 },
@@ -201,7 +190,11 @@ const s = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 12,
     alignItems: 'center',
-    ...Shadow.small,
+    shadowColor: '#1a2820',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 2,
   },
   kidAvatar: {
     width: '100%',
@@ -216,25 +209,26 @@ const s = StyleSheet.create({
   kidAvatarHighlight: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 12,
-    // Subtle radial highlight
-    backgroundColor: 'transparent',
-    borderWidth: 0,
   },
-  kidName: { fontSize: 13, fontWeight: '600', color: Colors.textPrimary, textAlign: 'center' },
-  kidLast: { fontSize: 11, color: Colors.textSecondary, marginTop: 1, textAlign: 'center' },
+  kidName: { fontSize: 13, fontWeight: '600', color: '#1d1d2a', textAlign: 'center' },
+  kidLast: { fontSize: 11, color: 'rgba(60,60,67,0.55)', marginTop: 1, textAlign: 'center' },
 
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
-  emptyTxt: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center' },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  emptyIcon: { fontSize: 48, marginBottom: 16 },
+  emptyTxt: { fontSize: 16, color: 'rgba(60,60,67,0.55)', textAlign: 'center' },
 
   // Footer
-  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: Colors.bg },
+  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#f3f4f8' },
   qlBtn: {
     backgroundColor: Colors.primary,
-    borderRadius: Radius.full,
+    borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
-    ...Shadow.small,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  qlBtnTxt: { color: Colors.white, fontSize: 15, fontWeight: '600' },
+  qlBtnTxt: { color: Colors.white, fontSize: 16, fontWeight: '600', letterSpacing: 0.2 },
 });

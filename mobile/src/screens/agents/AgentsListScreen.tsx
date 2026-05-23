@@ -3,10 +3,12 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery, useMutation } from '@apollo/client';
-import { Colors, Spacing, Radius, Shadow } from '../../theme';
+import { Colors } from '../../theme';
 import { useQuickLog } from '../../contexts/QuickLogContext';
+import { SparkIcon } from '../../components/SproutIcons';
 
 // ── GraphQL ────────────────────────────────────────────────────────────────
 
@@ -59,22 +61,18 @@ function isActiveStatus(status: string): boolean {
     status === 'awaiting_photo_review' || status === 'awaiting_review';
 }
 
-// Deterministic palette for class glyphs
-const CLASS_PALETTES = [
-  { bg: '#fef3c7', ink: '#92400e' },
-  { bg: '#dcfce7', ink: '#166534' },
-  { bg: '#dbeafe', ink: '#1e40af' },
-  { bg: '#fce7f3', ink: '#9d174d' },
-  { bg: '#f3e8ff', ink: '#6b21a8' },
-  { bg: '#ffedd5', ink: '#c2410c' },
-  { bg: '#e0f2fe', ink: '#075985' },
-  { bg: '#fdf4ff', ink: '#86198f' },
-];
-
-function titlePalette(title: string) {
+// Hue-based palette matching design system
+function nameToHue(s: string): number {
   let h = 0;
-  for (let i = 0; i < title.length; i++) h = ((h * 31 + title.charCodeAt(i)) >>> 0);
-  return CLASS_PALETTES[h % CLASS_PALETTES.length];
+  for (let i = 0; i < s.length; i++) h = ((h * 31 + s.charCodeAt(i)) >>> 0);
+  return h % 360;
+}
+
+function glyphColors(hue: number) {
+  return {
+    bg: `hsl(${hue}, 55%, 87%)`,
+    ink: `hsl(${hue}, 60%, 30%)`,
+  };
 }
 
 // ── Screen ─────────────────────────────────────────────────────────────────
@@ -92,7 +90,6 @@ export default function AgentsListScreen({ navigation }: any) {
 
   const conversations: any[] = data?.myConversations ?? [];
 
-  // Split into active (pinned) and history
   const active = conversations.find(
     c => c.id === activeConversationId && isActiveStatus(c.status),
   );
@@ -130,16 +127,26 @@ export default function AgentsListScreen({ navigation }: any) {
                   onPress={() => openConversation(active.id)}
                   activeOpacity={0.85}
                 >
-                  <View style={s.activeCard}>
+                  {/* Gradient card matching design */}
+                  <LinearGradient
+                    colors={['rgba(79,70,229,0.13)', '#f3f4f8']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={s.activeCard}
+                  >
                     <View style={s.activeCardTop}>
                       <View style={s.sparkleAvatar}>
-                        <Text style={{ fontSize: 16, color: Colors.white }}>✨</Text>
+                        {/* Pulsing ring for processing states */}
+                        {isActiveStatus(active.status) && active.status !== 'awaiting_review' && (
+                          <View style={s.pulseRing} />
+                        )}
+                        <SparkIcon size={16} color={Colors.white} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Text style={s.activeTitle}>Today's Quick Log</Text>
                           <View style={s.aiBadge}>
-                            <Text style={s.aiBadgeTxt}>✨ AI</Text>
+                            <Text style={s.aiBadgeTxt}>✦ AI</Text>
                           </View>
                         </View>
                         <Text style={s.activeSub}>{active.title ?? 'Quick Log'}</Text>
@@ -152,7 +159,7 @@ export default function AgentsListScreen({ navigation }: any) {
                       <Text style={s.activeStatusTxt}>{phaseLabel(active.status)}</Text>
                       <Text style={{ color: Colors.primary, fontSize: 16 }}>›</Text>
                     </View>
-                  </View>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
@@ -166,7 +173,7 @@ export default function AgentsListScreen({ navigation }: any) {
         ListEmptyComponent={
           !active ? (
             <View style={s.emptyState}>
-              <Text style={s.emptyIcon}>✨</Text>
+              <SparkIcon size={48} color="rgba(60,60,67,0.25)" />
               <Text style={s.emptyTxt}>
                 No conversations yet.{'\n'}Start a Quick Log from Home to begin.
               </Text>
@@ -174,11 +181,13 @@ export default function AgentsListScreen({ navigation }: any) {
           ) : null
         }
         renderItem={({ item }) => {
-          const p = titlePalette(item.title ?? item.id);
+          const hue = nameToHue(item.title ?? item.id);
+          const { bg, ink } = glyphColors(hue);
           return (
             <HistoryRow
               item={item}
-              palette={p}
+              glyphBg={bg}
+              glyphInk={ink}
               onPress={() => openConversation(item.id)}
               onDelete={() => deleteConversation({ variables: { conversationId: item.id } })}
             />
@@ -189,24 +198,22 @@ export default function AgentsListScreen({ navigation }: any) {
   );
 }
 
-// ── HistoryRow (swipeable) ─────────────────────────────────────────────────
+// ── HistoryRow ─────────────────────────────────────────────────────────────
 
 function HistoryRow({
-  item, palette, onPress, onDelete,
+  item, glyphBg, glyphInk, onPress, onDelete,
 }: {
   item: any;
-  palette: { bg: string; ink: string };
+  glyphBg: string;
+  glyphInk: string;
   onPress: () => void;
   onDelete: () => void;
 }) {
-  const swipeX = useRef(new Animated.Value(0)).current;
-  const [swiped, setSwiped] = React.useState(false);
-
   return (
     <View style={s.historyWrap}>
       <TouchableOpacity style={s.historyRow} onPress={onPress} activeOpacity={0.8}>
-        <View style={[s.historyGlyph, { backgroundColor: palette.bg }]}>
-          <Text style={[s.historyGlyphTxt, { color: palette.ink }]}>
+        <View style={[s.historyGlyph, { backgroundColor: glyphBg }]}>
+          <Text style={[s.historyGlyphTxt, { color: glyphInk }]}>
             {(item.title ?? 'Q').charAt(0).toUpperCase()}
           </Text>
         </View>
@@ -255,15 +262,15 @@ function WorkingDots({ color }: { color: string }) {
 // ── Styles ─────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f5f6f0' },
+  root: { flex: 1, backgroundColor: '#f3f4f8' },
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
   eyebrow: {
     fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
-    textTransform: 'uppercase', color: Colors.textSecondary,
+    textTransform: 'uppercase', color: 'rgba(60,60,67,0.55)',
   },
   title: {
     fontSize: 30, fontWeight: '600', letterSpacing: -0.6,
-    color: Colors.textPrimary, marginTop: 4, marginBottom: 16,
+    color: '#1d1d2a', marginTop: 4, marginBottom: 16,
   },
 
   list: { paddingHorizontal: 20, paddingBottom: 40 },
@@ -271,16 +278,17 @@ const s = StyleSheet.create({
   // Section
   sectionEyebrow: {
     fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
-    textTransform: 'uppercase', color: Colors.textSecondary,
+    textTransform: 'uppercase', color: 'rgba(60,60,67,0.55)',
     marginBottom: 8,
   },
   inProgressSection: { marginBottom: 22 },
 
   // Active card
   activeCard: {
-    backgroundColor: Colors.primaryLight,
     borderRadius: 16, padding: 16,
     borderWidth: 1.5, borderColor: 'rgba(79,70,229,0.2)',
+    overflow: 'hidden',
+    position: 'relative',
   },
   activeCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   sparkleAvatar: {
@@ -288,8 +296,14 @@ const s = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  activeTitle: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
-  activeSub: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  pulseRing: {
+    position: 'absolute',
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 2, borderColor: Colors.primary,
+    opacity: 0.4,
+  },
+  activeTitle: { fontSize: 15, fontWeight: '600', color: '#1d1d2a' },
+  activeSub: { fontSize: 12, color: 'rgba(60,60,67,0.65)', marginTop: 2 },
   activeStatus: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.65)',
@@ -299,10 +313,10 @@ const s = StyleSheet.create({
 
   // AI badge
   aiBadge: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: 'rgba(79,70,229,0.12)',
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
   },
-  aiBadgeTxt: { fontSize: 10, fontWeight: '600', color: Colors.primary },
+  aiBadgeTxt: { fontSize: 10, fontWeight: '600', color: Colors.primary, letterSpacing: 0.3 },
 
   // History rows
   historyWrap: { marginBottom: 8 },
@@ -310,22 +324,25 @@ const s = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: 14, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    ...Shadow.small,
+    shadowColor: '#1a2820',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 2,
   },
   historyGlyph: {
     width: 36, height: 36, borderRadius: 10,
     alignItems: 'center', justifyContent: 'center',
   },
-  historyGlyphTxt: { fontSize: 15, fontWeight: '700' },
-  historyTitle: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
-  historySub: { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
-  historyTime: { fontSize: 11, color: Colors.textSecondary },
+  historyGlyphTxt: { fontSize: 15, fontWeight: '700', letterSpacing: -0.4 },
+  historyTitle: { fontSize: 14, fontWeight: '600', color: '#1d1d2a' },
+  historySub: { fontSize: 12, color: 'rgba(60,60,67,0.55)', marginTop: 1 },
+  historyTime: { fontSize: 11, color: 'rgba(60,60,67,0.5)' },
 
   // Empty state
   emptyState: { paddingVertical: 60, alignItems: 'center' },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyTxt: {
-    fontSize: 14, color: Colors.textSecondary,
-    textAlign: 'center', lineHeight: 22,
+    fontSize: 14, color: 'rgba(60,60,67,0.55)',
+    textAlign: 'center', lineHeight: 22, marginTop: 16,
   },
 });

@@ -1,7 +1,5 @@
-import React, { useRef } from 'react';
-import {
-  Animated, Pressable, StyleSheet, Text, View,
-} from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +14,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { Colors } from '../theme';
 import { QuickLogProvider, useQuickLog } from '../contexts/QuickLogContext';
+import { HomeIcon, AIIcon, ChatIcon, SettingsIcon } from '../components/SproutIcons';
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -23,62 +22,22 @@ const AgentsStack = createNativeStackNavigator();
 const ChatStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 
-// ─── Animated tab button ───────────────────────────────────────────────────
-function AnimatedTabButton({ children, onPress, onLongPress, accessibilityState, style }: any) {
-  const focused = accessibilityState?.selected;
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePress = () => {
-    Animated.sequence([
-      Animated.spring(scale, { toValue: 1.22, friction: 4, tension: 220, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1,    friction: 5, tension: 120, useNativeDriver: true }),
-    ]).start();
-    onPress?.();
-  };
-
-  return (
-    <Pressable
-      onPress={handlePress}
-      onLongPress={onLongPress}
-      style={[style, tabStyles.outer]}
-      android_ripple={undefined}
-    >
-      <Animated.View style={[
-        tabStyles.inner,
-        focused && tabStyles.focused,
-        { transform: [{ scale }] },
-      ]}>
-        {children}
-      </Animated.View>
-    </Pressable>
-  );
-}
+const INACTIVE = '#a8b0a4';
 
 // ─── AI tab icon with active-job badge ────────────────────────────────────
 function AITabIcon({ color }: { color: string }) {
   const { activeConversationId } = useQuickLog();
   return (
     <View>
-      <Text style={{ fontSize: 20, color }}>✨</Text>
+      <AIIcon size={24} color={color} />
       {!!activeConversationId && (
-        <View style={tabStyles.badge} />
+        <View style={s.badge} />
       )}
     </View>
   );
 }
 
-const tabStyles = StyleSheet.create({
-  outer: { justifyContent: 'center', alignItems: 'center' },
-  inner: {
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderRadius: 999,
-    alignItems: 'center',
-    minWidth: 68,
-  },
-  focused: {
-    backgroundColor: Colors.primaryLight,
-  },
+const s = StyleSheet.create({
   badge: {
     position: 'absolute',
     top: -2,
@@ -113,7 +72,6 @@ function AgentsStackNav() {
 }
 
 function ChatStackNav() {
-  const { t } = useTranslation();
   return (
     <ChatStack.Navigator screenOptions={{
       headerStyle: { backgroundColor: Colors.primary },
@@ -140,18 +98,25 @@ function SettingsStackNav() {
   );
 }
 
-// ─── Tab navigator (inner, needs QuickLogContext) ──────────────────────────
+// ─── Tab navigator ─────────────────────────────────────────────────────────
 function TabNavigator() {
   const { t } = useTranslation();
-  const tabButton = (props: any) => <AnimatedTabButton {...props} />;
 
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textSecondary,
-        tabBarStyle: { borderTopColor: Colors.border, backgroundColor: Colors.white, height: 60 },
-        tabBarItemStyle: { paddingVertical: 4 },
+        tabBarInactiveTintColor: INACTIVE,
+        tabBarStyle: {
+          backgroundColor: Colors.white,
+          borderTopWidth: 0.5,
+          borderTopColor: 'rgba(0,0,0,0.08)',
+          height: 72,
+          paddingTop: 8,
+          paddingBottom: 0,
+        },
+        tabBarItemStyle: { paddingBottom: 10 },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '500' },
         headerShown: false,
       }}
     >
@@ -160,8 +125,7 @@ function TabNavigator() {
         component={HomeStackNav}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text>,
-          tabBarButton: tabButton,
+          tabBarIcon: ({ color }) => <HomeIcon size={24} color={color} />,
         }}
       />
       <Tab.Screen
@@ -170,7 +134,6 @@ function TabNavigator() {
         options={{
           tabBarLabel: 'AI',
           tabBarIcon: ({ color }) => <AITabIcon color={color} />,
-          tabBarButton: tabButton,
         }}
       />
       <Tab.Screen
@@ -178,8 +141,7 @@ function TabNavigator() {
         component={ChatStackNav}
         options={{
           tabBarLabel: 'Chat',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>💬</Text>,
-          tabBarButton: tabButton,
+          tabBarIcon: ({ color }) => <ChatIcon size={24} color={color} />,
         }}
       />
       <Tab.Screen
@@ -187,15 +149,14 @@ function TabNavigator() {
         component={SettingsStackNav}
         options={{
           tabBarLabel: t('tabs.settings'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>⚙️</Text>,
-          tabBarButton: tabButton,
+          tabBarIcon: ({ color }) => <SettingsIcon size={24} color={color} />,
         }}
       />
     </Tab.Navigator>
   );
 }
 
-// ─── Root export (provides context) ───────────────────────────────────────
+// ─── Root export ───────────────────────────────────────────────────────────
 export default function EducatorNavigator() {
   return (
     <QuickLogProvider>
