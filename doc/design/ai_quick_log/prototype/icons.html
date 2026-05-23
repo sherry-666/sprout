@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sprout — App Icons</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #ede9dc;
+    --card: #fbfaf6;
+    --tile: #f4efe2;
+    --tile-warm: #f7ece2;
+    --ink: #1d2a22;
+    --sub: #7a8a7e;
+    --line: #e6e2d6;
+    --sprout: oklch(0.55 0.12 145);
+    --terra: oklch(0.60 0.14 35);
+    --dark-bg: #161a17;
+    --dark-tile: #1f2520;
+    --dark-line: #2a312b;
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: Helvetica, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+
+  .page { max-width: 1200px; margin: 0 auto; padding: 64px 48px 96px; }
+
+  header h1 {
+    font-size: 38px;
+    letter-spacing: -0.8px;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  header p {
+    font-size: 16px;
+    color: var(--sub);
+    margin: 0;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+  header { margin-bottom: 64px; }
+
+  section { margin-top: 64px; }
+  .sec-head { margin-bottom: 24px; }
+  .sec-head h2 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    margin: 0 0 4px;
+  }
+  .sec-head p {
+    font-size: 14px;
+    color: var(--sub);
+    margin: 0;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 40px 36px;
+    border: 1px solid var(--line);
+  }
+  .card + .card { margin-top: 20px; }
+
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .card-head .style-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .card-head .meta {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--sub);
+  }
+
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+  .icon-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .tile-bg {
+    width: 100%;
+    aspect-ratio: 1;
+    max-width: 168px;
+    border-radius: 28px;
+    background: var(--tile);
+    display: grid;
+    place-items: center;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.03), 0 8px 24px -16px rgba(20,40,30,0.10);
+  }
+  .tile-bg.warm { background: var(--tile-warm); }
+  .tile-bg.dark { background: var(--dark-tile); border: 1px solid var(--dark-line); box-shadow: none; }
+  .tile-label {
+    font-size: 13px;
+    color: #3a4a3f;
+    font-weight: 500;
+  }
+  .tile-label.dark { color: #c8cbbf; }
+
+  .sprout { color: var(--sprout); }
+  .terra  { color: var(--terra); }
+
+  /* Size study row */
+  .size-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 20px 8px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .size-cell { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .size-cell .glyph { height: 64px; display: grid; place-items: center; color: var(--sprout); }
+  .size-cell .size-label {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--sub);
+  }
+
+  /* In-context tab bar */
+  .context-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .phone {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 12px 36px -20px rgba(20,40,30,0.20);
+  }
+  .phone-screen {
+    aspect-ratio: 9 / 13;
+    background: linear-gradient(180deg, #f4efe2 0%, #ede6d2 100%);
+    position: relative;
+  }
+  .phone-status {
+    position: absolute;
+    top: 22px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    color: #3a4a3f;
+  }
+  .phone-greeting {
+    position: absolute;
+    top: 64px;
+    left: 24px;
+    right: 24px;
+  }
+  .phone-eyebrow {
+    font-size: 11px;
+    color: var(--sub);
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    margin-bottom: 6px;
+  }
+  .phone-h1 {
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.15;
+    color: var(--ink);
+  }
+  .phone-card {
+    position: absolute;
+    top: 200px;
+    left: 24px;
+    right: 24px;
+    background: white;
+    border-radius: 18px;
+    padding: 18px 18px 16px;
+    box-shadow: 0 8px 24px -16px rgba(20,40,30,0.18);
+  }
+  .phone-card .label {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--sub);
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .phone-card .body {
+    font-size: 13px;
+    color: #3a4a3f;
+    line-height: 1.45;
+  }
+  .phone-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: white;
+    border-top: 1px solid var(--line);
+    padding: 10px 12px 22px;
+  }
+  .phone-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #a8b0a4;
+  }
+  .phone-tab.active { color: var(--sprout); }
+  .phone-tab .lbl {
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .phone-tab.active .lbl { font-weight: 600; }
+
+  .phone-caption {
+    padding: 14px 16px 16px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--sub);
+    text-align: center;
+  }
+
+  /* Dark card */
+  .card.dark {
+    background: var(--dark-bg);
+    border-color: #232925;
+  }
+  .card.dark .style-name { color: #f0eee4; }
+  .card.dark .meta { color: #8a948c; }
+
+  @media (max-width: 880px) {
+    .icon-grid { grid-template-columns: repeat(2, 1fr); }
+    .context-row { grid-template-columns: 1fr; }
+    .page { padding: 40px 24px 80px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>Sprout — App Icons</h1>
+    <p>Classes · AI · Chat · Settings. Three style directions to pick from, plus an alternate accent, size study, in-context preview, and dark mode.</p>
+  </header>
+
+  <!-- =================== SVG DEFS =================== -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+
+      <!-- ====== OUTLINE ====== -->
+      <symbol id="o-classes" viewBox="0 0 64 64">
+        <g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 28 L32 14 L54 28" />
+          <path d="M14 28 L14 52 L50 52 L50 28" />
+          <path d="M27 52 L27 38 L37 38 L37 52" />
+          <path d="M32 14 L32 6 L42 9 L32 12" />
+        </g>
+        <circle cx="20" cy="34" r="2" fill="currentColor" />
+        <circle cx="44" cy="34" r="2" fill="currentColor" />
+      </symbol>
+      <symbol id="o-ai" viewBox="0 0 64 64">
+        <g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M24 32 C 32 32, 36 28, 36 10 C 36 28, 40 32, 56 32 C 40 32, 36 36, 36 54 C 36 36, 32 32, 24 32 Z" />
+          <path d="M8 18 C 14 18, 16 16, 16 8 C 16 16, 18 18, 24 18 C 18 18, 16 20, 16 28 C 16 20, 14 18, 8 18 Z" />
+        </g>
+      </symbol>
+      <symbol id="o-chat" viewBox="0 0 64 64">
+        <g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 20 C 10 14, 14 10, 20 10 L 44 10 C 50 10, 54 14, 54 20 L 54 36 C 54 42, 50 46, 44 46 L 28 46 L 18 54 L 18 46 C 14 46, 10 42, 10 36 Z" />
+        </g>
+        <circle cx="22" cy="28" r="2.2" fill="currentColor" />
+        <circle cx="32" cy="28" r="2.2" fill="currentColor" />
+        <circle cx="42" cy="28" r="2.2" fill="currentColor" />
+      </symbol>
+      <symbol id="o-settings" viewBox="0 0 64 64">
+        <g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="10" y1="18" x2="54" y2="18" />
+          <line x1="10" y1="32" x2="54" y2="32" />
+          <line x1="10" y1="46" x2="54" y2="46" />
+        </g>
+        <circle cx="40" cy="18" r="5" fill="white" stroke="currentColor" stroke-width="2.5" />
+        <circle cx="22" cy="32" r="5" fill="white" stroke="currentColor" stroke-width="2.5" />
+        <circle cx="44" cy="46" r="5" fill="white" stroke="currentColor" stroke-width="2.5" />
+      </symbol>
+
+      <!-- ====== SOLID ====== -->
+      <symbol id="s-classes" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <path d="M32 6 L46 10 L32 14 Z" />
+          <rect x="31" y="6" width="2" height="10" />
+          <path d="M32 12 L8 28 L12 28 L12 54 C 12 55.1 12.9 56 14 56 L 26 56 L 26 40 C 26 38.9 26.9 38 28 38 L 36 38 C 37.1 38 38 38.9 38 40 L 38 56 L 50 56 C 51.1 56 52 55.1 52 54 L 52 28 L 56 28 Z" />
+        </g>
+        <circle cx="20" cy="35" r="2.5" fill="white" />
+        <circle cx="44" cy="35" r="2.5" fill="white" />
+      </symbol>
+      <symbol id="s-ai" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <path d="M36 8 C 36 28, 40 32, 56 32 C 40 32, 36 36, 36 54 C 36 36, 32 32, 24 32 C 32 32, 36 28, 36 8 Z" />
+          <path d="M16 6 C 16 16, 18 18, 24 18 C 18 18, 16 20, 16 28 C 16 20, 14 18, 8 18 C 14 18, 16 16, 16 6 Z" />
+        </g>
+      </symbol>
+      <symbol id="s-chat" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <path d="M20 10 L 44 10 C 50 10, 54 14, 54 20 L 54 36 C 54 42, 50 46, 44 46 L 28 46 L 18 54 L 18 46 C 14 46, 10 42, 10 36 L 10 20 C 10 14, 14 10, 20 10 Z" />
+        </g>
+        <circle cx="22" cy="28" r="2.5" fill="white" />
+        <circle cx="32" cy="28" r="2.5" fill="white" />
+        <circle cx="42" cy="28" r="2.5" fill="white" />
+      </symbol>
+      <symbol id="s-settings" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <rect x="10" y="16.5" width="44" height="3" rx="1.5" />
+          <rect x="10" y="30.5" width="44" height="3" rx="1.5" />
+          <rect x="10" y="44.5" width="44" height="3" rx="1.5" />
+          <circle cx="40" cy="18" r="6" />
+          <circle cx="22" cy="32" r="6" />
+          <circle cx="44" cy="46" r="6" />
+        </g>
+        <circle cx="40" cy="18" r="2.5" fill="white" />
+        <circle cx="22" cy="32" r="2.5" fill="white" />
+        <circle cx="44" cy="46" r="2.5" fill="white" />
+      </symbol>
+
+      <!-- ====== DUOTONE ====== -->
+      <symbol id="d-classes" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <path opacity="0.35" d="M12 28 L 52 28 L 52 54 C 52 55.1 51.1 56 50 56 L 14 56 C 12.9 56 12 55.1 12 54 Z" />
+          <path d="M32 12 L6 30 L10 30 L10 28 L54 28 L54 30 L58 30 Z" />
+          <path d="M32 6 L46 10 L32 14 Z" />
+          <rect x="31" y="6" width="2" height="10" />
+          <rect x="26" y="40" width="12" height="16" rx="1" />
+        </g>
+        <circle cx="35" cy="48" r="1.2" fill="white" />
+      </symbol>
+      <symbol id="d-ai" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <path opacity="0.35" d="M36 8 C 36 28, 40 32, 56 32 C 40 32, 36 36, 36 54 C 36 36, 32 32, 24 32 C 32 32, 36 28, 36 8 Z" />
+          <path d="M16 6 C 16 16, 18 18, 24 18 C 18 18, 16 20, 16 28 C 16 20, 14 18, 8 18 C 14 18, 16 16, 16 6 Z" />
+        </g>
+      </symbol>
+      <symbol id="d-chat" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <path opacity="0.35" d="M20 10 L 44 10 C 50 10, 54 14, 54 20 L 54 36 C 54 42, 50 46, 44 46 L 28 46 L 18 54 L 18 46 C 14 46, 10 42, 10 36 L 10 20 C 10 14, 14 10, 20 10 Z" />
+          <circle cx="22" cy="28" r="3" />
+          <circle cx="32" cy="28" r="3" />
+          <circle cx="42" cy="28" r="3" />
+        </g>
+      </symbol>
+      <symbol id="d-settings" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <rect opacity="0.35" x="10" y="16.5" width="44" height="3" rx="1.5" />
+          <rect opacity="0.35" x="10" y="30.5" width="44" height="3" rx="1.5" />
+          <rect opacity="0.35" x="10" y="44.5" width="44" height="3" rx="1.5" />
+          <circle cx="40" cy="18" r="6" />
+          <circle cx="22" cy="32" r="6" />
+          <circle cx="44" cy="46" r="6" />
+        </g>
+      </symbol>
+
+    </defs>
+  </svg>
+
+  <!-- =================== STYLE DIRECTIONS =================== -->
+  <section>
+    <div class="sec-head">
+      <h2>Style directions</h2>
+      <p>The same four glyphs drawn three ways. Pick one direction — we can refine from there.</p>
+    </div>
+
+    <!-- Outline -->
+    <div class="card">
+      <div class="card-head">
+        <span class="style-name">Outline</span>
+        <span class="meta">4 icons · 64px · 2.5px stroke</span>
+      </div>
+      <div class="icon-grid">
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#o-classes"/></svg></div><div class="tile-label">Classes</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#o-ai"/></svg></div><div class="tile-label">AI</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#o-chat"/></svg></div><div class="tile-label">Chat</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#o-settings"/></svg></div><div class="tile-label">Settings</div></div>
+      </div>
+    </div>
+
+    <!-- Solid -->
+    <div class="card">
+      <div class="card-head">
+        <span class="style-name">Solid</span>
+        <span class="meta">4 icons · 64px · filled</span>
+      </div>
+      <div class="icon-grid">
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#s-classes"/></svg></div><div class="tile-label">Classes</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#s-ai"/></svg></div><div class="tile-label">AI</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#s-chat"/></svg></div><div class="tile-label">Chat</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#s-settings"/></svg></div><div class="tile-label">Settings</div></div>
+      </div>
+    </div>
+
+    <!-- Duotone -->
+    <div class="card">
+      <div class="card-head">
+        <span class="style-name">Duotone</span>
+        <span class="meta">4 icons · 64px · two-opacity fill</span>
+      </div>
+      <div class="icon-grid">
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#d-classes"/></svg></div><div class="tile-label">Classes</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#d-ai"/></svg></div><div class="tile-label">AI</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#d-chat"/></svg></div><div class="tile-label">Chat</div></div>
+        <div class="icon-tile"><div class="tile-bg"><svg class="sprout" width="64" height="64"><use href="#d-settings"/></svg></div><div class="tile-label">Settings</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== TERRACOTTA =================== -->
+  <section>
+    <div class="sec-head">
+      <h2>Alternate accent — terracotta</h2>
+      <p>Same glyphs, warmer hue. Useful for cross-palette sanity checks.</p>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="style-name">Outline · terracotta</span>
+      </div>
+      <div class="icon-grid">
+        <div class="icon-tile"><div class="tile-bg warm"><svg class="terra" width="64" height="64"><use href="#o-classes"/></svg></div><div class="tile-label">Classes</div></div>
+        <div class="icon-tile"><div class="tile-bg warm"><svg class="terra" width="64" height="64"><use href="#o-ai"/></svg></div><div class="tile-label">AI</div></div>
+        <div class="icon-tile"><div class="tile-bg warm"><svg class="terra" width="64" height="64"><use href="#o-chat"/></svg></div><div class="tile-label">Chat</div></div>
+        <div class="icon-tile"><div class="tile-bg warm"><svg class="terra" width="64" height="64"><use href="#o-settings"/></svg></div><div class="tile-label">Settings</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="style-name">Solid · terracotta</span>
+      </div>
+      <div class="icon-grid">
+        <div class="icon-tile"><div class="tile-bg warm"><svg class="terra" width="64" height="64"><use href="#s-classes"/></svg></div><div class="tile-label">Classes</div></div>
+        <div class="icon-tile"><div class="tile-bg warm"><svg class="terra" width="64" height="64"><use href="#s-ai"/></svg></div><div class="tile-label">AI</div></div>
+        <div class="icon-tile"><div class="tile-bg warm"><svg class="terra" width="64" height="64"><use href="#s-chat"/></svg></div><div class="tile-label">Chat</div></div>
+        <div class="icon-tile"><div class="tile-bg warm"><svg class="terra" width="64" height="64"><use href="#s-settings"/></svg></div><div class="tile-label">Settings</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== SIZE STUDY =================== -->
+  <section>
+    <div class="sec-head">
+      <h2>Size study</h2>
+      <p>The AI glyph from 16 → 64px. Outline thins at small sizes; solid stays punchy.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="style-name">Outline · AI</span></div>
+      <div class="size-row">
+        <div class="size-cell"><div class="glyph"><svg width="16" height="16"><use href="#o-ai"/></svg></div><div class="size-label">16px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="20" height="20"><use href="#o-ai"/></svg></div><div class="size-label">20px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="24" height="24"><use href="#o-ai"/></svg></div><div class="size-label">24px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="32" height="32"><use href="#o-ai"/></svg></div><div class="size-label">32px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="48" height="48"><use href="#o-ai"/></svg></div><div class="size-label">48px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="64" height="64"><use href="#o-ai"/></svg></div><div class="size-label">64px</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="style-name">Solid · AI</span></div>
+      <div class="size-row">
+        <div class="size-cell"><div class="glyph"><svg width="16" height="16"><use href="#s-ai"/></svg></div><div class="size-label">16px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="20" height="20"><use href="#s-ai"/></svg></div><div class="size-label">20px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="24" height="24"><use href="#s-ai"/></svg></div><div class="size-label">24px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="32" height="32"><use href="#s-ai"/></svg></div><div class="size-label">32px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="48" height="48"><use href="#s-ai"/></svg></div><div class="size-label">48px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="64" height="64"><use href="#s-ai"/></svg></div><div class="size-label">64px</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="style-name">Duotone · AI</span></div>
+      <div class="size-row">
+        <div class="size-cell"><div class="glyph"><svg width="16" height="16"><use href="#d-ai"/></svg></div><div class="size-label">16px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="20" height="20"><use href="#d-ai"/></svg></div><div class="size-label">20px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="24" height="24"><use href="#d-ai"/></svg></div><div class="size-label">24px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="32" height="32"><use href="#d-ai"/></svg></div><div class="size-label">32px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="48" height="48"><use href="#d-ai"/></svg></div><div class="size-label">48px</div></div>
+        <div class="size-cell"><div class="glyph"><svg width="64" height="64"><use href="#d-ai"/></svg></div><div class="size-label">64px</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== IN CONTEXT =================== -->
+  <section>
+    <div class="sec-head">
+      <h2>In context — educator app tab bar</h2>
+      <p>AI is the active tab. Compare how each style sits inside the chrome of a real screen.</p>
+    </div>
+    <div class="context-row">
+      <!-- Outline phone -->
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-status"><span>9:41</span><span>•••</span></div>
+          <div class="phone-greeting">
+            <div class="phone-eyebrow">Today · Tuesday</div>
+            <div class="phone-h1">Good morning,<br/>Ms. Aria</div>
+          </div>
+          <div class="phone-card">
+            <div class="label">AI Summary</div>
+            <div class="body">12 children present · 3 nap windows logged · Emma needs a clean change</div>
+          </div>
+        </div>
+        <div class="phone-tabs">
+          <div class="phone-tab"><svg width="26" height="26"><use href="#o-classes"/></svg><span class="lbl">Classes</span></div>
+          <div class="phone-tab active"><svg width="26" height="26"><use href="#o-ai"/></svg><span class="lbl">AI</span></div>
+          <div class="phone-tab"><svg width="26" height="26"><use href="#o-chat"/></svg><span class="lbl">Chat</span></div>
+          <div class="phone-tab"><svg width="26" height="26"><use href="#o-settings"/></svg><span class="lbl">Settings</span></div>
+        </div>
+        <div class="phone-caption">Outline</div>
+      </div>
+
+      <!-- Solid phone -->
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-status"><span>9:41</span><span>•••</span></div>
+          <div class="phone-greeting">
+            <div class="phone-eyebrow">Today · Tuesday</div>
+            <div class="phone-h1">Good morning,<br/>Ms. Aria</div>
+          </div>
+          <div class="phone-card">
+            <div class="label">AI Summary</div>
+            <div class="body">12 children present · 3 nap windows logged · Emma needs a clean change</div>
+          </div>
+        </div>
+        <div class="phone-tabs">
+          <div class="phone-tab"><svg width="26" height="26"><use href="#s-classes"/></svg><span class="lbl">Classes</span></div>
+          <div class="phone-tab active"><svg width="26" height="26"><use href="#s-ai"/></svg><span class="lbl">AI</span></div>
+          <div class="phone-tab"><svg width="26" height="26"><use href="#s-chat"/></svg><span class="lbl">Chat</span></div>
+          <div class="phone-tab"><svg width="26" height="26"><use href="#s-settings"/></svg><span class="lbl">Settings</span></div>
+        </div>
+        <div class="phone-caption">Solid</div>
+      </div>
+
+      <!-- Duotone phone -->
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-status"><span>9:41</span><span>•••</span></div>
+          <div class="phone-greeting">
+            <div class="phone-eyebrow">Today · Tuesday</div>
+            <div class="phone-h1">Good morning,<br/>Ms. Aria</div>
+          </div>
+          <div class="phone-card">
+            <div class="label">AI Summary</div>
+            <div class="body">12 children present · 3 nap windows logged · Emma needs a clean change</div>
+          </div>
+        </div>
+        <div class="phone-tabs">
+          <div class="phone-tab"><svg width="26" height="26"><use href="#d-classes"/></svg><span class="lbl">Classes</span></div>
+          <div class="phone-tab active"><svg width="26" height="26"><use href="#d-ai"/></svg><span class="lbl">AI</span></div>
+          <div class="phone-tab"><svg width="26" height="26"><use href="#d-chat"/></svg><span class="lbl">Chat</span></div>
+          <div class="phone-tab"><svg width="26" height="26"><use href="#d-settings"/></svg><span class="lbl">Settings</span></div>
+        </div>
+        <div class="phone-caption">Duotone</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== DARK MODE =================== -->
+  <section>
+    <div class="sec-head">
+      <h2>Dark mode</h2>
+      <p>Same glyphs on a deep neutral. Sprout-green holds its identity.</p>
+    </div>
+
+    <div class="card dark">
+      <div class="card-head">
+        <span class="style-name">Outline · dark</span>
+        <span class="meta">Inverted surface</span>
+      </div>
+      <div class="icon-grid">
+        <div class="icon-tile"><div class="tile-bg dark"><svg class="sprout" width="64" height="64"><use href="#o-classes"/></svg></div><div class="tile-label dark">Classes</div></div>
+        <div class="icon-tile"><div class="tile-bg dark"><svg class="sprout" width="64" height="64"><use href="#o-ai"/></svg></div><div class="tile-label dark">AI</div></div>
+        <div class="icon-tile"><div class="tile-bg dark"><svg class="sprout" width="64" height="64"><use href="#o-chat"/></svg></div><div class="tile-label dark">Chat</div></div>
+        <div class="icon-tile"><div class="tile-bg dark"><svg class="sprout" width="64" height="64"><use href="#o-settings"/></svg></div><div class="tile-label dark">Settings</div></div>
+      </div>
+    </div>
+
+    <div class="card dark">
+      <div class="card-head">
+        <span class="style-name">Solid · dark</span>
+        <span class="meta">Inverted surface</span>
+      </div>
+      <div class="icon-grid">
+        <div class="icon-tile"><div class="tile-bg dark"><svg class="sprout" width="64" height="64"><use href="#s-classes"/></svg></div><div class="tile-label dark">Classes</div></div>
+        <div class="icon-tile"><div class="tile-bg dark"><svg class="sprout" width="64" height="64"><use href="#s-ai"/></svg></div><div class="tile-label dark">AI</div></div>
+        <div class="icon-tile"><div class="tile-bg dark"><svg class="sprout" width="64" height="64"><use href="#s-chat"/></svg></div><div class="tile-label dark">Chat</div></div>
+        <div class="icon-tile"><div class="tile-bg dark"><svg class="sprout" width="64" height="64"><use href="#s-settings"/></svg></div><div class="tile-label dark">Settings</div></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

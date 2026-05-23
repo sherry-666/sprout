@@ -5,6 +5,7 @@ Voice log processing via Gemini:
   describe_scene    — image bytes → one-sentence scene description
 """
 from __future__ import annotations
+import asyncio
 import base64
 import io
 import json
@@ -19,7 +20,7 @@ async def transcribe_audio(audio_bytes: bytes, mime_type: str = "audio/m4a") -> 
     from app.ai.llm_service import get_flash_model
     b64 = base64.b64encode(audio_bytes).decode()
     model = get_flash_model()
-    response = model.generate_content([
+    response = await asyncio.to_thread(model.generate_content, [
         {"inline_data": {"mime_type": mime_type, "data": b64}},
         "Transcribe this audio recording exactly as spoken. Return only the transcript text, nothing else.",
     ])
@@ -57,7 +58,7 @@ Rules:
 Return ONLY a JSON array — no markdown, no explanation:
 [{{"kid_id":"<id>","kid_name":"<name>","content":"<update>"}}]"""
 
-    response = model.generate_content(prompt)
+    response = await asyncio.to_thread(model.generate_content, prompt)
     text = response.text.strip()
     match = re.search(r'\[.*\]', text, re.DOTALL)
     if not match:
@@ -86,7 +87,7 @@ async def generate_photo_update(
     )
     try:
         model = get_flash_model()
-        response = model.generate_content(prompt)
+        response = await asyncio.to_thread(model.generate_content, prompt)
         return response.text.strip()
     except Exception as e:
         log.warning("generate_photo_update failed: %s", e)
@@ -100,7 +101,7 @@ async def describe_scene(image_bytes: bytes) -> str:
         from app.ai.llm_service import get_flash_model
         img = PIL.Image.open(io.BytesIO(image_bytes))
         model = get_flash_model()
-        response = model.generate_content([
+        response = await asyncio.to_thread(model.generate_content, [
             "Briefly describe what is happening in this daycare photo in 1–2 warm sentences. "
             "Focus on visible activities and interactions.",
             img,

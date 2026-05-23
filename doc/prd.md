@@ -135,25 +135,50 @@ The educator app has three bottom tabs:
 
 - **Photo Enhancement**: Optional tools to apply AI-generated stickers, captions, or fun overlays to photos before sharing. *(Not yet implemented.)*
 
-### 4.1a AI Quick Log (Educator Mobile)
+### 4.1a AI Quick Log (Educator Mobile) — 3-Step Flow
 **Purpose:** Let an educator capture a voice note and/or batch photos in seconds, then hand off to an AI agent that drafts per-kid parent updates in the background while the educator gets on with their day.
 
-**Capture screen**
+**Step 1 — Capture (QuickLogScreen)**
 - Single full-height input card between an optional class chip selector and a "Send to Agent" footer.
 - **Voice note**: round mic button at the card's bottom-right; tap to start on-device speech recognition (expo-speech-recognition); transcribed text streams into the note field in real time. Tap again to stop.
 - **Photos**: tap "Add Photos" to multi-select up to 10 images; each is presigned and uploaded to S3 in the background, then shown in a 3-column wrap grid inside the card.
-- **Send to Agent** creates a Quick Log conversation in the new Agents tab and immediately navigates the educator there.
+- **Send to Agent** creates a Quick Log conversation (`agent_type: "quick_log"`) in the AI tab and immediately navigates the educator there. The conversation stores `transcript` and `all_photo_keys` at creation. A `quick_log_analysis` background job is enqueued.
 
-**Agents tab**
-- New top-level tab listing every AI conversation the educator has run, with status badges (Working… / Review / Sent / Failed) and last-update timestamps.
-- Opening a conversation shows the agent thread: progress messages stream in as the worker analyses photos, followed by editable **draft cards** (one per identified kid: avatar, name, photo strip, content textbox, Remove button).
-- A footer button "Send N updates to parents" submits every remaining draft in a single batch. The educator can edit text inline or remove individual drafts before sending.
+**Step 2 — Photo Review (PhotoClassificationScreen)**
+- The background job runs face recognition on every submitted photo, groups them by identified child, and creates empty `draft_card` messages (no text yet). Conversation status transitions to `awaiting_photo_review`.
+- In the AI tab conversation, a **"Review photo grouping →"** card appears. Tapping it opens the Photo Review screen.
+- The educator sees one card per detected child, each with their avatar, name, and matched photos.
+- **Drag-and-drop**: educator can drag a photo from one child's card to another to reassign it.
+- **Remove photo**: tap "×" on any photo to exclude it from a child's card.
+- **Add child**: "+ Add child" dashed button opens a picker to add a child who wasn't auto-detected; an empty draft card is created for them.
+- **Disable child**: toggle button disables a child's card (they won't get an update).
+- **Confirm & Summarise**: footer button transitions the conversation back to `processing` and enqueues a `quick_log_summarize` job.
 
-### 4.1b Agents Tab (Educator Mobile)
-**Purpose:** Background-driven AI workflows — first the Quick Log drafter, with room for more agent types later (daily summaries, parent Q&A, behaviour insights).
-- Conversation list (recent first) with status badges.
+**Step 3 — Text Review (QuickLogReviewScreen)**
+- The summarizer job reads the educator-confirmed photo assignments (current `draft_card` messages) plus the original transcript. For each enabled draft card it:
+  1. Extracts any voice mention for that child from the transcript.
+  2. If photos are assigned, describes each scene and generates a warm parent update text.
+  3. Combines voice and photo context into a single update draft.
+- Conversation status transitions to `awaiting_review`. A **"Drafts are ready — review & send"** card appears in the conversation.
+- Tapping opens the Review screen: editable draft cards (avatar, name, photo strip, content textbox, Remove button).
+- A footer button "Send N updates to parents" submits every remaining draft in a single batch as `Update` documents. The educator can edit text inline or remove individual drafts before sending.
+
+### 4.1b AI Tab (Educator Mobile)
+**Purpose:** Unified view of all AI conversations — both Quick Log tasks and free-form chat sessions.
+- Conversation list (recent first) with status badges (Working… / Review / Sent / Failed) and last-update timestamps.
+- **New Chat button** in the header: creates a `chat` conversation, opens it immediately with an AI greeting.
 - Conversation detail subscribes to a GraphQL subscription so new messages appear live as the worker writes them.
-- Educator can leave the conversation at any time; status updates continue in the background and the conversation reappears in the list when ready for review.
+- Educator can leave any conversation at any time; status updates continue in the background.
+- **Chat input bar**: visible in all conversations except `status === 'sent'`. Typing and sending exchanges free-form messages with the Sprout AI assistant (powered by Gemini Flash).
+- **User bubbles**: educator's own messages appear right-aligned with a primary-colour background; agent messages appear left-aligned.
+- The "Send to parents" footer and "Review photo grouping / Drafts ready" cards appear only in `quick_log` conversations at the appropriate step.
+
+### 4.1c Chat Tab (Educator Mobile)
+**Purpose:** Group messaging channel per child, accessible to all educators assigned to the child's class and all parents linked to that child.
+- **Chat list**: one row per child, showing the child's avatar, name, last message preview, sender prefix, and time.
+- **Kid chat**: real-time group chat for a single child. Educator messages appear right-aligned (primary colour); parent messages appear left-aligned with the sender's name.
+- Messages are delivered via GraphQL subscription (`kidChatMessageAdded`).
+- Parents have a symmetric Chat tab in the parent app showing only children linked to their account.
 
 ### 4.2 Parent Flow
 **Purpose:** Delightful, real-time connection to their child's day.

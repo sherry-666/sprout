@@ -45,6 +45,7 @@ from app.graphql.errors import (
 )
 from app.graphql.pagination import encode_cursor, decode_cursor
 from app.graphql.agents import AgentsQuery, AgentsMutation, AgentsSubscription
+from app.graphql.chat import ChatQuery, ChatMutation, ChatSubscription
 from app.models.user import UserInDB, UserProfile, UserRole as ModelUserRole, UserStatus as ModelUserStatus
 from app.models.institution import InstitutionInDB, InstitutionStatus as ModelInstStatus
 from app.models.invitation import InvitationToken
@@ -58,7 +59,7 @@ _ALLOWED_PHOTO_TYPES = frozenset({"image/jpeg", "image/jpg", "image/png", "image
 # ─── Query ────────────────────────────────────────────────────────────
 
 @strawberry.type
-class Query(AgentsQuery):
+class Query(AgentsQuery, ChatQuery):
 
     @strawberry.field
     async def node(
@@ -303,7 +304,7 @@ class Query(AgentsQuery):
 # ─── Mutation ─────────────────────────────────────────────────────────
 
 @strawberry.type
-class Mutation(AgentsMutation):
+class Mutation(AgentsMutation, ChatMutation):
 
     # ── Auth ──────────────────────────────────────────────────────────
 
@@ -879,21 +880,69 @@ class Mutation(AgentsMutation):
         )
         log.info("confirm_kid_photo_upload: saved profilePhotoKey=%s for kid=%s", full_key, kid_id)
 
-        # Generate and store face embedding from the thumbnail (non-fatal)
+        # Generate and store face embedding from the full image (non-fatal)
         try:
             from app.ai.face_recognizer import encode_face
-            embedding = encode_face(processed.thumbnail)
+            import asyncio as _asyncio
+            embedding = await _asyncio.to_thread(encode_face, processed.full)
             if embedding:
                 await db.kids.update_one(
                     {"_id": str(kid_id)},
                     {"$set": {"faceEmbedding": embedding}},
                 )
                 log.info("confirm_kid_photo_upload: stored face embedding for kid=%s (%d dims)", kid_id, len(embedding))
+            else:
+                log.warning("confirm_kid_photo_upload: no face detected in profile photo for kid=%s — face matching will not work for this child", kid_id)
         except Exception as emb_err:
-            log.info("confirm_kid_photo_upload: face embedding skipped: %s", emb_err)
+            log.warning("confirm_kid_photo_upload: face embedding failed for kid=%s: %s", kid_id, emb_err)
 
         updated = await db.kids.find_one({"_id": str(kid_id)})
         return Kid.from_doc(updated)
+
+    @strawberry.mutation(permission_classes=[IsEducator])
+    async def regenerate_face_embeddings(
+        self,
+        info: Info[GraphQLContext, None],
+    ) -> int:
+        """
+        Re-compute faceEmbedding for every kid in the institution that has a
+        profilePhotoKey but no valid embedding. Returns the number of kids updated.
+        """
+        import asyncio as _asyncio
+        from app.ai.face_recognizer import encode_face
+        from app.core.storage import get_object
+
+        db = info.context.db
+        institution_id = info.context.viewer_institution_id
+
+        kids = await db.kids.find(
+            {"institution_id": institution_id, "profilePhotoKey": {"$exists": True, "$ne": None}}
+        ).to_list(500)
+
+        updated = 0
+        for kid in kids:
+            if kid.get("faceEmbedding"):
+                continue  # already has one
+            key = kid.get("profilePhotoKey")
+            if not key:
+                continue
+            try:
+                photo_bytes = get_object(key)
+                embedding = await _asyncio.to_thread(encode_face, photo_bytes)
+                if embedding:
+                    await db.kids.update_one(
+                        {"_id": kid["_id"]},
+                        {"$set": {"faceEmbedding": embedding}},
+                    )
+                    logger.info("regenerate_face_embeddings: stored embedding for kid=%s", kid["_id"])
+                    updated += 1
+                else:
+                    logger.warning("regenerate_face_embeddings: no face detected for kid=%s (key=%s)", kid["_id"], key)
+            except Exception as e:
+                logger.warning("regenerate_face_embeddings: failed for kid=%s: %s", kid["_id"], e)
+
+        logger.info("regenerate_face_embeddings: updated %d / %d kids", updated, len(kids))
+        return updated
 
     # ── Classes ────────────────────────────────────────────────────────
 
@@ -1199,10 +1248,15 @@ class Mutation(AgentsMutation):
 
 # ─── Schema ────────────────────────────────────────────────────────────
 
+@strawberry.type
+class Subscription(AgentsSubscription, ChatSubscription):
+    pass
+
+
 schema = strawberry.Schema(
     query=Query,
     mutation=Mutation,
-    subscription=AgentsSubscription,
+    subscription=Subscription,
 )
 
 graphql_router = GraphQLRouter(

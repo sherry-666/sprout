@@ -24,10 +24,12 @@ from app.graphql.permissions import IsAuthenticated
 from app.graphql.scalars import DateTime
 from app.core import jobs as job_queue
 from app.models.conversation import (
-    CONVO_PENDING, CONVO_AWAITING_REVIEW, CONVO_SENT, CONVO_ACTIVE,
+    CONVO_PENDING, CONVO_PROCESSING, CONVO_AWAITING_REVIEW, CONVO_AWAITING_PHOTO_REVIEW,
+    CONVO_SENT, CONVO_ACTIVE,
     KIND_TEXT, KIND_PROGRESS, KIND_DRAFT_CARD, KIND_ACTION,
     ROLE_AGENT, ROLE_SYSTEM, ROLE_USER,
-    AGENT_QUICK_LOG, AGENT_CHAT, JOB_QUICK_LOG_ANALYSIS, JOB_CHAT_RESPONSE,
+    AGENT_QUICK_LOG, AGENT_CHAT,
+    JOB_QUICK_LOG_ANALYSIS, JOB_QUICK_LOG_SUMMARIZE, JOB_CHAT_RESPONSE,
 )
 
 log = logging.getLogger(__name__)
@@ -76,13 +78,29 @@ class Message:
 
     @classmethod
     def from_doc(cls, doc: dict) -> "Message":
+        payload = doc.get("payload") or {}
+        # Regenerate fresh presigned URLs from stored keys so they never expire
+        if doc.get("kind") == KIND_DRAFT_CARD:
+            try:
+                from app.core.storage import safe_presign_get
+                updates: dict = {}
+                photo_keys = payload.get("photo_keys") or []
+                if photo_keys:
+                    updates["photo_urls"] = [safe_presign_get(k, expires_in=86400) or "" for k in photo_keys]
+                avatar_key = payload.get("avatar_key")
+                if avatar_key:
+                    updates["avatar_url"] = safe_presign_get(avatar_key, expires_in=86400) or ""
+                if updates:
+                    payload = {**payload, **updates}
+            except Exception:
+                pass
         return cls(
             id=strawberry.ID(str(doc["_id"])),
             conversation_id=strawberry.ID(str(doc["conversation_id"])),
             role=doc.get("role", ROLE_AGENT),
             kind=doc.get("kind", KIND_TEXT),
             content=doc.get("content", ""),
-            payload_json=json.dumps(doc.get("payload", {}) or {}),
+            payload_json=json.dumps(payload),
             created_at=doc.get("created_at", datetime.utcnow()),
         )
 
@@ -97,6 +115,8 @@ class Conversation:
     error: Optional[str]
     created_at: DateTime
     updated_at: DateTime
+    all_photo_keys: List[str]
+    all_photo_urls: List[str]
 
     @strawberry.field
     async def messages(self, info: Info[GraphQLContext, None]) -> List[Message]:
@@ -108,6 +128,14 @@ class Conversation:
 
     @classmethod
     def from_doc(cls, doc: dict) -> "Conversation":
+        all_photo_keys = doc.get("all_photo_keys") or []
+        all_photo_urls: List[str] = []
+        if all_photo_keys:
+            try:
+                from app.core.storage import safe_presign_get
+                all_photo_urls = [safe_presign_get(k, expires_in=86400) or "" for k in all_photo_keys]
+            except Exception:
+                pass
         return cls(
             id=strawberry.ID(str(doc["_id"])),
             agent_type=doc.get("agent_type", AGENT_QUICK_LOG),
@@ -117,6 +145,8 @@ class Conversation:
             error=doc.get("error"),
             created_at=doc.get("created_at", datetime.utcnow()),
             updated_at=doc.get("updated_at", datetime.utcnow()),
+            all_photo_keys=all_photo_keys,
+            all_photo_urls=all_photo_urls,
         )
 
 
@@ -185,6 +215,38 @@ class AgentsQuery:
         ).sort("updated_at", -1).limit(min(limit, 200)).to_list(200)
         return [Conversation.from_doc(d) for d in docs]
 
+    @strawberry.field(permission_classes=[IsAuthenticated])
+    async def kids_for_conversation(
+        self, info: Info[GraphQLContext, None], conversation_id: strawberry.ID,
+    ) -> List["KidSummary"]:
+        """Return all kids in scope for a conversation (for the 'Add child' picker)."""
+        from app.core.storage import safe_presign_get
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        convo = await db.conversations.find_one(
+            {"_id": str(conversation_id), "user_id": viewer_id}
+        )
+        if not convo:
+            return []
+        class_id = convo.get("class_id")
+        if class_id:
+            cls_doc = await db.classes.find_one({"_id": str(class_id)})
+            kid_ids = cls_doc.get("kid_ids", []) if cls_doc else []
+            kids = await db.kids.find({"_id": {"$in": kid_ids}}).to_list(200)
+        else:
+            educator_classes = await db.classes.find(
+                {"educator_user_ids": viewer_id}
+            ).to_list(50)
+            all_kid_ids = list({k for cls in educator_classes for k in cls.get("kid_ids", [])})
+            kids = await db.kids.find({"_id": {"$in": all_kid_ids}}).to_list(500)
+        result = []
+        for k in kids:
+            ppk = k.get("profilePhotoKey")
+            avatar_url = safe_presign_get(ppk, expires_in=86400) if ppk else None
+            name = f"{k.get('firstName', '')} {k.get('lastName', '')}".strip()
+            result.append(KidSummary(id=strawberry.ID(k["_id"]), name=name, avatar_url=avatar_url))
+        return result
+
 
 # ─── Mutations ─────────────────────────────────────────────────────────────
 
@@ -215,6 +277,8 @@ class AgentsMutation:
             "status": CONVO_PENDING,
             "title": "Quick Log",
             "class_id": str(class_id) if class_id else None,
+            "transcript": transcript or "",
+            "all_photo_keys": list(photo_keys or []),
             "created_at": now,
             "updated_at": now,
         })
@@ -342,12 +406,62 @@ class AgentsMutation:
         return True
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def assign_draft_photo(
+        self,
+        info: Info[GraphQLContext, None],
+        message_id: strawberry.ID,
+        photo_key: str,
+    ) -> Message:
+        """Add a photo key to a draft card's photo list. No-op if already assigned."""
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        msg = await db.messages.find_one({"_id": str(message_id)})
+        if not msg or msg.get("kind") != KIND_DRAFT_CARD:
+            raise Exception("Draft not found")
+        convo = await db.conversations.find_one({"_id": msg["conversation_id"], "user_id": viewer_id})
+        if not convo:
+            raise Exception("Not authorised")
+        photo_keys = list((msg.get("payload") or {}).get("photo_keys") or [])
+        if photo_key not in photo_keys:
+            photo_keys.append(photo_key)
+            await db.messages.update_one(
+                {"_id": str(message_id)},
+                {"$set": {"payload.photo_keys": photo_keys}},
+            )
+            msg = await db.messages.find_one({"_id": str(message_id)})
+        return Message.from_doc(msg)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def toggle_draft_enabled(
+        self,
+        info: Info[GraphQLContext, None],
+        message_id: strawberry.ID,
+        enabled: bool,
+    ) -> Message:
+        """Enable or disable a draft card (disabled = skip when sending to parents)."""
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        msg = await db.messages.find_one({"_id": str(message_id)})
+        if not msg or msg.get("kind") != KIND_DRAFT_CARD:
+            raise Exception("Draft not found")
+        convo = await db.conversations.find_one({"_id": msg["conversation_id"], "user_id": viewer_id})
+        if not convo:
+            raise Exception("Not authorised")
+        await db.messages.update_one(
+            {"_id": str(message_id)},
+            {"$set": {"payload.enabled": enabled}},
+        )
+        payload = msg.get("payload") or {}
+        msg = {**msg, "payload": {**payload, "enabled": enabled}}
+        return Message.from_doc(msg)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
     async def send_conversation_drafts(
         self,
         info: Info[GraphQLContext, None],
         conversation_id: strawberry.ID,
     ) -> Conversation:
-        """Approve every draft_card in the conversation as a real Update sent to parents."""
+        """Send all enabled draft_cards in the conversation as Updates to parents."""
         db = info.context.db
         viewer_id = info.context.viewer_id
         convo = await db.conversations.find_one(
@@ -364,6 +478,8 @@ class AgentsMutation:
         for draft in drafts:
             content = (draft.get("content") or "").strip()
             payload = draft.get("payload") or {}
+            if not payload.get("enabled", True):  # skip disabled drafts
+                continue
             kid_id = payload.get("kid_id")
             photo_keys = payload.get("photo_keys") or []
             if not content or not kid_id:
@@ -393,6 +509,95 @@ class AgentsMutation:
         await update_conversation_status(db, str(conversation_id), CONVO_SENT)
         doc = await db.conversations.find_one({"_id": str(conversation_id)})
         return Conversation.from_doc(doc)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def create_kid_draft(
+        self,
+        info: Info[GraphQLContext, None],
+        conversation_id: strawberry.ID,
+        kid_id: strawberry.ID,
+    ) -> Message:
+        """Manually add a draft card for a kid who wasn't detected by face recognition."""
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        institution_id = info.context.viewer_institution_id
+        convo = await db.conversations.find_one(
+            {"_id": str(conversation_id), "user_id": viewer_id}
+        )
+        if not convo:
+            raise Exception("Conversation not found")
+        kid = await db.kids.find_one({"_id": str(kid_id), "institution_id": institution_id})
+        if not kid:
+            raise Exception("Kid not found")
+        kid_name = f"{kid.get('firstName', '')} {kid.get('lastName', '')}".strip()
+        ppk = kid.get("profilePhotoKey")
+        doc = await write_message(
+            db, str(conversation_id),
+            role=ROLE_AGENT, kind=KIND_DRAFT_CARD,
+            content="",
+            payload={
+                "kid_id": str(kid_id),
+                "kid_name": kid_name,
+                "avatar_key": ppk,
+                "photo_keys": [],
+            },
+        )
+        return Message.from_doc(doc)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def remove_draft_photo(
+        self,
+        info: Info[GraphQLContext, None],
+        message_id: strawberry.ID,
+        photo_key: str,
+    ) -> Message:
+        """Remove a photo from a draft card's assigned photo list."""
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        msg = await db.messages.find_one({"_id": str(message_id)})
+        if not msg or msg.get("kind") != KIND_DRAFT_CARD:
+            raise Exception("Draft not found")
+        convo = await db.conversations.find_one({"_id": msg["conversation_id"], "user_id": viewer_id})
+        if not convo:
+            raise Exception("Not authorised")
+        photo_keys = list((msg.get("payload") or {}).get("photo_keys") or [])
+        if photo_key in photo_keys:
+            photo_keys.remove(photo_key)
+            await db.messages.update_one(
+                {"_id": str(message_id)},
+                {"$set": {"payload.photo_keys": photo_keys}},
+            )
+            msg = await db.messages.find_one({"_id": str(message_id)})
+        return Message.from_doc(msg)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def confirm_photo_review(
+        self,
+        info: Info[GraphQLContext, None],
+        conversation_id: strawberry.ID,
+    ) -> Conversation:
+        """Confirm photo grouping and trigger text summarisation (Phase 2)."""
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        convo = await db.conversations.find_one(
+            {"_id": str(conversation_id), "user_id": viewer_id}
+        )
+        if not convo:
+            raise Exception("Conversation not found")
+        await update_conversation_status(db, str(conversation_id), CONVO_PROCESSING)
+        await job_queue.enqueue(db, JOB_QUICK_LOG_SUMMARIZE, {
+            "conversation_id": str(conversation_id),
+            "user_id": viewer_id,
+        })
+        doc = await db.conversations.find_one({"_id": str(conversation_id)})
+        return Conversation.from_doc(doc)
+
+
+@strawberry.type
+class KidSummary:
+    id: strawberry.ID
+    name: str
+    avatar_url: Optional[str]
 
 
 # ─── Subscription ──────────────────────────────────────────────────────────

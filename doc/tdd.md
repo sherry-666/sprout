@@ -27,7 +27,7 @@ The system consists of a centralized Python backend service communicating with a
 
 ## 2. Tech Stack
 - **Database**: MongoDB (Atlas for managed cloud hosting, integrates easily with Railway).
-- **Backend**: Python 3.11+ with FastAPI. Uses Motor (async MongoDB driver) for database access. Strawberry GraphQL with subscription support via `graphql-transport-ws` over WebSocket. A lightweight MongoDB-backed job queue (`app/core/jobs.py`) with an in-process worker loop drives async AI workflows (no Redis/Celery yet — splitting the worker into its own service is a config change).
+- **Backend**: Python 3.11+ with FastAPI. Uses Motor (async MongoDB driver) for database access. Strawberry GraphQL with subscription support via `graphql-transport-ws` over WebSocket. A lightweight MongoDB-backed job queue (`app/core/jobs.py`) with an in-process worker loop drives async AI workflows (no Redis/Celery yet — splitting the worker into its own service is a config change). Registered job handlers: `quick_log_analysis` (Phase 1 — face recognition), `quick_log_summarize` (Phase 2 — text generation), `chat_response` (free-form AI chat reply).
 - **Mobile App**: React Native (Expo SDK 54, RN 0.81.5) for cross-platform (iOS/Android). Apollo Client for GraphQL. `@react-navigation/native` v7 for navigation (bottom tabs + native stacks). `@react-native-async-storage/async-storage` for JWT storage and language persistence. `i18next` + `react-i18next` for EN/ZH/FR internationalisation (language saved under key `sprout_lang` in AsyncStorage).
 - **Web Admin**: React (Vite + TypeScript) with react-i18next for EN/ZH/FR internationalisation.
 - **AI/ML Libraries**:
@@ -154,26 +154,54 @@ sprout/
 - `token`: String (unique index, secure random token via `secrets.token_urlsafe(32)`)
 - `user_id`: String (FK → users._id)
 
-### 4.7 Conversations Collection (Agents tab)
+### 4.7 Conversations Collection (AI tab)
 - `_id`: String (UUID)
 - `user_id`: String (FK → users._id)
-- `agent_type`: String (`quick_log` for now; extensible for future agents)
-- `status`: Enum (`pending`, `processing`, `awaiting_review`, `sent`, `failed`)
+- `agent_type`: String — `"quick_log"` for Quick Log tasks; `"chat"` for free-form AI chat
+- `status`: Enum:
+  - `pending` — just created, worker not started yet
+  - `processing` — worker actively running
+  - `awaiting_photo_review` — Phase 1 (face recognition) done; educator must confirm photo grouping
+  - `awaiting_review` — Phase 2 (text generation) done; educator must review drafts before sending
+  - `active` — live chat conversation (no background worker)
+  - `sent` — all drafts delivered to parents
+  - `failed` — worker encountered an unrecoverable error
 - `title`: String
-- `class_id`: String (optional, FK → classes._id) — scope of the run
+- `class_id`: String (optional, FK → classes._id) — scope of the quick log run
+- `transcript`: String (optional) — voice note text captured at submission time; used by Phase 2 summarizer
+- `all_photo_keys`: Array of String (optional) — S3 object keys for all submitted photos; used by Phase 1 processor
 - `error`: String (optional, populated when status is `failed`)
 - `created_at`, `updated_at`: Date
 - Index: `(user_id, updated_at desc)`
 
-### 4.8 Messages Collection (Agents tab)
+### 4.8 Messages Collection (AI tab)
 - `_id`: String (UUID)
 - `conversation_id`: String (FK → conversations._id)
 - `role`: Enum (`system`, `agent`, `user`)
 - `kind`: Enum (`text`, `progress`, `draft_card`, `action`) — drives client-side rendering
 - `content`: String — main display text
-- `payload`: Dict — kind-specific structured data (e.g. for `draft_card`: `{kid_id, kid_name, avatar_url, photo_keys, photo_urls}`)
+- `payload`: Dict — kind-specific structured data. For `draft_card`:
+  ```
+  {
+    kid_id: str,
+    kid_name: str,
+    avatar_key: str | None,   # S3 object key for the child's profile photo (stored); presigned URL generated at query time
+    photo_keys: [str],        # S3 object keys for assigned photos (stored); presigned URLs generated at query time
+    enabled: bool,            # false if educator disabled this child
+    # avatar_url, photo_urls — NOT stored; regenerated as 24-hour presigned GET URLs by Message.from_doc at read time
+  }
+  ```
 - `created_at`: Date
 - Index: `(conversation_id, created_at asc)`
+
+### 4.10 Chat Messages Collection
+- `_id`: String (UUID)
+- `kid_id`: String (FK → kids._id) — the child this thread is about
+- `sender_id`: String (FK → users._id)
+- `sender_name`: String — denormalized display name
+- `content`: String
+- `created_at`: Date
+- Index: `(kid_id, created_at asc)`
 
 ### 4.9 Jobs Collection (background queue)
 - `_id`: String (UUID)
@@ -221,18 +249,30 @@ sprout/
 
 **Quick Log pipeline** (educator role required):
 - `presignQuickLogPhoto(contentType: String!) → PresignedUpload` — Returns a 5-minute pre-signed PUT URL for a raw photo. Object key: `quick-log/{educator_id}/raw-{uuid}.jpg`. Accepted types: `image/jpeg`, `image/png`, `image/webp`.
-- `createQuickLogConversation(classId: ID, transcript: String, photoKeys: [String!]) → Conversation` — Creates a new Conversation row, enqueues a `quick_log_analysis` Job, and returns immediately. The background worker processes the job and streams progress + draft_card messages into the conversation. Mobile client subscribes to `messageAdded(conversationId)` to render them live.
+- `createQuickLogConversation(classId: ID, transcript: String, photoKeys: [String!]) → Conversation` — Creates a new conversation (`agent_type: "quick_log"`, `status: "pending"`), stores `transcript` and `all_photo_keys` on the conversation doc, enqueues a `quick_log_analysis` job, and returns immediately. Phase 1 worker streams progress messages then creates empty `draft_card` messages and transitions to `awaiting_photo_review`.
+- `removeDraftPhoto(messageId: ID!, photoKey: String!) → Message` — Remove one photo key from a `draft_card` payload's `photo_keys` list. Used during photo review step.
+- `confirmPhotoReview(conversationId: ID!) → Conversation` — Transitions conversation to `processing` and enqueues a `quick_log_summarize` job. Phase 2 worker reads confirmed draft cards, generates update text per kid, updates draft card `content`, and transitions to `awaiting_review`.
+- `createKidDraft(conversationId: ID!, kidId: ID!) → Message` — Create an empty `draft_card` for a child not auto-detected by face recognition. Fetches the child's `avatar_key` from their profile. Used by educator's "+ Add child" action in photo review.
+- `kidsForConversation(conversationId: ID!) → [KidSummary]` — Returns all children in scope for a conversation (class or all educator classes). Used to populate the "+ Add child" picker. `KidSummary { id, name, avatarUrl }`.
 
-**Agents tab** (any authenticated role):
-- Query `conversation(id: ID!) → Conversation` — Fetches one conversation with its messages.
+**AI tab / chat** (any authenticated role):
+- Query `conversation(id: ID!) → Conversation` — Fetches one conversation with its messages. `draft_card` messages have `avatar_url` and `photo_urls` regenerated as 24-hour presigned GET URLs in `payloadJson` at read time (`Message.from_doc`).
 - Query `myConversations(limit: Int) → [Conversation]` — Lists the viewer's conversations, newest first.
+- Mutation `createChatConversation → Conversation` — Creates `{agent_type: "chat", status: "active"}`, writes a greeting message, returns the conversation.
+- Mutation `sendChatMessage(conversationId: ID!, content: String!) → Message` — Writes the user's message, enqueues a `chat_response` job, returns the user message immediately.
 - Mutation `updateDraftMessage(messageId: ID!, content: String!) → Message` — Edit a draft card's content inline.
 - Mutation `removeDraftMessage(messageId: ID!) → Boolean` — Remove a draft card before sending.
-- Mutation `sendConversationDrafts(conversationId: ID!) → Conversation` — Convert every remaining `draft_card` in the conversation into an `Update` document (one per kid), append an action receipt message, and transition the conversation to `sent` status.
-- Subscription `messageAdded(conversationId: ID!) → Message` — Streams new messages over WebSocket via the `graphql-transport-ws` protocol mounted at `/graphql`.
+- Mutation `sendConversationDrafts(conversationId: ID!) → Conversation` — Convert every remaining enabled `draft_card` into an `Update` document, append an action receipt, transition to `sent`.
+- Subscription `messageAdded(conversationId: ID!) → Message` — Streams new messages over WebSocket via the `graphql-transport-ws` protocol.
+
+**Chat (per-kid group messaging)** (educator and parent roles):
+- Query `myKidThreads → [KidThread]` — Lists threads for all kids the viewer can access (educator: kids in their classes; parent: linked kids). Sorted by last message time. `KidThread { kidId, kidName, avatarUrl, lastMessage, lastSenderName, lastMessageAt }`.
+- Query `kidChatMessages(kidId: ID!, limit: Int) → [ChatMessage]` — Last N messages for a child's thread, newest-first. `ChatMessage { id, kidId, senderId, senderName, content, createdAt }`.
+- Mutation `sendKidChat(kidId: ID!, content: String!) → ChatMessage` — Access-checked (educator in same class OR parent linked to kid). Writes to `chat_messages` collection, publishes to all active subscribers.
+- Subscription `kidChatMessageAdded(kidId: ID!) → ChatMessage` — Real-time delivery via asyncio.Queue pubsub keyed by `kid_id`.
 
 **Legacy (deprecated, kept for reference):**
-- `analyzeQuickLog` and `confirmQuickLog` — Synchronous one-shot mutations. Superseded by `createQuickLogConversation` + the agent thread flow. Will be removed in a future cleanup.
+- `analyzeQuickLog` and `confirmQuickLog` — Synchronous one-shot mutations. Superseded by the 3-step Quick Log pipeline. Will be removed in a future cleanup.
 
 **Planned (not yet implemented):**
 - `POST /api/teacher/classes` — Get assigned classes and their kids.
@@ -269,10 +309,10 @@ sprout/
 ## 7. AI Module Design (`backend/app/ai/`)
 
 ### 7.1 Face Recognition (`face_recognizer.py`)
-- `encode_face(image_bytes) → list[float] | None` — Converts bytes to RGB via Pillow, detects all faces with `face_recognition`, returns the 128-d embedding for the largest face (by bounding-box area). Returns `None` if no face detected or library unavailable.
-- `match_faces(image_bytes, candidates: dict[str, list[float]]) → list[tuple[str, float]]` — Detects all faces in an image, compares each against `candidates` (kid_id → embedding), returns sorted `[(kid_id, confidence)]` where `confidence = 1 - face_distance`. Threshold `_TOLERANCE = 0.5`.
-- **Embedding storage**: `confirmKidPhotoUpload` stores the embedding in `kids.faceEmbedding` after every profile photo upload (non-fatal — failure is logged and skipped).
-- **Quick Log usage**: `analyzeQuickLog` reads `faceEmbedding` from all eligible kids and passes them to `match_faces` for each uploaded photo.
+- `encode_face(image_bytes) → list[float] | None` — Converts bytes to RGB via Pillow, detects all faces with `face_recognition` (`number_of_times_to_upsample=2` for small faces), returns the 128-d embedding for the largest face (by bounding-box area). Returns `None` if no face detected or library unavailable.
+- `match_faces(image_bytes, candidates: dict[str, list[float]]) → list[tuple[str, float]]` — Detects all faces in an image (`number_of_times_to_upsample=2`), compares each detected face against `candidates` (kid_id → embedding). **Winner-takes-all**: each detected face is assigned to at most one child — the one with the smallest face distance below `_TOLERANCE = 0.6`. If multiple faces detect the same child, the highest-confidence match wins. Returns `[(kid_id, confidence)]`.
+- **Embedding storage**: `confirmKidPhotoUpload` stores the embedding in `kids.faceEmbedding` after every profile photo upload (non-fatal — failure is logged and skipped). The "Regenerate Face Data" button in Settings calls `regenerateFaceEmbeddings` (educator-level permission) to backfill embeddings for all kids in the educator's institution.
+- **Quick Log Phase 1 usage**: `quick_log_processor.py` reads `faceEmbedding` from all eligible kids and calls `match_faces` (in a thread via `asyncio.to_thread`) for each uploaded photo. Results are inverted (kid → photo list) and stored as `photo_keys` in each `draft_card` payload.
 
 ### 7.2 LLM Service (`llm_service.py` + `voice_parser.py`)
 - `get_flash_model()` — Returns a Gemini Flash model client (cached module-level).
@@ -312,11 +352,18 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
 
 ### Navigation structure
 - `AppNavigator` (root) → role-aware routing: Login | EducatorNavigator | ParentNavigator | UnsupportedRoleScreen
-- `EducatorNavigator`: three bottom tabs:
-  - **Classes** — `ClassesStack`: ClassesScreen → RosterScreen → LogActivityScreen (params: classId, className, optional kidId/kidName)
-  - **Quick Log** — `QuickLogScreen`: standalone tab; 3-step AI wizard — voice + photos → Gemini analysis → per-kid review → confirm (see PRD §4.1a)
-  - **Settings** — `SettingsStack`: SettingsScreen (language picker + My Profile link) → ProfileScreen
-- `ParentNavigator`: bottom tabs (Feed stack → KidDetail → Summary, Profile)
+- `EducatorNavigator`: four bottom tabs:
+  - **Classes** — `ClassesStack`: ClassesScreen → RosterScreen → LogActivityScreen (params: classId, className, optional kidId/kidName). QuickLogScreen is launched from ClassesStack as a modal.
+  - **AI** — `AgentsStack`: AgentsListScreen → ConversationScreen → QuickLogReviewScreen → PhotoClassificationScreen. "New Chat" button in AgentsListScreen header creates a chat conversation.
+  - **Chat** — `ChatStack`: ChatListScreen → KidChatScreen (per-child group messaging, params: kidId, kidName).
+  - **Settings** — `SettingsStack`: SettingsScreen (language picker + My Profile link + Regenerate Face Data) → ProfileScreen
+- `ParentNavigator`: four bottom tabs: Feed stack → KidDetail → Summary, Chat (ChatStack — same as educator but scoped to parent's linked kids), Profile
+
+### Key screen behaviours
+- **ConversationScreen**: `pollInterval` stops when `status` is terminal (`sent`/`failed`) OR when `useIsFocused()` is false (prevents background presigned-URL cache churn). Shows "Review photo grouping →" card when `status === 'awaiting_photo_review'`; "Drafts ready →" card when `status === 'awaiting_review'`. Chat input bar visible unless `status === 'sent'`.
+- **PhotoClassificationScreen**: `cache-first` fetch policy; `cache.modify` after every `removeDraftPhoto`, `assignPhoto`, `toggleEnabled`, `createKidDraft` mutation to avoid presigned URL regeneration.
+- **QuickLogReviewScreen**: same `cache-first` + `cache.modify` pattern. `navigation.popToTop()` after `sendConversationDrafts` (not `goBack`) so the tab bar returns.
+- **Apollo presigned URL stability**: `draft_card` payloads store only S3 object keys in MongoDB; presigned GET URLs (24-hour TTL) are generated in `Message.from_doc` at query time. Clients must not cache the URL string across poll intervals longer than the TTL.
 
 ### Mobile i18n
 - Translations live in `mobile/src/i18n/index.ts` (EN, ZH, FR). Keys: `tabs.*`, `profile.*`, `settings.*`, `language.*`, `roles.*`, `quickLog.*`.

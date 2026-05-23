@@ -14,11 +14,12 @@ from pydantic import BaseModel, Field
 # ─── Status enums (stored as plain strings) ────────────────────────────────
 
 # Conversation lifecycle
-CONVO_PENDING = "pending"               # created, work not yet started
-CONVO_PROCESSING = "processing"         # worker actively generating
-CONVO_AWAITING_REVIEW = "awaiting_review"  # drafts ready, educator must review
-CONVO_SENT = "sent"                     # drafts approved + delivered to parents
-CONVO_FAILED = "failed"                 # worker errored
+CONVO_PENDING = "pending"                         # created, work not yet started
+CONVO_PROCESSING = "processing"                   # worker actively generating
+CONVO_AWAITING_PHOTO_REVIEW = "awaiting_photo_review"  # phase 1 done; educator reviews photo grouping
+CONVO_AWAITING_REVIEW = "awaiting_review"         # phase 2 done; text drafts ready to send
+CONVO_SENT = "sent"                               # drafts approved + delivered to parents
+CONVO_FAILED = "failed"                           # worker errored
 
 # Message roles
 ROLE_SYSTEM = "system"
@@ -46,6 +47,7 @@ JOB_FAILED = "failed"
 
 # Job types
 JOB_QUICK_LOG_ANALYSIS = "quick_log_analysis"
+JOB_QUICK_LOG_SUMMARIZE = "quick_log_summarize"
 JOB_CHAT_RESPONSE = "chat_response"
 
 

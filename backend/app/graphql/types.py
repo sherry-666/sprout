@@ -422,7 +422,7 @@ class Kid(Node):
         if key:
             try:
                 from app.core.storage import safe_presign_get
-                profile_photo_url = safe_presign_get(key)
+                profile_photo_url = safe_presign_get(key, expires_in=604800)  # 7 days
             except Exception:
                 profile_photo_url = None
         else:
