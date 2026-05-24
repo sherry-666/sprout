@@ -69,7 +69,12 @@ function dayLabel(iso: string): string {
 }
 
 function msgTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const d = new Date(iso);
+  const hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const h12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  return `${h12}:${minutes} ${period}`;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -179,18 +184,29 @@ const ms = StyleSheet.create({
   ownBubble: {
     backgroundColor: Colors.primary, borderRadius: 18,
     borderBottomRightRadius: 4,
-    paddingHorizontal: 14, paddingVertical: 10,
+    paddingLeft: 14, paddingRight: 16, paddingVertical: 10,
     maxWidth: '78%',
   },
-  ownTxt: { fontSize: 15, color: Colors.white, lineHeight: 21 },
-  ownTime: { fontSize: 11, color: 'rgba(60,60,67,0.5)', marginTop: 3, marginRight: 4 },
+  ownTxt: {
+    fontSize: 15, color: Colors.white, lineHeight: 21,
+    includeFontPadding: false,
+  },
+  ownTime: {
+    fontSize: 11, color: 'rgba(60,60,67,0.5)',
+    marginTop: 3, marginRight: 4,
+    includeFontPadding: false,
+  },
 
   otherRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
-  senderLabel: { fontSize: 11, color: 'rgba(60,60,67,0.55)', marginBottom: 3, fontWeight: '500' },
+  senderLabel: {
+    fontSize: 11, color: 'rgba(60,60,67,0.55)',
+    marginBottom: 3, fontWeight: '500',
+    includeFontPadding: false,
+  },
   otherBubble: {
     backgroundColor: Colors.white, borderRadius: 18,
     borderBottomLeftRadius: 4,
-    paddingHorizontal: 14, paddingVertical: 10,
+    paddingLeft: 14, paddingRight: 16, paddingVertical: 10,
     maxWidth: '100%',
     shadowColor: '#1a2820',
     shadowOffset: { width: 0, height: 2 },
@@ -198,8 +214,15 @@ const ms = StyleSheet.create({
     shadowRadius: 6,
     elevation: 1,
   },
-  otherTxt: { fontSize: 15, color: '#1d2a22', lineHeight: 21 },
-  otherTime: { fontSize: 11, color: 'rgba(60,60,67,0.5)', marginTop: 3, marginLeft: 4 },
+  otherTxt: {
+    fontSize: 15, color: '#1d2a22', lineHeight: 21,
+    includeFontPadding: false,
+  },
+  otherTime: {
+    fontSize: 11, color: 'rgba(60,60,67,0.5)',
+    marginTop: 3, marginLeft: 4,
+    includeFontPadding: false,
+  },
 });
 
 // ── Screen ─────────────────────────────────────────────────────────────────
@@ -383,9 +406,6 @@ export default function KidChatScreen({ route, navigation }: any) {
           multiline
           maxLength={2000}
           returnKeyType="default"
-          autoCorrect={false}
-          autoComplete="off"
-          spellCheck={false}
         />
         <TouchableOpacity
           style={[s.sendBtn, (!hasText || sending) && s.sendBtnOff]}
