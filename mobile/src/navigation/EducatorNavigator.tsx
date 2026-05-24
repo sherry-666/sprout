@@ -73,27 +73,18 @@ function AgentsStackNav() {
 
 function ChatStackNav() {
   return (
-    <ChatStack.Navigator screenOptions={{
-      headerStyle: { backgroundColor: Colors.primary },
-      headerTintColor: Colors.white,
-      headerTitleStyle: { fontWeight: '700' as const },
-    }}>
-      <ChatStack.Screen name="ChatList" component={ChatListScreen} options={{ title: 'Messages' }} />
-      <ChatStack.Screen name="KidChat" component={KidChatScreen} options={({ route }: any) => ({ title: route.params?.kidName ?? 'Chat' })} />
+    <ChatStack.Navigator screenOptions={{ headerShown: false }}>
+      <ChatStack.Screen name="ChatList" component={ChatListScreen} />
+      <ChatStack.Screen name="KidChat" component={KidChatScreen} />
     </ChatStack.Navigator>
   );
 }
 
 function SettingsStackNav() {
-  const { t } = useTranslation();
   return (
-    <SettingsStack.Navigator screenOptions={{
-      headerStyle: { backgroundColor: Colors.primary },
-      headerTintColor: Colors.white,
-      headerTitleStyle: { fontWeight: '700' as const },
-    }}>
-      <SettingsStack.Screen name="SettingsHome" component={SettingsScreen} options={{ title: t('settings.title') }} />
-      <SettingsStack.Screen name="Profile" component={ProfileScreen} options={{ title: t('profile.title') }} />
+    <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
+      <SettingsStack.Screen name="SettingsHome" component={SettingsScreen} />
+      <SettingsStack.Screen name="Profile" component={ProfileScreen} />
     </SettingsStack.Navigator>
   );
 }

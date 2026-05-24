@@ -82,6 +82,9 @@ class KidThread:
     last_message: Optional[str]
     last_message_at: Optional[DateTime]
     last_sender_name: Optional[str]
+    parent_names: List[str]
+    class_name: Optional[str]
+    unread_count: int
 
 
 # ─── Access check ──────────────────────────────────────────────────────────
@@ -113,6 +116,7 @@ class ChatQuery:
         viewer = info.context.viewer
         role = (viewer.get("role") if viewer else None) or "educator"
 
+        classes: list = []
         if role == "parent":
             kids = await db.kids.find({"parent_user_ids": viewer_id}).to_list(200)
         else:
@@ -124,6 +128,8 @@ class ChatQuery:
             return []
 
         kid_ids_list = [k["_id"] for k in kids]
+
+        # Last message per kid
         pipeline = [
             {"$match": {"kid_id": {"$in": kid_ids_list}}},
             {"$sort": {"created_at": -1}},
@@ -132,12 +138,59 @@ class ChatQuery:
         last_msgs = await db.chat_messages.aggregate(pipeline).to_list(500)
         last_by_kid = {m["_id"]: m["doc"] for m in last_msgs}
 
+        # Batch-fetch parent first names
+        all_parent_ids = list({
+            pid for kid in kids for pid in (kid.get("parent_user_ids") or [])
+        })
+        parent_first_name_by_id: dict[str, str] = {}
+        if all_parent_ids:
+            parent_docs = await db.users.find({"_id": {"$in": all_parent_ids}}).to_list(500)
+            for u in parent_docs:
+                p = u.get("profile", {})
+                first_name = p.get("firstName") or u.get("email", "Parent")
+                parent_first_name_by_id[u["_id"]] = first_name
+
+        # For educators: build kid→class name lookup
+        kid_class_name: dict[str, str] = {}
+        if role != "parent":
+            for cls in classes:
+                for kid_id in cls.get("kid_ids", []):
+                    if kid_id not in kid_class_name:
+                        kid_class_name[kid_id] = cls.get("name", "")
+
+        # Unread counts — batch via aggregate then filter by last_read_at in Python
+        reads = await db.chat_reads.find(
+            {"user_id": viewer_id, "kid_id": {"$in": kid_ids_list}}
+        ).to_list(500)
+        reads_map = {r["kid_id"]: r["last_read_at"] for r in reads}
+
+        unread_counts: dict[str, int] = {}
+        if kid_ids_list:
+            raw = await db.chat_messages.aggregate([
+                {"$match": {"kid_id": {"$in": kid_ids_list}, "sender_id": {"$ne": viewer_id}}},
+                {"$group": {"_id": "$kid_id", "dates": {"$push": "$created_at"}}},
+            ]).to_list(500)
+            for r in raw:
+                kid_id = r["_id"]
+                last_read = reads_map.get(kid_id)
+                dates = r["dates"]
+                if last_read:
+                    unread_counts[kid_id] = sum(1 for d in dates if d > last_read)
+                else:
+                    unread_counts[kid_id] = len(dates)
+
         threads = []
         for kid in kids:
             ppk = kid.get("profilePhotoKey")
             avatar_url = safe_presign_get(ppk, expires_in=86400) if ppk else None
             name = f"{kid.get('firstName', '')} {kid.get('lastName', '')}".strip()
             last = last_by_kid.get(kid["_id"])
+            parent_ids = kid.get("parent_user_ids") or []
+            parent_names = [
+                parent_first_name_by_id[pid]
+                for pid in parent_ids
+                if pid in parent_first_name_by_id
+            ]
             threads.append(KidThread(
                 id=strawberry.ID(kid["_id"]),
                 name=name,
@@ -145,6 +198,9 @@ class ChatQuery:
                 last_message=last["content"] if last else None,
                 last_message_at=last["created_at"] if last else None,
                 last_sender_name=last["sender_name"] if last else None,
+                parent_names=parent_names,
+                class_name=kid_class_name.get(kid["_id"]),
+                unread_count=unread_counts.get(kid["_id"], 0),
             ))
 
         threads.sort(key=lambda t: (
@@ -204,6 +260,20 @@ class ChatMutation:
         await db.chat_messages.insert_one(doc)
         await _publish(str(kid_id), doc)
         return ChatMessage.from_doc(doc)
+
+    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    async def mark_chat_read(
+        self, info: Info[GraphQLContext, None],
+        kid_id: strawberry.ID,
+    ) -> bool:
+        db = info.context.db
+        viewer_id = info.context.viewer_id
+        await db.chat_reads.update_one(
+            {"user_id": viewer_id, "kid_id": str(kid_id)},
+            {"$set": {"last_read_at": datetime.utcnow()}},
+            upsert=True,
+        )
+        return True
 
 
 # ─── Subscription ──────────────────────────────────────────────────────────
