@@ -3,7 +3,6 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery } from '@apollo/client';
 import { Colors, Shadow } from '../../theme';
@@ -105,13 +104,7 @@ export default function ClassesScreen({ navigation }: any) {
           </Text>
         </View>
 
-        {/* Quick Log entry card — gradient matches design */}
-        <LinearGradient
-          colors={['rgba(79,70,229,0.13)', '#f3f4f8']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={s.quickLogCard}
-        >
+        <View style={s.quickLogCard}>
           <View style={s.qlRow}>
             <View style={s.qlMicCircle}>
               <Text style={{ fontSize: 18, color: Colors.white }}>🎙</Text>
@@ -142,7 +135,7 @@ export default function ClassesScreen({ navigation }: any) {
               <Text style={{ color: Colors.primary, fontSize: 16 }}>›</Text>
             </TouchableOpacity>
           )}
-        </LinearGradient>
+        </View>
 
         {/* Today's Schedule */}
         {/* TODO: Build calendar import feature — support importing from Google Calendar,
@@ -229,6 +222,7 @@ const s = StyleSheet.create({
   },
 
   quickLogCard: {
+    backgroundColor: 'rgba(79,70,229,0.09)',
     borderRadius: 16, padding: 16,
     marginTop: 20,
     borderWidth: 1, borderColor: 'rgba(79,70,229,0.15)',
