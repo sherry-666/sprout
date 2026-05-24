@@ -100,7 +100,7 @@ sprout/
 - `firstName`: String
 - `lastName`: String
 - `dateOfBirth`: Date
-- `parent_user_ids`: Array of User ID strings
+- `parent_user_ids`: Array of User ID strings — resolved by the `Kid.parents` GraphQL field as `[ParentLink]` (see §5 Educator APIs). A `guardianships` sub-document *(TODO)* will store `{ user_id, relationship }` to surface "Mom"/"Dad" labels in the educator kid detail view.
 - `class_id`: String
 - `institution_id`: String (FK → institutions._id)
 - `faceEmbedding`: Binary (128-d vector for face recognition, encrypted at rest)
@@ -254,6 +254,10 @@ sprout/
 - `confirmPhotoReview(conversationId: ID!) → Conversation` — Transitions conversation to `processing` and enqueues a `quick_log_summarize` job. Phase 2 worker reads confirmed draft cards, generates update text per kid, updates draft card `content`, and transitions to `awaiting_review`.
 - `createKidDraft(conversationId: ID!, kidId: ID!) → Message` — Create an empty `draft_card` for a child not auto-detected by face recognition. Fetches the child's `avatar_key` from their profile. Used by educator's "+ Add child" action in photo review.
 - `kidsForConversation(conversationId: ID!) → [KidSummary]` — Returns all children in scope for a conversation (class or all educator classes). Used to populate the "+ Add child" picker. `KidSummary { id, name, avatarUrl }`.
+- Query `kid(id: ID!) → Kid` (educator-accessible overload) — same resolver as parent; when caller is `educator`, also resolves:
+  - `Kid.class → Class?` — the child's enrolled class (resolved from `class_id`).
+  - `Kid.parents → [ParentLink]` — parents linked to this child. `ParentLink { id, relationship: String?, profile { firstName, lastName, profilePhotoUrl } }`. Resolved from `parent_user_ids` by looking up each user. The `relationship` field *(TODO)* — requires a new `guardianships` sub-document on the Kid (e.g. `{ user_id, relationship: "Mom" | "Dad" | "Guardian" }`); for now returns `null`.
+  - `Kid.updates(first, after)` — same paginated `Update` feed as the parent view, but accessible to educators in the child's class.
 
 **AI tab / chat** (any authenticated role):
 - Query `conversation(id: ID!) → Conversation` — Fetches one conversation with its messages. `draft_card` messages have `avatar_url` and `photo_urls` regenerated as 24-hour presigned GET URLs in `payloadJson` at read time (`Message.from_doc`).
@@ -336,7 +340,9 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
 
 ### Educator screens
 - **ClassesScreen**: `query { me { classes { id name kids { id } educators { id } } } }` — uses the `User.classes` sub-field (filters by `educator_user_ids`), not the admin-restricted `classes` query.
-- **RosterScreen**: `query { class(id) { id name kids { ... } educators { ... } } }` — visible to any authenticated user.
+- **RosterScreen**: `query { class(id) { id name kids { ... } educators { ... } } }` — visible to any authenticated user. Kid cards have a fixed computed width (⅓ of the grid area) regardless of how many kids are in the last row. Tapping a card navigates to `EducatorKidDetailScreen`.
+- **EducatorKidDetailScreen**: `query { kid(id) { id firstName lastName profilePhotoUrl dateOfBirth class { id name } parents { id relationship profile { firstName lastName profilePhotoUrl } } updates(first: 5, after) { edges { cursor node { id type content aiGeneratedContent mediaUrls timestamp educator { profile { firstName lastName } } } } pageInfo { hasNextPage endCursor } } } }` — Initial fetch is 5 updates; subsequent pages are 10. FlatList groups updates under sticky date-section headers ("TODAY", "YESTERDAY", weekday). Tapping an update navigates to `ActivityDetailScreen`.
+- **ActivityDetailScreen**: Receives the full `update` object and `kidName` via navigation params (no additional query). Displays horizontally pageable photos, update text, type/AI badges, educator attribution, and four share buttons (Facebook, Twitter/X, WhatsApp, WeChat — UI only, SDK integration TODO).
 - **LogActivityScreen**: `mutation createUpdate(input: { classId, type, content, kidId? })` — logs a meal, nap, activity, or photo update.
 - **QuickLogScreen**: 3-step AI wizard (see PRD §4.1a). Uses:
   - `query { me { classes { id name } } }` — load class chips.
@@ -353,14 +359,14 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
 ### Navigation structure
 - `AppNavigator` (root) → role-aware routing: Login | EducatorNavigator | ParentNavigator | UnsupportedRoleScreen
 - `EducatorNavigator`: four bottom tabs:
-  - **Classes** — `ClassesStack`: ClassesScreen → RosterScreen → LogActivityScreen (params: classId, className, optional kidId/kidName). QuickLogScreen is launched from ClassesStack as a modal.
+  - **Classes** — `ClassesStack`: ClassesScreen → RosterScreen → EducatorKidDetailScreen → ActivityDetailScreen. LogActivityScreen also reachable from ClassesStack (params: classId, className). QuickLogScreen is launched from ClassesStack as a modal.
   - **AI** — `AgentsStack`: AgentsListScreen → ConversationScreen → QuickLogReviewScreen → PhotoClassificationScreen. "New Chat" button in AgentsListScreen header creates a chat conversation.
   - **Chat** — `ChatStack`: ChatListScreen → KidChatScreen (per-child group messaging, params: kidId, kidName).
   - **Settings** — `SettingsStack`: SettingsScreen (language picker + My Profile link + Regenerate Face Data) → ProfileScreen
 - `ParentNavigator`: four bottom tabs: Feed stack → KidDetail → Summary, Chat (ChatStack — same as educator but scoped to parent's linked kids), Profile
 
 ### Key screen behaviours
-- **ConversationScreen**: `pollInterval` stops when `status` is terminal (`sent`/`failed`) OR when `useIsFocused()` is false (prevents background presigned-URL cache churn). Shows "Review photo grouping →" card when `status === 'awaiting_photo_review'`; "Drafts ready →" card when `status === 'awaiting_review'`. Chat input bar visible unless `status === 'sent'`.
+- **ConversationScreen**: `pollInterval` stops when `status` is terminal (`sent`/`failed`) OR when `useIsFocused()` is false (prevents background presigned-URL cache churn). Shows "Review photo grouping →" card when `status === 'awaiting_photo_review'`; "Drafts ready →" card when `status === 'awaiting_review'`. Chat input bar visible unless `status === 'sent'`. When a `quick_log` conversation reaches `sent`, an **ActivityLinksCard** appears listing each enabled child with a tap-target that cross-stack navigates to `EducatorKidDetailScreen` (Home → EducatorKidDetail).
 - **PhotoClassificationScreen**: `cache-first` fetch policy; `cache.modify` after every `removeDraftPhoto`, `assignPhoto`, `toggleEnabled`, `createKidDraft` mutation to avoid presigned URL regeneration.
 - **QuickLogReviewScreen**: same `cache-first` + `cache.modify` pattern. `navigation.popToTop()` after `sendConversationDrafts` (not `goBack`) so the tab bar returns.
 - **Apollo presigned URL stability**: `draft_card` payloads store only S3 object keys in MongoDB; presigned GET URLs (24-hour TTL) are generated in `Message.from_doc` at query time. Clients must not cache the URL string across poll intervals longer than the TTL.

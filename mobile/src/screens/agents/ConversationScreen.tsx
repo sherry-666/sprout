@@ -662,6 +662,76 @@ function DraftBlock({
   );
 }
 
+// ── ActivityLinksCard — appears after quick_log is sent ────────────────────
+
+function ActivityLinksCard({
+  drafts,
+  navigation,
+}: {
+  drafts: Array<{ id: string; payload: DraftPayload }>;
+  navigation: any;
+}) {
+  return (
+    <View style={alc.card}>
+      <Text style={alc.title}>View logged activities</Text>
+      <Text style={alc.sub}>Tap a child to see their update</Text>
+      {drafts.map(draft => (
+        <TouchableOpacity
+          key={draft.id}
+          style={alc.row}
+          activeOpacity={0.82}
+          onPress={() =>
+            navigation.getParent()?.navigate('Home', {
+              screen: 'EducatorKidDetail',
+              params: { kidId: draft.payload.kid_id },
+            })
+          }
+        >
+          <View style={alc.avatar}>
+            {draft.payload.avatar_url ? (
+              <Image
+                source={{ uri: draft.payload.avatar_url }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={0}
+              />
+            ) : (
+              <Text style={alc.avatarTxt}>{(draft.payload.kid_name ?? '?')[0]}</Text>
+            )}
+          </View>
+          <Text style={alc.name}>{draft.payload.kid_name}</Text>
+          <Text style={alc.arrow}>›</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
+const alc = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.card,
+    borderRadius: 16, padding: 14, marginTop: 8,
+    borderWidth: 1, borderColor: Colors.border,
+    ...Shadow.small,
+  },
+  title: { fontSize: 14, fontWeight: '700', color: Colors.textPrimary, marginBottom: 2 },
+  sub: { fontSize: 12, color: Colors.textSecondary, marginBottom: 12 },
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 9,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border,
+  },
+  avatar: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  avatarTxt: { color: Colors.primary, fontSize: 14, fontWeight: '700' },
+  name: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
+  arrow: { fontSize: 20, color: Colors.primary, lineHeight: 22 },
+});
+
 // ── Main ConversationScreen ─────────────────────────────────────────────────
 
 export default function ConversationScreen({ route, navigation }: any) {
@@ -883,6 +953,14 @@ export default function ConversationScreen({ route, navigation }: any) {
             <Text style={s.sentTxt}>✅  Sent to {enabledDraftCount} famil{enabledDraftCount === 1 ? 'y' : 'ies'}</Text>
             <Text style={s.sentSub}>Parents will see the update in their feed.</Text>
           </View>
+        )}
+
+        {/* Activity links — quick navigation to each child's detail after send */}
+        {status === 'sent' && agentType === 'quick_log' && draftsForReview.filter(d => d.payload.enabled !== false).length > 0 && (
+          <ActivityLinksCard
+            drafts={draftsForReview.filter(d => d.payload.enabled !== false)}
+            navigation={navigation}
+          />
         )}
       </ScrollView>
 

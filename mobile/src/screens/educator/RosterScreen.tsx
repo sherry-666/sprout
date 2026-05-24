@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Image,
+  ActivityIndicator, RefreshControl, Image, Dimensions,
 } from 'react-native';
+
+const { width: SCREEN_W } = Dimensions.get('window');
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery } from '@apollo/client';
 import { Colors } from '../../theme';
@@ -73,6 +75,9 @@ export default function RosterScreen({ route, navigation }: any) {
   };
 
   const NUM_COLUMNS = 3;
+  const GRID_H_PAD = 14;
+  const GRID_GAP = 10;
+  const CARD_WIDTH = Math.floor((SCREEN_W - GRID_H_PAD * 2 - GRID_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS);
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -125,19 +130,25 @@ export default function RosterScreen({ route, navigation }: any) {
             const { bg, ink } = kidColors(hue);
             const initials = `${item.firstName?.[0] ?? ''}${item.lastName?.[0] ?? ''}`.toUpperCase();
             return (
-              <View style={s.kidCard}>
+              <TouchableOpacity
+                style={[s.kidCard, { width: CARD_WIDTH }]}
+                activeOpacity={0.82}
+                onPress={() => navigation.navigate('EducatorKidDetail', {
+                  kidId: item.id,
+                  className,
+                })}
+              >
                 <View style={[s.kidAvatar, { backgroundColor: bg }]}>
                   {item.profilePhotoUrl ? (
                     <Image source={{ uri: item.profilePhotoUrl }} style={StyleSheet.absoluteFill} borderRadius={12} />
                   ) : (
                     <Text style={[s.kidAvatarTxt, { color: ink }]}>{initials}</Text>
                   )}
-                  {/* Radial highlight to suggest depth, matching design */}
                   <View style={s.kidAvatarHighlight} />
                 </View>
                 <Text style={s.kidName} numberOfLines={1}>{item.firstName}</Text>
                 <Text style={s.kidLast} numberOfLines={1}>{item.lastName}</Text>
-              </View>
+              </TouchableOpacity>
             );
           }}
         />
@@ -187,7 +198,6 @@ const s = StyleSheet.create({
   grid: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 100 },
   columnWrapper: { gap: 10, marginBottom: 10 },
   kidCard: {
-    flex: 1,
     backgroundColor: Colors.card,
     borderRadius: 14,
     paddingHorizontal: 8,

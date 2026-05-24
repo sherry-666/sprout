@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import ClassesScreen from '../screens/educator/ClassesScreen';
 import RosterScreen from '../screens/educator/RosterScreen';
 import LogActivityScreen from '../screens/educator/LogActivityScreen';
+import EducatorKidDetailScreen from '../screens/educator/EducatorKidDetailScreen';
+import ActivityDetailScreen from '../screens/educator/ActivityDetailScreen';
 import AgentsListScreen from '../screens/agents/AgentsListScreen';
 import ConversationScreen from '../screens/agents/ConversationScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
@@ -58,6 +60,8 @@ function HomeStackNav() {
       <HomeStack.Screen name="ClassesList" component={ClassesScreen} />
       <HomeStack.Screen name="Roster" component={RosterScreen} />
       <HomeStack.Screen name="LogActivity" component={LogActivityScreen} />
+      <HomeStack.Screen name="EducatorKidDetail" component={EducatorKidDetailScreen} />
+      <HomeStack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
     </HomeStack.Navigator>
   );
 }

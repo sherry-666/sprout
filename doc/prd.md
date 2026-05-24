@@ -173,7 +173,28 @@ The educator app has three bottom tabs:
 - **User bubbles**: educator's own messages appear right-aligned with a primary-colour background; agent messages appear left-aligned.
 - The "Send to parents" footer and "Review photo grouping / Drafts ready" cards appear only in `quick_log` conversations at the appropriate step.
 
-### 4.1c Chat Tab (Educator Mobile)
+### 4.1c Kid Profile & Activity Detail (Educator Mobile)
+**Purpose:** Let an educator dive into a specific child's record directly from the class roster, review logged activities, and share milestones.
+
+**Kid Profile screen** (reached by tapping a child's card in the Roster):
+- **Header**: child's avatar (hue-based gradient or profile photo), full name, class pill ("S · Sunflowers"), age ("2y 11m"), and date of birth.
+- **Parents section**: list of linked parents with their avatar, name, and relationship label (Mom / Dad). A green **Message** button opens the child's group chat thread directly.
+- **Activity section**: displays the most recent 5 logged activities. Scrolling to the bottom fetches the next page (10 at a time), sorted by time descending. Each activity card shows:
+  - Up to 2 photos (full-bleed at the top of the card)
+  - Update text (AI-enhanced if available)
+  - Timestamp, `+AI` badge if AI-enhanced, and "✓ Sent to parents" label
+
+**Activity Detail screen** (reached by tapping an activity card):
+- Horizontally pageable full-width photo strip (all photos for that update).
+- Activity type badge + AI badge.
+- Educator name and timestamp.
+- Full update text.
+- **Share section**: four buttons (Facebook, Twitter/X, WhatsApp, WeChat) *(TODO — UI only, platform SDK integration pending)*
+
+**Post-send activity links** (ConversationScreen after Quick Log is sent):
+- After the educator sends drafts via the Quick Log flow, a "View logged activities" card appears at the bottom of the conversation. Each enabled child is shown with a tap-target that navigates directly to their Kid Profile screen.
+
+### 4.1d Chat Tab (Educator Mobile)
 **Purpose:** Group messaging channel per child, accessible to all educators assigned to the child's class and all parents linked to that child.
 - **Chat list**: one row per child, showing the child's avatar, name, last message preview, sender prefix, and time.
 - **Kid chat**: real-time group chat for a single child. Educator messages appear right-aligned (primary colour); parent messages appear left-aligned with the sender's name.
