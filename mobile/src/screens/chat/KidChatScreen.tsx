@@ -155,9 +155,16 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
   if (isOwn) {
     return (
       <View style={ms.ownRow}>
-        <View style={ms.ownBubble}>
-          <Text style={ms.ownTxt}>{message.content}</Text>
-        </View>
+        {/* Single Text used as the bubble — Text measures itself accurately,
+            avoiding Android's View-wrapping-Text shrink-wrap measurement bug
+            that was clipping the last character of short messages. */}
+        <Text
+          style={ms.ownBubble}
+          textBreakStrategy="simple"
+          allowFontScaling={false}
+        >
+          {message.content}
+        </Text>
         <Text style={ms.ownTime}>{msgTime(message.createdAt)}</Text>
       </View>
     );
@@ -170,9 +177,13 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
         <Text style={ms.senderLabel}>
           {firstName} · Parent
         </Text>
-        <View style={ms.otherBubble}>
-          <Text style={ms.otherTxt}>{message.content}</Text>
-        </View>
+        <Text
+          style={ms.otherBubble}
+          textBreakStrategy="simple"
+          allowFontScaling={false}
+        >
+          {message.content}
+        </Text>
         <Text style={ms.otherTime}>{msgTime(message.createdAt)}</Text>
       </View>
     </View>
@@ -181,13 +192,12 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
 
 const ms = StyleSheet.create({
   ownRow: { alignItems: 'flex-end', marginBottom: 4 },
+  // ownBubble is applied directly to <Text> — combines bubble + text styles
   ownBubble: {
     backgroundColor: Colors.primary, borderRadius: 18,
     borderBottomRightRadius: 4,
     paddingLeft: 14, paddingRight: 16, paddingVertical: 10,
     maxWidth: '78%',
-  },
-  ownTxt: {
     fontSize: 15, color: Colors.white, lineHeight: 21,
     includeFontPadding: false,
   },
@@ -203,20 +213,14 @@ const ms = StyleSheet.create({
     marginBottom: 3, fontWeight: '500',
     includeFontPadding: false,
   },
+  // otherBubble is applied directly to <Text>
   otherBubble: {
     backgroundColor: Colors.white, borderRadius: 18,
     borderBottomLeftRadius: 4,
     paddingLeft: 14, paddingRight: 16, paddingVertical: 10,
-    maxWidth: '100%',
-    shadowColor: '#1a2820',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  otherTxt: {
     fontSize: 15, color: '#1d2a22', lineHeight: 21,
     includeFontPadding: false,
+    elevation: 1,
   },
   otherTime: {
     fontSize: 11, color: 'rgba(60,60,67,0.5)',
