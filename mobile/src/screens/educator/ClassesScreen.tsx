@@ -8,6 +8,7 @@ import { gql, useQuery } from '@apollo/client';
 import { useTranslation } from 'react-i18next';
 import { Colors, Shadow } from '../../theme';
 import { useQuickLog } from '../../contexts/QuickLogContext';
+import { MicIcon } from '../../components/SproutIcons';
 import ComposeSheet from './ComposeSheet';
 
 // ── GraphQL ────────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ export default function ClassesScreen({ navigation }: any) {
         <View style={s.quickLogCard}>
           <View style={s.qlRow}>
             <View style={s.qlMicCircle}>
-              <Text style={{ fontSize: 18, color: Colors.white }}>🎙</Text>
+              <MicIcon size={20} color={Colors.white} />
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

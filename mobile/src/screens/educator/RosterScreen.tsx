@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery } from '@apollo/client';
 import { Colors } from '../../theme';
+import { MicIcon } from '../../components/SproutIcons';
 import { useQuickLog } from '../../contexts/QuickLogContext';
 import ComposeSheet from './ComposeSheet';
 
@@ -149,7 +150,10 @@ export default function RosterScreen({ route, navigation }: any) {
           onPress={() => setSheetOpen(true)}
           activeOpacity={0.85}
         >
-          <Text style={s.qlBtnTxt}>🎙  Quick Log for {className}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <MicIcon size={16} color={Colors.white} />
+            <Text style={s.qlBtnTxt}>Quick Log for {className}</Text>
+          </View>
         </TouchableOpacity>
       </View>
 

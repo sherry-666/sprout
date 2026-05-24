@@ -260,24 +260,22 @@ export default function KidChatScreen({ route, navigation }: any) {
     }
   }, [isFocused, kidId]);
 
-  const handleSend = useCallback(() => {
-    setTimeout(async () => {
-      const text = inputTextRef.current.trim();
-      if (!text) return;
-      setInputText('');
-      inputTextRef.current = '';
-      try {
-        const { data: d } = await sendMessage({ variables: { kidId, content: text } });
-        const msg = d?.sendKidChat;
-        if (msg) setStreamed(prev => prev.some(x => x.id === msg.id) ? prev : [...prev, msg]);
-        scrollRef.current?.scrollToEnd({ animated: true });
-      } catch (e: any) {
-        Alert.alert('Failed to send', e.message ?? 'Please try again');
-        setInputText(text);
-        inputTextRef.current = text;
-      }
-    }, 0);
-  }, [kidId]);
+  const handleSend = useCallback(async () => {
+    const text = inputText.trim();
+    if (!text || sending) return;
+    setInputText('');
+    inputTextRef.current = '';
+    try {
+      const { data: d } = await sendMessage({ variables: { kidId, content: text } });
+      const msg = d?.sendKidChat;
+      if (msg) setStreamed(prev => prev.some(x => x.id === msg.id) ? prev : [...prev, msg]);
+      scrollRef.current?.scrollToEnd({ animated: true });
+    } catch (e: any) {
+      Alert.alert('Failed to send', e.message ?? 'Please try again');
+      setInputText(text);
+      inputTextRef.current = text;
+    }
+  }, [kidId, inputText, sending]);
 
   // Kid avatar
   const kidHue = nameToHue(kidName);
