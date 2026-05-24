@@ -262,11 +262,21 @@ export default function KidChatScreen({ route, navigation }: any) {
   }, [isFocused, kidId]);
 
   const handleSend = useCallback(async () => {
+    // Android IME holds the last typed word/char in composition state.
+    // blur() forces the IME to commit before we read the ref.
+    if (Platform.OS === 'android') {
+      inputRef.current?.blur();
+      await new Promise(resolve => setTimeout(resolve, 60));
+    }
     const text = inputTextRef.current.trim();
-    if (!text || sending) return;
+    if (!text || sending) {
+      if (Platform.OS === 'android') inputRef.current?.focus();
+      return;
+    }
     inputRef.current?.clear();
     inputTextRef.current = '';
     setHasText(false);
+    if (Platform.OS === 'android') inputRef.current?.focus();
     try {
       const { data: d } = await sendMessage({ variables: { kidId, content: text } });
       const msg = d?.sendKidChat;
