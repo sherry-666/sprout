@@ -196,8 +196,9 @@ The educator app has three bottom tabs:
 
 ### 4.1d Chat Tab (Educator Mobile)
 **Purpose:** Group messaging channel per child, accessible to all educators assigned to the child's class and all parents linked to that child.
-- **Chat list**: one row per child, showing the child's avatar, name, last message preview, sender prefix, and time.
-- **Kid chat**: real-time group chat for a single child. Educator messages appear right-aligned (primary colour); parent messages appear left-aligned with the sender's name.
+- **Chat list**: one row per child, showing the child's avatar, name, last message preview, sender prefix, and time. Activity-card messages are previewed as `📋 <first line of update>` so the row isn't empty.
+- **Kid chat**: real-time group chat for a single child. The viewer's own messages appear right-aligned (primary colour); other senders appear left-aligned with their first name and role label (`Sender · Parent` / `Sender · Educator`).
+- **Activity card messages**: when an educator sends drafts through Quick Log, the resulting Update is mirrored into the kid's chat thread as a special **activity card** (kind `activity_card`). The card shows up to 3 photo thumbnails (with `+N` overflow chip), a 1–3 line preview of the update text, and a "View activity ›" link. Tapping the card opens the full **Activity Detail** screen — for educators this lands in the Home stack, for parents in the Feed stack.
 - Messages are delivered via GraphQL subscription (`kidChatMessageAdded`).
 - Parents have a symmetric Chat tab in the parent app showing only children linked to their account.
 

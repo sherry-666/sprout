@@ -68,10 +68,7 @@ export default function RosterScreen({ route, navigation }: any) {
   const handleSheetSent = (conversationId: string) => {
     setSheetOpen(false);
     setActiveConversationId(conversationId);
-    navigation.getParent()?.navigate('Agents', {
-      screen: 'Conversation',
-      params: { conversationId },
-    });
+    navigation.navigate('Conversation', { conversationId });
   };
 
   const NUM_COLUMNS = 3;

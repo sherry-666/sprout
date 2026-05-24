@@ -1,11 +1,27 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Dimensions,
+  ScrollView, Dimensions, ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { gql, useQuery } from '@apollo/client';
 import { Colors, Radius, Spacing } from '../../theme';
+
+const UPDATE_BY_ID_QUERY = gql`
+  query ActivityById($id: ID!) {
+    update(id: $id) {
+      id
+      type
+      content
+      aiGeneratedContent
+      mediaUrls
+      timestamp
+      kid { id firstName lastName }
+      educator { profile { firstName lastName } }
+    }
+  }
+`;
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -34,8 +50,43 @@ function formatDateTime(ts: string): string {
 
 export default function ActivityDetailScreen({ route, navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { update, kidName } = route.params;
+  // Two entry modes: pass a full `update` object (from kid feed) OR pass
+  // `updateId` (from chat activity card) and we fetch by id.
+  const passedUpdate = route.params?.update;
+  const updateId = route.params?.updateId ?? passedUpdate?.id;
+  const passedKidName: string | undefined = route.params?.kidName;
 
+  const { data, loading } = useQuery(UPDATE_BY_ID_QUERY, {
+    variables: { id: updateId },
+    skip: !!passedUpdate || !updateId,
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const update = passedUpdate ?? data?.update;
+
+  if (!update) {
+    return (
+      <View style={[s.root, { paddingTop: insets.top }]}>
+        <View style={s.header}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            style={s.backBtn}
+          >
+            <Text style={s.backBtnTxt}>‹</Text>
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Activity</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          {loading
+            ? <ActivityIndicator color={Colors.primary} />
+            : <Text style={{ color: Colors.textSecondary }}>Activity not found.</Text>}
+        </View>
+      </View>
+    );
+  }
+
+  const kidName = passedKidName ?? update.kid?.firstName;
   const displayContent = update.aiGeneratedContent || update.content;
   const isAI = !!update.aiGeneratedContent && update.aiGeneratedContent !== update.content;
   const meta = TYPE_META[update.type] ?? TYPE_META.activity;

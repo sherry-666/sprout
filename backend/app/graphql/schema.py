@@ -218,6 +218,28 @@ class Query(AgentsQuery, ChatQuery):
             return None
         return Kid.from_doc(doc)
 
+    @strawberry.field(permission_classes=[IsAuthenticated])
+    async def update(
+        self,
+        info: Info[GraphQLContext, None],
+        id: strawberry.ID,
+    ) -> Optional[Update]:
+        """Fetch a single Update by id, scoped to the viewer (parent of the kid
+        or educator in the kid's institution)."""
+        db = info.context.db
+        doc = await db.updates.find_one({"_id": str(id)})
+        if not doc:
+            return None
+        kid = await db.kids.find_one({"_id": doc.get("kid_id")})
+        if not kid:
+            return None
+        role = info.context.viewer_role
+        if role == "parent" and info.context.viewer_id not in (kid.get("parent_user_ids") or []):
+            return None
+        if role in ("admin", "educator") and kid.get("institution_id") != info.context.viewer_institution_id:
+            return None
+        return Update.from_doc(doc)
+
     @strawberry.field(permission_classes=[IsEducator])
     async def classes(self, info: Info[GraphQLContext, None]) -> List[Class]:
         db = info.context.db

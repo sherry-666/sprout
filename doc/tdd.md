@@ -197,11 +197,24 @@ sprout/
 ### 4.10 Chat Messages Collection
 - `_id`: String (UUID)
 - `kid_id`: String (FK → kids._id) — the child this thread is about
+- `institution_id`: String (FK → institutions._id)
 - `sender_id`: String (FK → users._id)
 - `sender_name`: String — denormalized display name
-- `content`: String
+- `sender_role`: Enum (`educator`, `parent`, `admin`, `super_admin`)
+- `kind`: String — `text` (default) or `activity_card`. `text` renders a normal chat bubble; `activity_card` renders a tappable card that links to an `updates` doc.
+- `content`: String — body of a `text` message. Empty for `activity_card` (preview lives in `payload`).
+- `payload`: Dict — kind-specific. For `activity_card`:
+  - `update_id`: String (FK → updates._id) — the Update this card opens
+  - `type`: String — Update type (`activity`, `meal`, etc.) for icon/colour
+  - `preview`: String — first 120 chars of the update text, shown in the bubble + chat list
+  - `photo_keys`: List[String] — S3 keys; fresh presigned URLs are minted on each read into `photo_urls`
+  - `photo_count`: Int — total photo count (used for the `+N` overflow chip)
 - `created_at`: Date
 - Index: `(kid_id, created_at asc)`
+- Notes:
+  - When the educator sends Quick Log drafts via `sendConversationDrafts`, each enabled draft writes both a `updates` doc *and* a mirrored `activity_card` chat message with `update_id` pointing at the new Update.
+  - The `updates` doc is now inserted with an explicit string `_id` (`str(uuid.uuid4())`) so the chat card's `update_id` can be resolved via the new `update(id: ID!)` root query.
+  - Old chat messages with no `kind` field default to `text` at read time — backward compatible.
 
 ### 4.9 Jobs Collection (background queue)
 - `_id`: String (UUID)
@@ -270,10 +283,12 @@ sprout/
 - Subscription `messageAdded(conversationId: ID!) → Message` — Streams new messages over WebSocket via the `graphql-transport-ws` protocol.
 
 **Chat (per-kid group messaging)** (educator and parent roles):
-- Query `myKidThreads → [KidThread]` — Lists threads for all kids the viewer can access (educator: kids in their classes; parent: linked kids). Sorted by last message time. `KidThread { kidId, kidName, avatarUrl, lastMessage, lastSenderName, lastMessageAt }`.
-- Query `kidChatMessages(kidId: ID!, limit: Int) → [ChatMessage]` — Last N messages for a child's thread, newest-first. `ChatMessage { id, kidId, senderId, senderName, content, createdAt }`.
-- Mutation `sendKidChat(kidId: ID!, content: String!) → ChatMessage` — Access-checked (educator in same class OR parent linked to kid). Writes to `chat_messages` collection, publishes to all active subscribers.
-- Subscription `kidChatMessageAdded(kidId: ID!) → ChatMessage` — Real-time delivery via asyncio.Queue pubsub keyed by `kid_id`.
+- Query `myKidThreads → [KidThread]` — Lists threads for all kids the viewer can access (educator: kids in their classes; parent: linked kids). Sorted by last message time. `KidThread { kidId, kidName, avatarUrl, lastMessage, lastSenderName, lastMessageAt }`. For `activity_card` last messages, `lastMessage` is prefixed with `📋 ` and uses the card's preview text so the row isn't visually empty.
+- Query `kidChatMessages(kidId: ID!, limit: Int) → [ChatMessage]` — Last N messages for a child's thread, newest-first. `ChatMessage { id, kidId, senderId, senderName, senderRole, kind, content, payloadJson, createdAt }`. `payloadJson` is a JSON-encoded blob whose shape depends on `kind` — see TDD §4.10.
+- Query `update(id: ID!) → Update | null` — Fetches a single Update by id, scoped to the viewer (parent of the kid, or educator/admin in the kid's institution). Used by the chat activity-card tap to load the full Update for `ActivityDetailScreen`.
+- Mutation `sendKidChat(kidId: ID!, content: String!) → ChatMessage` — Access-checked (educator in same class OR parent linked to kid). Writes a `kind: text` doc to `chat_messages`, publishes to all active subscribers.
+- Mutation `sendConversationDrafts(conversationId)` — In addition to writing one `updates` doc per enabled draft, also writes a mirrored `chat_messages` doc of `kind: activity_card` with `payload.update_id` pointing at the new Update. Both the educator and any linked parent see the card in the kid's thread.
+- Subscription `kidChatMessageAdded(kidId: ID!) → ChatMessage` — Real-time delivery via asyncio.Queue pubsub keyed by `kid_id`. Carries both `text` and `activity_card` kinds.
 
 **Legacy (deprecated, kept for reference):**
 - `analyzeQuickLog` and `confirmQuickLog` — Synchronous one-shot mutations. Superseded by the 3-step Quick Log pipeline. Will be removed in a future cleanup.
@@ -342,7 +357,8 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
 - **ClassesScreen**: `query { me { classes { id name kids { id } educators { id } } } }` — uses the `User.classes` sub-field (filters by `educator_user_ids`), not the admin-restricted `classes` query.
 - **RosterScreen**: `query { class(id) { id name kids { ... } educators { ... } } }` — visible to any authenticated user. Kid cards have a fixed computed width (⅓ of the grid area) regardless of how many kids are in the last row. Tapping a card navigates to `EducatorKidDetailScreen`.
 - **EducatorKidDetailScreen**: `query { kid(id) { id firstName lastName profilePhotoUrl dateOfBirth class { id name } parents { id relationship profile { firstName lastName profilePhotoUrl } } updates(first: 5, after) { edges { cursor node { id type content aiGeneratedContent mediaUrls timestamp educator { profile { firstName lastName } } } } pageInfo { hasNextPage endCursor } } } }` — Initial fetch is 5 updates; subsequent pages are 10. FlatList groups updates under sticky date-section headers ("TODAY", "YESTERDAY", weekday). Tapping an update navigates to `ActivityDetailScreen`.
-- **ActivityDetailScreen**: Receives the full `update` object and `kidName` via navigation params (no additional query). Displays horizontally pageable photos, update text, type/AI badges, educator attribution, and four share buttons (Facebook, Twitter/X, WhatsApp, WeChat — UI only, SDK integration TODO).
+- **ActivityDetailScreen**: Two entry modes — either an `update` object passed directly (from kid feed; no extra query) OR an `updateId` (from the chat activity card); in the latter case the screen runs `query update(id: ID!) { id type content aiGeneratedContent mediaUrls timestamp kid { id firstName lastName } educator { profile { firstName lastName } } }` to load the full record. Displays horizontally pageable photos, update text, type/AI badges, educator attribution, and four share buttons (Facebook, Twitter/X, WhatsApp, WeChat — UI only, SDK integration TODO). Registered in both `EducatorNavigator.HomeStack` and `ParentNavigator.FeedStack`.
+- **KidChatScreen (chat activity card)**: messages with `kind: 'activity_card'` render as a tappable card (up to 3 photo thumbs + `+N` overflow chip, ≤3-line preview, "View activity ›" link). Tap routes through `navigation.getParent()?.navigate(tabName, { screen: 'ActivityDetail', params: { updateId, kidName } })` — `tabName` is `Home` for educators, `Feed` for parents. `isOwn` is now derived from `senderId === viewer.id` (was previously hard-coded to `senderRole === 'educator'`, which mis-aligned bubbles for parents).
 - **LogActivityScreen**: `mutation createUpdate(input: { classId, type, content, kidId? })` — logs a meal, nap, activity, or photo update.
 - **QuickLogScreen**: 3-step AI wizard (see PRD §4.1a). Uses:
   - `query { me { classes { id name } } }` — load class chips.

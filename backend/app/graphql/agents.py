@@ -498,7 +498,9 @@ class AgentsMutation:
                 "kid_ids": str(kid_id),
                 "educator_user_ids": viewer_id,
             })
+            update_id = str(uuid.uuid4())
             await db.updates.insert_one({
+                "_id": update_id,
                 "kid_id": str(kid_id),
                 "educator_user_id": viewer_id,
                 "class_id": str(cls_doc["_id"]) if cls_doc else "",
@@ -509,7 +511,9 @@ class AgentsMutation:
                 "detected_kid_ids": [],
                 "timestamp": datetime.utcnow(),
             })
-            # Mirror the update as a chat message so parents see it in the kid's thread
+            # Mirror the update as a rich activity_card chat message so parents
+            # and educators can tap through to view photos + full update.
+            preview = content if len(content) <= 120 else content[:117].rstrip() + "…"
             chat_doc = {
                 "_id": str(uuid.uuid4()),
                 "kid_id": str(kid_id),
@@ -517,7 +521,15 @@ class AgentsMutation:
                 "sender_id": viewer_id,
                 "sender_name": educator_name,
                 "sender_role": "educator",
-                "content": content,
+                "kind": "activity_card",
+                "content": "",  # rendered from payload
+                "payload": {
+                    "update_id": update_id,
+                    "type": "activity",
+                    "preview": preview,
+                    "photo_keys": list(photo_keys),
+                    "photo_count": len(photo_keys),
+                },
                 "created_at": datetime.utcnow(),
             }
             await db.chat_messages.insert_one(chat_doc)

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useIsFocused } from '@react-navigation/native';
 import { Colors } from '../../theme';
+import { useAuth } from '../../contexts/AuthContext';
 
 // ── GraphQL ────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,9 @@ const MESSAGES_QUERY = gql`
       senderId
       senderName
       senderRole
+      kind
       content
+      payloadJson
       createdAt
     }
   }
@@ -28,7 +31,7 @@ const MESSAGES_QUERY = gql`
 const SEND_MESSAGE = gql`
   mutation SendKidChat($kidId: ID!, $content: String!) {
     sendKidChat(kidId: $kidId, content: $content) {
-      id kidId senderId senderName senderRole content createdAt
+      id kidId senderId senderName senderRole kind content payloadJson createdAt
     }
   }
 `;
@@ -42,7 +45,7 @@ const MARK_READ = gql`
 const MESSAGE_ADDED = gql`
   subscription KidChatMessageAdded($kidId: ID!) {
     kidChatMessageAdded(kidId: $kidId) {
-      id kidId senderId senderName senderRole content createdAt
+      id kidId senderId senderName senderRole kind content payloadJson createdAt
     }
   }
 `;
@@ -85,8 +88,19 @@ interface ChatMsg {
   senderId: string;
   senderName: string;
   senderRole: string;
+  kind: string;
   content: string;
+  payloadJson: string;
   createdAt: string;
+}
+
+interface ActivityCardPayload {
+  update_id: string;
+  type: string;
+  preview: string;
+  photo_keys: string[];
+  photo_urls: string[];
+  photo_count: number;
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -153,7 +167,89 @@ function SenderAvatar({ name, size = 28 }: { name: string; size?: number }) {
 // the last typed character, defeating the bubble's right-edge clipping.
 const TAIL = '   ';
 
-function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
+function parsePayload(json: string): ActivityCardPayload | null {
+  try {
+    const p = JSON.parse(json || '{}');
+    return {
+      update_id: p.update_id ?? '',
+      type: p.type ?? 'activity',
+      preview: p.preview ?? '',
+      photo_keys: p.photo_keys ?? [],
+      photo_urls: p.photo_urls ?? [],
+      photo_count: p.photo_count ?? (p.photo_keys?.length ?? 0),
+    };
+  } catch { return null; }
+}
+
+function ActivityCard({ message, isOwn, onPress }: {
+  message: ChatMsg; isOwn: boolean; onPress: (updateId: string) => void;
+}) {
+  const payload = parsePayload(message.payloadJson);
+  if (!payload) return null;
+  const firstName = message.senderName.split(' ')[0];
+  const photos = payload.photo_urls.filter(Boolean).slice(0, 3);
+
+  return (
+    <View style={isOwn ? ac.ownRow : ac.otherRow}>
+      {!isOwn && <SenderAvatar name={message.senderName} size={28} />}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        {!isOwn && (
+          <Text style={ms.senderLabel} allowFontScaling={false}>
+            {firstName} · {senderRoleLabel(message.senderRole)}
+          </Text>
+        )}
+        <TouchableOpacity
+          activeOpacity={0.82}
+          onPress={() => payload.update_id && onPress(payload.update_id)}
+          style={[ac.card, isOwn && ac.cardOwn]}
+        >
+          <View style={ac.cardHead}>
+            <Text style={ac.cardEyebrow}>📋  ACTIVITY LOGGED</Text>
+            {payload.photo_count > 0 && (
+              <Text style={ac.cardEyebrowMeta}>
+                {payload.photo_count} photo{payload.photo_count === 1 ? '' : 's'}
+              </Text>
+            )}
+          </View>
+          {photos.length > 0 && (
+            <View style={ac.photoRow}>
+              {photos.map((url, i) => (
+                <Image key={i} source={{ uri: url }} style={ac.photo} />
+              ))}
+              {payload.photo_count > photos.length && (
+                <View style={[ac.photo, ac.photoMore]}>
+                  <Text style={ac.photoMoreTxt}>+{payload.photo_count - photos.length}</Text>
+                </View>
+              )}
+            </View>
+          )}
+          {!!payload.preview && (
+            <Text style={ac.cardText} numberOfLines={3}>{payload.preview}</Text>
+          )}
+          <View style={ac.cardFoot}>
+            <Text style={ac.cardLink}>View activity ›</Text>
+          </View>
+        </TouchableOpacity>
+        <Text style={isOwn ? ms.ownTime : ms.otherTime} allowFontScaling={false}>
+          {msgTime(message.createdAt) + TAIL}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function senderRoleLabel(role: string): string {
+  if (role === 'parent') return 'Parent';
+  return 'Educator';
+}
+
+function MessageRow({ message, isOwn, onActivityPress }: {
+  message: ChatMsg; isOwn: boolean; onActivityPress: (updateId: string) => void;
+}) {
+  if (message.kind === 'activity_card') {
+    return <ActivityCard message={message} isOwn={isOwn} onPress={onActivityPress} />;
+  }
+
   const firstName = message.senderName.split(' ')[0];
   const safeContent = message.content + TAIL;
 
@@ -177,7 +273,7 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
       <SenderAvatar name={message.senderName} size={28} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={ms.senderLabel} allowFontScaling={false}>
-          {firstName} · Parent
+          {firstName} · {senderRoleLabel(message.senderRole)}
         </Text>
         <Text
           style={ms.otherBubble}
@@ -191,6 +287,45 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
     </View>
   );
 }
+
+const ac = StyleSheet.create({
+  ownRow: { alignItems: 'flex-end', marginBottom: 6 },
+  otherRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
+  card: {
+    backgroundColor: Colors.white,
+    borderRadius: 14, borderTopLeftRadius: 4,
+    borderWidth: 1, borderColor: 'rgba(61,130,88,0.18)',
+    padding: 12, maxWidth: '90%',
+    shadowColor: '#1a2820', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 1,
+  },
+  cardOwn: { borderTopLeftRadius: 14, borderBottomRightRadius: 4 },
+  cardHead: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardEyebrow: {
+    fontSize: 10, fontWeight: '700', letterSpacing: 0.8,
+    color: Colors.primary,
+  },
+  cardEyebrowMeta: {
+    fontSize: 10, fontWeight: '500', color: 'rgba(60,60,67,0.5)',
+  },
+  photoRow: { flexDirection: 'row', gap: 4, marginBottom: 8 },
+  photo: { width: 70, height: 70, borderRadius: 8, backgroundColor: 'rgba(60,60,67,0.06)' },
+  photoMore: {
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(61,130,88,0.10)',
+  },
+  photoMoreTxt: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  cardText: { fontSize: 14, color: '#1d2a22', lineHeight: 20, marginBottom: 8 },
+  cardFoot: {
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(60,60,67,0.10)',
+  },
+  cardLink: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
+});
 
 const ms = StyleSheet.create({
   ownRow: { alignItems: 'flex-end', marginBottom: 4 },
@@ -239,6 +374,19 @@ export default function KidChatScreen({ route, navigation }: any) {
   const { kidId, kidName, parentNames = [], className = '', avatarUrl = null } = route.params;
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const { user } = useAuth();
+  const viewerRole = user?.role;
+  const isEducator = viewerRole === 'educator' || viewerRole === 'admin' || viewerRole === 'super_admin';
+
+  const openActivity = useCallback((updateId: string) => {
+    // navigation = ChatStack (per-tab stack); getParent() = the Tab navigator.
+    // Switch to the home tab and forward params to its ActivityDetail screen.
+    const tabName = isEducator ? 'Home' : 'Feed';
+    navigation.getParent()?.navigate(tabName, {
+      screen: 'ActivityDetail',
+      params: { updateId, kidName },
+    });
+  }, [isEducator, navigation, kidName]);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [hasText, setHasText] = useState(false);
   const inputTextRef = useRef('');
@@ -383,11 +531,11 @@ export default function KidChatScreen({ route, navigation }: any) {
           const label = dayLabel(m.createdAt);
           const prevLabel = i > 0 ? dayLabel(messages[i - 1].createdAt) : null;
           const showSep = label !== prevLabel;
-          const isOwn = m.senderRole === 'educator';
+          const isOwn = user?.id ? m.senderId === user.id : m.senderRole === 'educator';
           return (
             <React.Fragment key={m.id}>
               {showSep && <DateSeparator label={label} />}
-              <MessageRow message={m} isOwn={isOwn} />
+              <MessageRow message={m} isOwn={isOwn} onActivityPress={openActivity} />
             </React.Fragment>
           );
         })}

@@ -16,11 +16,10 @@ const EDUCATOR_KID_QUERY = gql`
       lastName
       profilePhotoUrl
       dateOfBirth
-      class { id name }
+      classes { id name }
       parents {
         id
-        relationship
-        profile { firstName lastName profilePhotoUrl }
+        profile { firstName lastName avatarUrl }
       }
       updates(first: $first, after: $after) {
         edges {
@@ -106,10 +105,10 @@ function KidHeader({ kid, initials, kidBg, parents, updateCount, totalPhotos, na
           <Text style={s.kidName}>{kid.firstName}</Text>
           <Text style={s.kidLastName}>{kid.lastName}</Text>
           <View style={s.pillRow}>
-            {kid.class && (
+            {kid.classes?.[0] && (
               <View style={s.classPill}>
                 <Text style={s.classPillTxt}>
-                  {kid.class.name[0]} · {kid.class.name}
+                  {kid.classes[0].name[0]} · {kid.classes[0].name}
                 </Text>
               </View>
             )}
@@ -136,9 +135,9 @@ function KidHeader({ kid, initials, kidBg, parents, updateCount, totalPhotos, na
             return (
               <View key={p.id} style={[s.parentRow, i < parents.length - 1 && s.parentRowBorder]}>
                 <View style={[s.parentAvatar, { backgroundColor: bg }]}>
-                  {p.profile?.profilePhotoUrl ? (
+                  {p.profile?.avatarUrl ? (
                     <Image
-                      source={{ uri: p.profile.profilePhotoUrl }}
+                      source={{ uri: p.profile.avatarUrl }}
                       style={StyleSheet.absoluteFill}
                       contentFit="cover"
                       cachePolicy="memory-disk"
@@ -149,7 +148,7 @@ function KidHeader({ kid, initials, kidBg, parents, updateCount, totalPhotos, na
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.parentName}>{p.profile?.firstName} {p.profile?.lastName}</Text>
-                  {!!p.relationship && <Text style={s.parentRole}>{p.relationship}</Text>}
+                  <Text style={s.parentRole}>Parent</Text>
                 </View>
               </View>
             );
@@ -158,9 +157,9 @@ function KidHeader({ kid, initials, kidBg, parents, updateCount, totalPhotos, na
             style={s.messageBtn}
             activeOpacity={0.85}
             onPress={() =>
-              navigation.getParent()?.navigate('Chat', {
-                screen: 'KidChat',
-                params: { kidId: kid.id, kidName: `${kid.firstName} ${kid.lastName}` },
+              navigation.navigate('KidChat', {
+                kidId: kid.id,
+                kidName: `${kid.firstName} ${kid.lastName}`,
               })
             }
           >

@@ -62,6 +62,8 @@ function HomeStackNav() {
       <HomeStack.Screen name="LogActivity" component={LogActivityScreen} />
       <HomeStack.Screen name="EducatorKidDetail" component={EducatorKidDetailScreen} />
       <HomeStack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+      <HomeStack.Screen name="KidChat" component={KidChatScreen} />
+      <HomeStack.Screen name="Conversation" component={ConversationScreen} />
     </HomeStack.Navigator>
   );
 }

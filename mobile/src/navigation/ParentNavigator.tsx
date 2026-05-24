@@ -5,6 +5,7 @@ import { Text } from 'react-native';
 import FeedScreen from '../screens/parent/FeedScreen';
 import KidDetailScreen from '../screens/parent/KidDetailScreen';
 import SummaryScreen from '../screens/parent/SummaryScreen';
+import ActivityDetailScreen from '../screens/educator/ActivityDetailScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import KidChatScreen from '../screens/chat/KidChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -26,6 +27,7 @@ function FeedStackNav() {
       <FeedStack.Screen name="FeedList" component={FeedScreen} options={{ title: 'My Kids' }} />
       <FeedStack.Screen name="KidDetail" component={KidDetailScreen} options={({ route }: any) => ({ title: route.params?.kidName ?? 'Updates' })} />
       <FeedStack.Screen name="Summary" component={SummaryScreen} options={({ route }: any) => ({ title: `${route.params?.kidName ?? 'Daily'} Summary` })} />
+      <FeedStack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ headerShown: false }} />
     </FeedStack.Navigator>
   );
 }

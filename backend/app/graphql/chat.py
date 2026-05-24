@@ -7,6 +7,7 @@ Each kid has one chat thread. Participants:
 """
 from __future__ import annotations
 import asyncio
+import json
 import logging
 import uuid
 from datetime import datetime
@@ -21,6 +22,11 @@ from app.graphql.permissions import IsAuthenticated
 from app.graphql.scalars import DateTime
 
 log = logging.getLogger(__name__)
+
+# ─── Message kinds ─────────────────────────────────────────────────────────
+# Plain text bubble vs. an activity card that links to an Update doc.
+CHAT_KIND_TEXT = "text"
+CHAT_KIND_ACTIVITY = "activity_card"
 
 # ─── PubSub ────────────────────────────────────────────────────────────────
 
@@ -58,18 +64,37 @@ class ChatMessage:
     sender_id: strawberry.ID
     sender_name: str
     sender_role: str
+    kind: str
     content: str
+    payload_json: str
     created_at: DateTime
 
     @classmethod
     def from_doc(cls, doc: dict) -> "ChatMessage":
+        payload = doc.get("payload") or {}
+        kind = doc.get("kind") or CHAT_KIND_TEXT
+        # Activity cards store S3 keys; mint fresh presigned URLs on each read so
+        # the URLs never expire mid-render.
+        if kind == CHAT_KIND_ACTIVITY:
+            try:
+                from app.core.storage import safe_presign_get
+                photo_keys = payload.get("photo_keys") or []
+                if photo_keys:
+                    payload = {
+                        **payload,
+                        "photo_urls": [safe_presign_get(k, expires_in=86400) or "" for k in photo_keys],
+                    }
+            except Exception:
+                pass
         return cls(
             id=strawberry.ID(str(doc["_id"])),
             kid_id=strawberry.ID(str(doc["kid_id"])),
             sender_id=strawberry.ID(str(doc["sender_id"])),
             sender_name=doc.get("sender_name", ""),
             sender_role=doc.get("sender_role", "educator"),
+            kind=kind,
             content=doc.get("content", ""),
+            payload_json=json.dumps(payload),
             created_at=doc.get("created_at", datetime.utcnow()),
         )
 
@@ -191,11 +216,20 @@ class ChatQuery:
                 for pid in parent_ids
                 if pid in parent_first_name_by_id
             ]
+            # Activity cards have empty `content`; preview the update text instead
+            # so the chat list isn't visually empty.
+            last_preview: Optional[str] = None
+            if last:
+                if last.get("kind") == CHAT_KIND_ACTIVITY:
+                    payload = last.get("payload") or {}
+                    last_preview = "📋 " + (payload.get("preview") or "New activity")
+                else:
+                    last_preview = last.get("content")
             threads.append(KidThread(
                 id=strawberry.ID(kid["_id"]),
                 name=name,
                 avatar_url=avatar_url,
-                last_message=last["content"] if last else None,
+                last_message=last_preview,
                 last_message_at=last["created_at"] if last else None,
                 last_sender_name=last["sender_name"] if last else None,
                 parent_names=parent_names,
@@ -254,7 +288,9 @@ class ChatMutation:
             "sender_id": viewer_id,
             "sender_name": sender_name,
             "sender_role": sender_role,
+            "kind": CHAT_KIND_TEXT,
             "content": content.strip(),
+            "payload": {},
             "created_at": datetime.utcnow(),
         }
         await db.chat_messages.insert_one(doc)
