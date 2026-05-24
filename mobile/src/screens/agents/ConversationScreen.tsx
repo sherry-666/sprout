@@ -237,19 +237,27 @@ function PhotoMatchingCard({
   const dragX = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
   const kidCardRefs = useRef<Record<string, View | null>>({});
+  // The drag ghost is absolutely positioned inside this card, but PanResponder
+  // gives us screen-relative pageX/pageY — so we subtract the card's screen offset.
+  const cardRef = useRef<View>(null);
+  const cardOffsetRef = useRef({ x: 0, y: 0 });
 
   const handleDragStart = useCallback((key: string, url: string, px: number, py: number) => {
     const p = { key, url };
     draggingRef.current = p;
     setDraggingPhoto(p);
-    dragX.setValue(px - 36);
-    dragY.setValue(py - 36);
+    cardRef.current?.measureInWindow((cx, cy) => {
+      cardOffsetRef.current = { x: cx, y: cy };
+      dragX.setValue(px - cx - 36);
+      dragY.setValue(py - cy - 36);
+    });
     onDragStateChange(true);
   }, [onDragStateChange]);
 
   const handleDragMove = useCallback((px: number, py: number) => {
-    dragX.setValue(px - 36);
-    dragY.setValue(py - 36);
+    const { x, y } = cardOffsetRef.current;
+    dragX.setValue(px - x - 36);
+    dragY.setValue(py - y - 36);
   }, []);
 
   const handleDragEnd = useCallback((px: number, py: number) => {
@@ -274,7 +282,7 @@ function PhotoMatchingCard({
   const unmatchedCount = photos.filter(p => !allPhotoKeys.has(p.key)).length;
 
   return (
-    <View style={cs.card}>
+    <View ref={cardRef} style={cs.card}>
       {/* Header */}
       <View style={cs.cardHeader}>
         <Text style={cs.cardEyebrow}>PHOTO MATCHING</Text>
