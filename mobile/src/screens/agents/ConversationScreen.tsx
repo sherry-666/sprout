@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity,
-  ActivityIndicator, Image, Alert, Keyboard, Platform, Switch,
+  ActivityIndicator, Alert, Keyboard, Platform, Switch,
   PanResponder, Animated, Modal, FlatList,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { gql, useQuery, useMutation, useSubscription } from '@apollo/client';
@@ -327,7 +328,7 @@ function PhotoMatchingCard({
             >
               <View style={cs.kidAvatar}>
                 {draft.payload.avatar_url
-                  ? <Image source={{ uri: draft.payload.avatar_url }} style={StyleSheet.absoluteFill} />
+                  ? <Image source={{ uri: draft.payload.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
                   : <Text style={cs.kidAvatarTxt}>{(draft.payload.kid_name ?? '?')[0]}</Text>}
               </View>
               <View style={{ flex: 1 }}>
@@ -342,7 +343,7 @@ function PhotoMatchingCard({
                       disabled={readOnly}
                       onPress={() => removePhoto({ variables: { messageId: draft.id, photoKey: p.key } })}
                     >
-                      <Image source={{ uri: p.url }} style={cs.assignedThumb} />
+                      <Image source={{ uri: p.url }} style={cs.assignedThumb} contentFit="cover" cachePolicy="memory-disk" transition={0} />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -350,7 +351,7 @@ function PhotoMatchingCard({
               {!readOnly && (
                 <Switch
                   value={enabled}
-                  onValueChange={val => toggleEnabled({ variables: { messageId: draft.id, enabled: val } })}
+                  onValueChange={val => { toggleEnabled({ variables: { messageId: draft.id, enabled: val } }); }}
                   trackColor={{ false: Colors.border, true: Colors.primary }}
                   thumbColor={Colors.white}
                   style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
@@ -393,7 +394,7 @@ function PhotoMatchingCard({
                       }}
                     >
                       {item.avatarUrl
-                        ? <Image source={{ uri: item.avatarUrl }} style={cs.pickerAvatar} />
+                        ? <Image source={{ uri: item.avatarUrl }} style={cs.pickerAvatar} contentFit="cover" cachePolicy="memory-disk" transition={0} />
                         : <View style={[cs.pickerAvatar, cs.pickerAvatarFallback]}>
                             <Text style={cs.pickerAvatarTxt}>{item.name[0]}</Text>
                           </View>}
@@ -413,7 +414,7 @@ function PhotoMatchingCard({
           pointerEvents="none"
           style={[cs.dragGhost, { transform: [{ translateX: dragX }, { translateY: dragY }] }]}
         >
-          <Image source={{ uri: draggingPhoto.url }} style={cs.dragGhostImg} />
+          <Image source={{ uri: draggingPhoto.url }} style={cs.dragGhostImg} contentFit="cover" cachePolicy="memory-disk" transition={0} />
         </Animated.View>
       )}
     </View>
@@ -457,7 +458,7 @@ function DraggablePhotoTile({
 
   return (
     <View {...panResponder.panHandlers} style={cs.photoTile}>
-      <Image source={{ uri: photo.url }} style={cs.photoTileImg} />
+      <Image source={{ uri: photo.url }} style={cs.photoTileImg} contentFit="cover" cachePolicy="memory-disk" transition={0} />
       {unmatched && !readOnly && (
         <View style={cs.unmatchedBadge}><Text style={{ color: Colors.white, fontSize: 10, fontWeight: '700' }}>!</Text></View>
       )}
@@ -557,7 +558,7 @@ function DraftsCard({
                       }}
                     >
                       {item.avatarUrl
-                        ? <Image source={{ uri: item.avatarUrl }} style={cs.pickerAvatar} />
+                        ? <Image source={{ uri: item.avatarUrl }} style={cs.pickerAvatar} contentFit="cover" cachePolicy="memory-disk" transition={0} />
                         : <View style={[cs.pickerAvatar, cs.pickerAvatarFallback]}>
                             <Text style={cs.pickerAvatarTxt}>{item.name[0]}</Text>
                           </View>}
@@ -593,7 +594,7 @@ function DraftBlock({
       <View style={dc.blockHead}>
         <View style={dc.kidAvatar}>
           {draft.payload.avatar_url
-            ? <Image source={{ uri: draft.payload.avatar_url }} style={StyleSheet.absoluteFill} />
+            ? <Image source={{ uri: draft.payload.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
             : <Text style={dc.kidAvatarTxt}>{(draft.payload.kid_name ?? '?')[0]}</Text>}
         </View>
         <View style={{ flex: 1 }}>
@@ -616,7 +617,7 @@ function DraftBlock({
           {(draft.payload.photo_urls ?? []).length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 6 }}>
               {draft.payload.photo_urls.map((url, i) =>
-                !!url && <Image key={i} source={{ uri: url }} style={dc.photoThumb} />,
+                !!url && <Image key={i} source={{ uri: url }} style={dc.photoThumb} contentFit="cover" cachePolicy="memory-disk" transition={0} />,
               )}
             </ScrollView>
           )}

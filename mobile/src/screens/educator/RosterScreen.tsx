@@ -164,7 +164,7 @@ export default function RosterScreen({ route, navigation }: any) {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f3f4f8' },
+  root: { flex: 1, backgroundColor: '#f6f4ec' },
 
   // Header
   header: { paddingHorizontal: 20, paddingBottom: 14 },
@@ -176,7 +176,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   classGlyphTxt: { fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
-  className: { fontSize: 26, fontWeight: '600', letterSpacing: -0.4, color: '#1d1d2a' },
+  className: { fontSize: 26, fontWeight: '600', letterSpacing: -0.4, color: '#1d2a22' },
   classSub: { fontSize: 13, color: 'rgba(60,60,67,0.6)', marginTop: 2 },
 
   // Grid
@@ -210,7 +210,7 @@ const s = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: 12,
   },
-  kidName: { fontSize: 13, fontWeight: '600', color: '#1d1d2a', textAlign: 'center' },
+  kidName: { fontSize: 13, fontWeight: '600', color: '#1d2a22', textAlign: 'center' },
   kidLast: { fontSize: 11, color: 'rgba(60,60,67,0.55)', marginTop: 1, textAlign: 'center' },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
@@ -218,7 +218,7 @@ const s = StyleSheet.create({
   emptyTxt: { fontSize: 16, color: 'rgba(60,60,67,0.55)', textAlign: 'center' },
 
   // Footer
-  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#f3f4f8' },
+  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#f6f4ec' },
   qlBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,

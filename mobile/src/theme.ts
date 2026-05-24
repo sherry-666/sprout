@@ -1,16 +1,16 @@
 export const Colors = {
-  primary: '#4F46E5',
-  primaryLight: 'rgba(79,70,229,0.12)',
-  secondary: '#7C3AED',
+  primary: '#3d8258',       // sprout green (oklch 0.55 0.12 145)
+  primaryLight: 'rgba(61,130,88,0.13)',
+  secondary: '#2d6b45',
   success: '#10b981',
   successLight: 'rgba(16,185,129,0.12)',
   warning: '#f59e0b',
   warningLight: 'rgba(245,158,11,0.12)',
   danger: '#dc2626',
   dangerLight: 'rgba(220,38,38,0.1)',
-  bg: '#F5F6FA',
+  bg: '#f6f4ec',            // warm cream from design
   card: '#FFFFFF',
-  textPrimary: '#111827',
+  textPrimary: '#1d2a22',   // dark green-tinted ink
   textSecondary: '#6B7280',
   border: '#E5E7EB',
   white: '#FFFFFF',

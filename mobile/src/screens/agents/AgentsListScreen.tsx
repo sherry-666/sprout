@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery, useMutation } from '@apollo/client';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '../../theme';
 import { useQuickLog } from '../../contexts/QuickLogContext';
 import { SparkIcon } from '../../components/SproutIcons';
@@ -26,6 +27,12 @@ const MY_CONVERSATIONS = gql`
 const DELETE_CONVERSATION = gql`
   mutation DeleteConversationAI($conversationId: ID!) {
     deleteConversation(conversationId: $conversationId)
+  }
+`;
+
+const CREATE_CHAT = gql`
+  mutation CreateChatConversationAI {
+    createChatConversation { id }
   }
 `;
 
@@ -78,7 +85,8 @@ function glyphColors(hue: number) {
 
 export default function AgentsListScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { activeConversationId } = useQuickLog();
+  const { t } = useTranslation();
+  const { activeConversationId, setActiveConversationId } = useQuickLog();
   const { data, loading, refetch } = useQuery(MY_CONVERSATIONS, {
     fetchPolicy: 'cache-and-network',
     pollInterval: 5000,
@@ -86,6 +94,20 @@ export default function AgentsListScreen({ navigation }: any) {
   const [deleteConversation] = useMutation(DELETE_CONVERSATION, {
     refetchQueries: [{ query: MY_CONVERSATIONS }],
   });
+  const [createChat, { loading: creatingChat }] = useMutation(CREATE_CHAT, {
+    refetchQueries: [{ query: MY_CONVERSATIONS }],
+  });
+
+  const handleNewChat = async () => {
+    try {
+      const { data: cd } = await createChat();
+      const convoId = cd?.createChatConversation?.id;
+      if (convoId) {
+        setActiveConversationId(convoId);
+        navigation.navigate('Conversation', { conversationId: convoId });
+      }
+    } catch (_) {}
+  };
 
   const conversations: any[] = data?.myConversations ?? [];
 
@@ -104,8 +126,27 @@ export default function AgentsListScreen({ navigation }: any) {
     <View style={[s.root, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.eyebrow}>CONVERSATIONS</Text>
-        <Text style={s.title}>AI</Text>
+        <View style={s.headerRow}>
+          <View>
+            <Text style={s.eyebrow}>{t('ai.conversations').toUpperCase()}</Text>
+            <Text style={s.title}>{t('ai.title')}</Text>
+          </View>
+          <TouchableOpacity
+            style={s.newChatBtn}
+            onPress={handleNewChat}
+            disabled={creatingChat}
+            activeOpacity={0.85}
+          >
+            {creatingChat
+              ? <ActivityIndicator size="small" color={Colors.white} />
+              : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <SparkIcon size={14} color={Colors.white} />
+                  <Text style={s.newChatTxt}>{t('ai.newChat')}</Text>
+                </View>
+              )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -121,7 +162,7 @@ export default function AgentsListScreen({ navigation }: any) {
             {/* In-progress card */}
             {active && (
               <View style={s.inProgressSection}>
-                <Text style={s.sectionEyebrow}>IN PROGRESS</Text>
+                <Text style={s.sectionEyebrow}>{t('ai.inProgress').toUpperCase()}</Text>
                 <TouchableOpacity
                   onPress={() => openConversation(active.id)}
                   activeOpacity={0.85}
@@ -129,7 +170,6 @@ export default function AgentsListScreen({ navigation }: any) {
                   <View style={s.activeCard}>
                     <View style={s.activeCardTop}>
                       <View style={s.sparkleAvatar}>
-                        {/* Pulsing ring for processing states */}
                         {isActiveStatus(active.status) && active.status !== 'awaiting_review' && (
                           <View style={s.pulseRing} />
                         )}
@@ -137,9 +177,10 @@ export default function AgentsListScreen({ navigation }: any) {
                       </View>
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={s.activeTitle}>Today's Quick Log</Text>
+                          <Text style={s.activeTitle}>{t('ai.todayLog')}</Text>
                           <View style={s.aiBadge}>
-                            <Text style={s.aiBadgeTxt}>✦ AI</Text>
+                            <SparkIcon size={10} color={Colors.primary} />
+                            <Text style={s.aiBadgeTxt}> AI</Text>
                           </View>
                         </View>
                         <Text style={s.activeSub}>{active.title ?? 'Quick Log'}</Text>
@@ -159,7 +200,7 @@ export default function AgentsListScreen({ navigation }: any) {
 
             {/* History heading */}
             {history.length > 0 && (
-              <Text style={[s.sectionEyebrow, { marginBottom: 8 }]}>EARLIER</Text>
+              <Text style={[s.sectionEyebrow, { marginBottom: 8 }]}>{t('ai.earlier').toUpperCase()}</Text>
             )}
           </>
         }
@@ -167,9 +208,7 @@ export default function AgentsListScreen({ navigation }: any) {
           !active ? (
             <View style={s.emptyState}>
               <SparkIcon size={48} color="rgba(60,60,67,0.25)" />
-              <Text style={s.emptyTxt}>
-                No conversations yet.{'\n'}Start a Quick Log from Home to begin.
-              </Text>
+              <Text style={s.emptyTxt}>{t('ai.noConversations')}</Text>
             </View>
           ) : null
         }
@@ -255,16 +294,27 @@ function WorkingDots({ color }: { color: string }) {
 // ── Styles ─────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f3f4f8' },
+  root: { flex: 1, backgroundColor: '#f6f4ec' },
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  headerRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
+    marginBottom: 16,
+  },
   eyebrow: {
     fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
     textTransform: 'uppercase', color: 'rgba(60,60,67,0.55)',
   },
   title: {
     fontSize: 30, fontWeight: '600', letterSpacing: -0.6,
-    color: '#1d1d2a', marginTop: 4, marginBottom: 16,
+    color: '#1d2a22', marginTop: 4,
   },
+  newChatBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-end', marginBottom: 4,
+  },
+  newChatTxt: { color: Colors.white, fontSize: 13, fontWeight: '600' },
 
   list: { paddingHorizontal: 20, paddingBottom: 40 },
 
@@ -277,9 +327,9 @@ const s = StyleSheet.create({
   inProgressSection: { marginBottom: 22 },
 
   activeCard: {
-    backgroundColor: 'rgba(79,70,229,0.09)',
+    backgroundColor: 'rgba(61,130,88,0.09)',
     borderRadius: 16, padding: 16,
-    borderWidth: 1.5, borderColor: 'rgba(79,70,229,0.2)',
+    borderWidth: 1.5, borderColor: 'rgba(61,130,88,0.2)',
   },
   activeCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   sparkleAvatar: {
@@ -293,7 +343,7 @@ const s = StyleSheet.create({
     borderWidth: 2, borderColor: Colors.primary,
     opacity: 0.4,
   },
-  activeTitle: { fontSize: 15, fontWeight: '600', color: '#1d1d2a' },
+  activeTitle: { fontSize: 15, fontWeight: '600', color: '#1d2a22' },
   activeSub: { fontSize: 12, color: 'rgba(60,60,67,0.65)', marginTop: 2 },
   activeStatus: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -304,7 +354,8 @@ const s = StyleSheet.create({
 
   // AI badge
   aiBadge: {
-    backgroundColor: 'rgba(79,70,229,0.12)',
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(61,130,88,0.12)',
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
   },
   aiBadgeTxt: { fontSize: 10, fontWeight: '600', color: Colors.primary, letterSpacing: 0.3 },
@@ -326,7 +377,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   historyGlyphTxt: { fontSize: 15, fontWeight: '700', letterSpacing: -0.4 },
-  historyTitle: { fontSize: 14, fontWeight: '600', color: '#1d1d2a' },
+  historyTitle: { fontSize: 14, fontWeight: '600', color: '#1d2a22' },
   historySub: { fontSize: 12, color: 'rgba(60,60,67,0.55)', marginTop: 1 },
   historyTime: { fontSize: 11, color: 'rgba(60,60,67,0.5)' },
 

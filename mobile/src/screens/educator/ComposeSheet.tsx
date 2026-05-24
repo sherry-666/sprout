@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Modal, ActivityIndicator, Image, Alert, Keyboard, Platform,
-  Animated,
+  Animated, TextInput,
 } from 'react-native';
 import {
   ExpoSpeechRecognitionModule,
@@ -10,8 +10,10 @@ import {
 } from 'expo-speech-recognition';
 import * as ImagePicker from 'expo-image-picker';
 import { gql, useQuery, useMutation } from '@apollo/client';
+import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { Colors, Spacing, Radius, Shadow } from '../../theme';
+import { SparkIcon } from '../../components/SproutIcons';
 
 // ── GraphQL ────────────────────────────────────────────────────────────────
 
@@ -60,6 +62,7 @@ export interface ComposeSheetProps {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function ComposeSheet({ visible, initialClassId, onClose, onSent }: ComposeSheetProps) {
+  const { t } = useTranslation();
   const { data } = useQuery(MY_CLASSES_QUERY, { fetchPolicy: 'cache-and-network', skip: !visible });
   const [presignPhoto] = useMutation(PRESIGN_PHOTO);
   const [createConversation, { loading: creating }] = useMutation(CREATE_CONVERSATION);
@@ -74,6 +77,7 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
       setNote('');
       setPhotos([]);
       setRecordSeconds(0);
+      accumulatedSecondsRef.current = 0;
       setWavePhase(0);
       if (isRecordingRef.current) {
         isRecordingRef.current = false;
@@ -89,17 +93,26 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
   const [note, setNote] = useState('');
   const preRecordNoteRef = useRef('');
   const [recordSeconds, setRecordSeconds] = useState(0);
+  const accumulatedSecondsRef = useRef(0);
   const [wavePhase, setWavePhase] = useState(0);
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   // ── Photos ─────────────────────────────────────────────────────────────
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
-  // Timer & wave
+  // Timer & wave — accumulates across multiple recordings
   useEffect(() => {
-    if (!isRecording) { setRecordSeconds(0); return; }
-    const t = setInterval(() => setRecordSeconds(s => s + 1), 1000);
-    return () => clearInterval(t);
+    if (!isRecording) {
+      accumulatedSecondsRef.current = recordSeconds;
+      return;
+    }
+    const base = accumulatedSecondsRef.current;
+    let elapsed = 0;
+    const interval = setInterval(() => {
+      elapsed += 1;
+      setRecordSeconds(base + elapsed);
+    }, 1000);
+    return () => clearInterval(interval);
   }, [isRecording]);
 
   useEffect(() => {
@@ -240,7 +253,7 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
 
           {/* Header */}
           <View style={s.header}>
-            <Text style={s.title}>Quick Log</Text>
+            <Text style={s.title}>{t('compose.title')}</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
               <Text style={s.closeBtn}>✕</Text>
             </TouchableOpacity>
@@ -248,8 +261,11 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
 
           {/* Subtitle */}
           <View style={s.subRow}>
-            <View style={s.aiBadge}><Text style={s.aiBadgeTxt}>✨ AI</Text></View>
-            <Text style={s.sub}>Speak, snap, send. We'll write to families.</Text>
+            <View style={s.aiBadge}>
+              <SparkIcon size={10} color={Colors.primary} />
+              <Text style={s.aiBadgeTxt}> AI</Text>
+            </View>
+            <Text style={s.sub}>{t('compose.subtitle')}</Text>
           </View>
 
           {/* Recording control */}
@@ -263,12 +279,14 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
                 onPress={() => (isRecordingRef.current ? stopRecording() : startRecording())}
                 activeOpacity={0.85}
               >
-                <Text style={s.micIcon}>{isRecording ? '⏸' : '🎙'}</Text>
+                {isRecording
+                  ? <View style={s.pauseIcon}><View style={s.pauseBar} /><View style={s.pauseBar} /></View>
+                  : <Text style={s.micIcon}>🎙</Text>}
               </TouchableOpacity>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[s.recLabel, { color: isRecording ? Colors.primary : Colors.textSecondary }]}>
-                {isRecording ? 'Recording…' : (note ? 'Paused' : 'Tap to record')}
+                {isRecording ? t('compose.recording') : (recordSeconds > 0 ? t('compose.paused') : t('compose.tapToRecord'))}
               </Text>
               <View style={s.waveRow}>
                 {Array.from({ length: 24 }).map((_, i) => {
@@ -296,15 +314,26 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
             </Text>
           </View>
 
+          {/* Transcript / note edit area */}
+          <TextInput
+            style={s.transcriptInput}
+            value={note}
+            onChangeText={setNote}
+            placeholder={t('compose.transcriptPlaceholder')}
+            placeholderTextColor="rgba(60,60,67,0.35)"
+            multiline
+            editable={!isRecording}
+          />
+
           {/* Photo strip */}
           <View style={s.photoSection}>
             <View style={s.photoHeader}>
               <Text style={s.photoLabel}>
-                Photos{photos.length > 0 ? ` · ${photos.length}` : ''}
+                {t('compose.photos')}{photos.length > 0 ? ` · ${photos.length}` : ''}
               </Text>
               {photos.length < 10 && (
                 <TouchableOpacity onPress={pickPhotos}>
-                  <Text style={s.addPhotoLink}>+ Add</Text>
+                  <Text style={s.addPhotoLink}>{t('compose.addPhoto')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -342,7 +371,7 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
             <Text style={s.scopeText}>
               {selectedClass
                 ? `${selectedClass.name} · ${selectedClass.kids.length} kids`
-                : 'All classes'}
+                : t('compose.allClasses')}
             </Text>
             <Text style={s.scopeChevron}>›</Text>
           </View>
@@ -384,7 +413,12 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
           >
             {creating
               ? <ActivityIndicator color={Colors.white} />
-              : <Text style={s.sendBtnTxt}>📤  Send to AI</Text>}
+              : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <SparkIcon size={16} color={Colors.white} />
+                  <Text style={s.sendBtnTxt}>{t('compose.sendToAI')}</Text>
+                </View>
+              )}
           </TouchableOpacity>
         </View>
       </View>
@@ -423,6 +457,7 @@ const s = StyleSheet.create({
 
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },
   aiBadge: {
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: Colors.primaryLight,
     paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: 999,
@@ -435,7 +470,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.bg,
     borderRadius: 16, padding: 16,
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   pulseRing: {
     position: 'absolute',
@@ -449,12 +484,25 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   micIcon: { fontSize: 22 },
+  pauseIcon: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  pauseBar: { width: 4, height: 16, borderRadius: 2, backgroundColor: Colors.white },
   recLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
   waveRow: { flexDirection: 'row', alignItems: 'center', height: 28 },
   timer: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13, color: Colors.textPrimary,
     minWidth: 36, textAlign: 'right',
+  },
+
+  // Transcript input
+  transcriptInput: {
+    backgroundColor: Colors.bg,
+    borderRadius: 12, padding: 12,
+    fontSize: 14, color: Colors.textPrimary,
+    minHeight: 72, maxHeight: 120,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+    lineHeight: 20,
   },
 
   // Photos

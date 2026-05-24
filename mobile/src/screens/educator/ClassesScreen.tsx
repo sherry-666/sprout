@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery } from '@apollo/client';
+import { useTranslation } from 'react-i18next';
 import { Colors, Shadow } from '../../theme';
 import { useQuickLog } from '../../contexts/QuickLogContext';
 import ComposeSheet from './ComposeSheet';
@@ -30,13 +31,6 @@ function todayLabel(): string {
   return `${days[d.getDay()]} · ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
-function greetingPrefix(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
 // Hue-based color palette matching the design system (proto-shared.jsx ClassGlyph)
 function nameToHue(s: string): number {
   let h = 0;
@@ -53,8 +47,16 @@ function glyphColors(hue: number) {
 
 // ── HomeScreen ─────────────────────────────────────────────────────────────
 
+function greetingKey(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'home.greetingMorning';
+  if (h < 17) return 'home.greetingAfternoon';
+  return 'home.greetingEvening';
+}
+
 export default function ClassesScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { data, loading, refetch } = useQuery(HOME_QUERY, { fetchPolicy: 'cache-and-network' });
   const { activeConversationId, setActiveConversationId } = useQuickLog();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -100,7 +102,7 @@ export default function ClassesScreen({ navigation }: any) {
         <View style={s.header}>
           <Text style={s.eyebrow}>{todayLabel()}</Text>
           <Text style={s.title}>
-            {greetingPrefix()}{firstName ? `, ${firstName}` : ''}
+            {t(greetingKey())}{firstName ? `, ${firstName}` : ''}
           </Text>
         </View>
 
@@ -116,10 +118,10 @@ export default function ClassesScreen({ navigation }: any) {
                   <Text style={s.aiBadgeTxt}>✦ AI</Text>
                 </View>
               </View>
-              <Text style={s.qlSub}>Speak, snap, send to families</Text>
+              <Text style={s.qlSub}>{t('home.quickLogSub')}</Text>
             </View>
             <TouchableOpacity style={s.qlStartBtn} onPress={() => openSheet()} activeOpacity={0.85}>
-              <Text style={s.qlStartBtnTxt}>Start</Text>
+              <Text style={s.qlStartBtnTxt}>{t('home.start')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -131,7 +133,7 @@ export default function ClassesScreen({ navigation }: any) {
                   <View key={i} style={[s.nudgeDot, { opacity: 0.7 }]} />
                 ))}
               </View>
-              <Text style={s.qlNudgeTxt}>Today's Quick Log — open chat</Text>
+              <Text style={s.qlNudgeTxt}>{t('home.openChat')}</Text>
               <Text style={{ color: Colors.primary, fontSize: 16 }}>›</Text>
             </TouchableOpacity>
           )}
@@ -141,30 +143,31 @@ export default function ClassesScreen({ navigation }: any) {
         {/* TODO: Build calendar import feature — support importing from Google Calendar,
             Apple Calendar, and other calendar apps so educators can see their schedule here. */}
         <View style={s.sectionRow}>
-          <Text style={s.sectionEyebrow}>TODAY'S SCHEDULE</Text>
+          <Text style={s.sectionEyebrow}>{t('home.todaySchedule').toUpperCase()}</Text>
         </View>
         <View style={s.scheduleCard}>
           <Text style={s.schedulePlaceholder}>
-            Calendar coming soon{'\n'}Import from your calendar app
+            {t('home.calendarSoon')}{'\n'}{t('home.calendarImport')}
           </Text>
         </View>
 
         {/* My Classes */}
         <View style={[s.sectionRow, { marginTop: 22 }]}>
-          <Text style={s.sectionEyebrow}>MY CLASSES · {classes.length}</Text>
+          <Text style={s.sectionEyebrow}>{t('home.myClasses').toUpperCase()} · {classes.length}</Text>
         </View>
 
         {loading && classes.length === 0 ? (
           <ActivityIndicator color={Colors.primary} style={{ marginTop: 20 }} />
         ) : classes.length === 0 ? (
           <View style={s.empty}>
-            <Text style={s.emptyTxt}>No classes yet</Text>
+            <Text style={s.emptyTxt}>{t('classes.noClasses')}</Text>
           </View>
         ) : (
           <View style={{ gap: 8 }}>
             {classes.map(cls => {
               const hue = nameToHue(cls.name);
               const { bg, ink } = glyphColors(hue);
+              const kidCount = cls.kids?.length ?? 0;
               return (
                 <TouchableOpacity
                   key={cls.id}
@@ -183,8 +186,9 @@ export default function ClassesScreen({ navigation }: any) {
                     <Text style={s.className}>{cls.name}</Text>
                   </View>
                   <View style={s.kidCountPill}>
-                    <Text style={s.kidCountNum}>{cls.kids?.length ?? 0}</Text>
-                    <Text style={s.kidCountLabel}> kids</Text>
+                    <Text style={s.kidCountNum}>
+                      {t('classes.kids', { count: kidCount })}
+                    </Text>
                   </View>
                   <Text style={s.chevron}>›</Text>
                 </TouchableOpacity>
@@ -207,7 +211,7 @@ export default function ClassesScreen({ navigation }: any) {
 // ── Styles ─────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f3f4f8' },
+  root: { flex: 1, backgroundColor: '#f6f4ec' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
 
   // Header
@@ -218,14 +222,14 @@ const s = StyleSheet.create({
   },
   title: {
     fontSize: 30, fontWeight: '600', letterSpacing: -0.6,
-    color: '#1d1d2a', marginTop: 4,
+    color: '#1d2a22', marginTop: 4,
   },
 
   quickLogCard: {
-    backgroundColor: 'rgba(79,70,229,0.09)',
+    backgroundColor: 'rgba(61,130,88,0.09)',
     borderRadius: 16, padding: 16,
     marginTop: 20,
-    borderWidth: 1, borderColor: 'rgba(79,70,229,0.15)',
+    borderWidth: 1, borderColor: 'rgba(61,130,88,0.15)',
   },
   qlRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   qlMicCircle: {
@@ -233,7 +237,7 @@ const s = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  qlTitle: { fontSize: 15, fontWeight: '600', color: '#1d1d2a' },
+  qlTitle: { fontSize: 15, fontWeight: '600', color: '#1d2a22' },
   qlSub: { fontSize: 12, color: 'rgba(60,60,67,0.6)', marginTop: 2 },
   qlStartBtn: {
     backgroundColor: Colors.primary,
@@ -252,7 +256,7 @@ const s = StyleSheet.create({
 
   // AI Badge
   aiBadge: {
-    backgroundColor: 'rgba(79,70,229,0.12)',
+    backgroundColor: 'rgba(61,130,88,0.12)',
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
   },
   aiBadgeTxt: { fontSize: 10, fontWeight: '600', color: Colors.primary, letterSpacing: 0.3 },
@@ -296,10 +300,10 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   classGlyphTxt: { fontSize: 18, fontWeight: '700', letterSpacing: -0.4 },
-  className: { fontSize: 15, fontWeight: '600', color: '#1d1d2a' },
+  className: { fontSize: 15, fontWeight: '600', color: '#1d2a22' },
   kidCountPill: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#f3f4f8',
+    backgroundColor: '#f6f4ec',
     borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
   },
   kidCountNum: { fontSize: 12, fontWeight: '600', color: Colors.primary },
