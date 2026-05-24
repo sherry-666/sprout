@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Path, Circle, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Line, Rect } from 'react-native-svg';
 
 // Exact SVG paths from the Sprout design system (proto-shared.jsx, viewBox 0 0 64 64)
 
@@ -64,6 +64,27 @@ export function SparkIcon({ size = 16, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
       <Path d="M12 2 C 12 9, 14 11, 22 11 C 14 11, 12 13, 12 22 C 12 13, 10 11, 2 11 C 10 11, 12 9, 12 2 Z" />
+    </Svg>
+  );
+}
+
+// Microphone icon — from proto-shared.jsx ActionIcon.Mic
+export function MicIcon({ size = 24, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x={9} y={3} width={6} height={12} rx={3} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5 11 a7 7 0 0 0 14 0" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Line x1={12} y1={18} x2={12} y2={22} stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// Pause icon — two vertical bars
+export function PauseIcon({ size = 24, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Rect x={5} y={4} width={4} height={16} rx={1.5} />
+      <Rect x={15} y={4} width={4} height={16} rx={1.5} />
     </Svg>
   );
 }

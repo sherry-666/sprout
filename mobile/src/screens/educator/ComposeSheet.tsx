@@ -13,7 +13,7 @@ import { gql, useQuery, useMutation } from '@apollo/client';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { Colors, Spacing, Radius, Shadow } from '../../theme';
-import { SparkIcon } from '../../components/SproutIcons';
+import { SparkIcon, MicIcon, PauseIcon } from '../../components/SproutIcons';
 
 // ── GraphQL ────────────────────────────────────────────────────────────────
 
@@ -70,6 +70,7 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
   const classes: Array<{ id: string; name: string; kids: Array<{ id: string }> }> = data?.me?.classes ?? [];
 
   const [selectedClassId, setSelectedClassId] = useState<string | null>(initialClassId ?? null);
+  const [classDropdownOpen, setClassDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -280,8 +281,8 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
                 activeOpacity={0.85}
               >
                 {isRecording
-                  ? <View style={s.pauseIcon}><View style={s.pauseBar} /><View style={s.pauseBar} /></View>
-                  : <Text style={s.micIcon}>🎙</Text>}
+                  ? <PauseIcon size={22} color={Colors.white} />
+                  : <MicIcon size={22} color={Colors.white} />}
               </TouchableOpacity>
             </View>
             <View style={{ flex: 1 }}>
@@ -365,44 +366,62 @@ export default function ComposeSheet({ visible, initialClassId, onClose, onSent 
             )}
           </View>
 
-          {/* Scope pill */}
-          <View style={s.scopePill}>
+          {/* Class dropdown */}
+          <TouchableOpacity
+            style={s.classDropdown}
+            onPress={() => classes.length > 0 && setClassDropdownOpen(true)}
+            activeOpacity={0.8}
+          >
             <Text style={s.scopeIcon}>🏫</Text>
             <Text style={s.scopeText}>
               {selectedClass
                 ? `${selectedClass.name} · ${selectedClass.kids.length} kids`
                 : t('compose.allClasses')}
             </Text>
-            <Text style={s.scopeChevron}>›</Text>
-          </View>
+            <Text style={s.dropdownChevron}>⌄</Text>
+          </TouchableOpacity>
 
-          {/* Class selector chips */}
-          {classes.length > 1 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={s.chips}
-              contentContainerStyle={{ gap: 8 }}
+          {/* Class picker modal */}
+          <Modal
+            visible={classDropdownOpen}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setClassDropdownOpen(false)}
+          >
+            <TouchableOpacity
+              style={s.dropdownBackdrop}
+              activeOpacity={1}
+              onPress={() => setClassDropdownOpen(false)}
             >
-              <TouchableOpacity
-                style={[s.chip, !selectedClassId && s.chipOn]}
-                onPress={() => setSelectedClassId(null)}
-              >
-                <Text style={[s.chipTxt, !selectedClassId && s.chipTxtOn]}>All</Text>
-              </TouchableOpacity>
-              {classes.map(cls => (
+              <View style={s.dropdownList}>
                 <TouchableOpacity
-                  key={cls.id}
-                  style={[s.chip, selectedClassId === cls.id && s.chipOn]}
-                  onPress={() => setSelectedClassId(selectedClassId === cls.id ? null : cls.id)}
+                  style={[s.dropdownItem, !selectedClassId && s.dropdownItemActive]}
+                  onPress={() => { setSelectedClassId(null); setClassDropdownOpen(false); }}
                 >
-                  <Text style={[s.chipTxt, selectedClassId === cls.id && s.chipTxtOn]}>
-                    {cls.name}
+                  <Text style={[s.dropdownItemTxt, !selectedClassId && s.dropdownItemTxtActive]}>
+                    {t('compose.allClasses')}
                   </Text>
+                  {!selectedClassId && <Text style={s.dropdownCheck}>✓</Text>}
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
+                {classes.map((cls, i) => (
+                  <TouchableOpacity
+                    key={cls.id}
+                    style={[
+                      s.dropdownItem,
+                      i < classes.length - 1 && s.dropdownItemBorder,
+                      selectedClassId === cls.id && s.dropdownItemActive,
+                    ]}
+                    onPress={() => { setSelectedClassId(cls.id); setClassDropdownOpen(false); }}
+                  >
+                    <Text style={[s.dropdownItemTxt, selectedClassId === cls.id && s.dropdownItemTxtActive]}>
+                      {cls.name}
+                    </Text>
+                    {selectedClassId === cls.id && <Text style={s.dropdownCheck}>✓</Text>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          </Modal>
 
           {/* Send CTA */}
           <TouchableOpacity
@@ -483,9 +502,6 @@ const s = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  micIcon: { fontSize: 22 },
-  pauseIcon: { flexDirection: 'row', gap: 4, alignItems: 'center' },
-  pauseBar: { width: 4, height: 16, borderRadius: 2, backgroundColor: Colors.white },
   recLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
   waveRow: { flexDirection: 'row', alignItems: 'center', height: 28 },
   timer: {
@@ -525,27 +541,44 @@ const s = StyleSheet.create({
   },
   thumbXTxt: { color: Colors.white, fontSize: 10, fontWeight: '700', lineHeight: 14 },
 
-  // Scope
-  scopePill: {
+  // Class dropdown
+  classDropdown: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: Colors.bg,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    marginBottom: 8,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
+    marginBottom: 14,
   },
   scopeIcon: { fontSize: 14 },
   scopeText: { flex: 1, fontSize: 13, fontWeight: '500', color: Colors.textPrimary },
-  scopeChevron: { fontSize: 18, color: Colors.textSecondary },
+  dropdownChevron: { fontSize: 16, color: Colors.textSecondary, marginTop: 2 },
 
-  // Class chips
-  chips: { flexGrow: 0, marginBottom: 16 },
-  chip: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: Radius.full, borderWidth: 1.5,
-    borderColor: Colors.border, backgroundColor: Colors.card,
+  // Dropdown modal
+  dropdownBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center', paddingHorizontal: 32,
   },
-  chipOn: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
-  chipTxt: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
-  chipTxtOn: { color: Colors.primary },
+  dropdownList: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  dropdownItem: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 18, paddingVertical: 15,
+  },
+  dropdownItemBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  dropdownItemActive: { backgroundColor: Colors.primaryLight },
+  dropdownItemTxt: { flex: 1, fontSize: 15, color: Colors.textPrimary },
+  dropdownItemTxtActive: { color: Colors.primary, fontWeight: '600' },
+  dropdownCheck: { fontSize: 15, color: Colors.primary, fontWeight: '600' },
 
   // Send
   sendBtn: {
