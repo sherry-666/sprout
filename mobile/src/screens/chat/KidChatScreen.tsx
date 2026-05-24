@@ -149,23 +149,25 @@ function SenderAvatar({ name, size = 28 }: { name: string; size?: number }) {
   );
 }
 
+// Trailing zero-width space forces Android's text layout to allocate room
+// past the last visible glyph, defeating the off-by-one clipping bug.
+const NBSP = '​';
+
 function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
   const firstName = message.senderName.split(' ')[0];
+  const safeContent = message.content + NBSP;
 
   if (isOwn) {
     return (
       <View style={ms.ownRow}>
-        {/* Single Text used as the bubble — Text measures itself accurately,
-            avoiding Android's View-wrapping-Text shrink-wrap measurement bug
-            that was clipping the last character of short messages. */}
         <Text
           style={ms.ownBubble}
           textBreakStrategy="simple"
           allowFontScaling={false}
         >
-          {message.content}
+          {safeContent}
         </Text>
-        <Text style={ms.ownTime}>{msgTime(message.createdAt)}</Text>
+        <Text style={ms.ownTime} allowFontScaling={false}>{msgTime(message.createdAt) + NBSP}</Text>
       </View>
     );
   }
@@ -174,7 +176,7 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
     <View style={ms.otherRow}>
       <SenderAvatar name={message.senderName} size={28} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={ms.senderLabel}>
+        <Text style={ms.senderLabel} allowFontScaling={false}>
           {firstName} · Parent
         </Text>
         <Text
@@ -182,9 +184,9 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
           textBreakStrategy="simple"
           allowFontScaling={false}
         >
-          {message.content}
+          {safeContent}
         </Text>
-        <Text style={ms.otherTime}>{msgTime(message.createdAt)}</Text>
+        <Text style={ms.otherTime} allowFontScaling={false}>{msgTime(message.createdAt) + NBSP}</Text>
       </View>
     </View>
   );
@@ -196,9 +198,10 @@ const ms = StyleSheet.create({
   ownBubble: {
     backgroundColor: Colors.primary, borderRadius: 18,
     borderBottomRightRadius: 4,
-    paddingLeft: 14, paddingRight: 16, paddingVertical: 10,
+    paddingLeft: 16, paddingRight: 22, paddingVertical: 10,
     maxWidth: '78%',
     fontSize: 15, color: Colors.white, lineHeight: 21,
+    letterSpacing: 0.2,
     includeFontPadding: false,
   },
   ownTime: {
@@ -217,8 +220,9 @@ const ms = StyleSheet.create({
   otherBubble: {
     backgroundColor: Colors.white, borderRadius: 18,
     borderBottomLeftRadius: 4,
-    paddingLeft: 14, paddingRight: 16, paddingVertical: 10,
+    paddingLeft: 16, paddingRight: 22, paddingVertical: 10,
     fontSize: 15, color: '#1d2a22', lineHeight: 21,
+    letterSpacing: 0.2,
     includeFontPadding: false,
     elevation: 1,
   },
