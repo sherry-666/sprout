@@ -149,7 +149,7 @@ function TabNavigator() {
         component={SettingsStackNav}
         options={{
           tabBarLabel: t('tabs.settings'),
-          tabBarIcon: ({ color }) => <SettingsIcon size={24} color={color} />,
+          tabBarIcon: ({ color }) => <SettingsIcon size={24} color={color} bg={Colors.white} />,
         }}
       />
     </Tab.Navigator>
