@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   RefreshControl, TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery } from '@apollo/client';
 import { Colors } from '../../theme';
@@ -90,7 +91,11 @@ function ParentAvatarStack({ parentNames, size = 19, borderColor = '#f6f4ec' }: 
 
 // ── Kid avatar with stacked parent mini-avatars ────────────────────────────
 
-function KidAvatarGroup({ kidName, parentNames }: { kidName: string; parentNames: string[] }) {
+function KidAvatarGroup({ kidName, avatarUrl, parentNames }: {
+  kidName: string;
+  avatarUrl: string | null;
+  parentNames: string[];
+}) {
   const hue = nameToHue(kidName);
   const { bg, ink } = glyphColors(hue);
   const initials = kidName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
@@ -98,7 +103,17 @@ function KidAvatarGroup({ kidName, parentNames }: { kidName: string; parentNames
   return (
     <View style={s.avatarGroup}>
       <View style={[s.kidAvatar, { backgroundColor: bg }]}>
-        <Text style={[s.kidAvatarTxt, { color: ink }]}>{initials}</Text>
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={s.kidAvatarImg}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={0}
+          />
+        ) : (
+          <Text style={[s.kidAvatarTxt, { color: ink }]}>{initials}</Text>
+        )}
       </View>
       {parentNames.length > 0 && (
         <View style={s.parentStack}>
@@ -117,7 +132,11 @@ function ThreadRow({ item, onPress }: { item: any; onPress: () => void }) {
 
   return (
     <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.7}>
-      <KidAvatarGroup kidName={item.name} parentNames={item.parentNames ?? []} />
+      <KidAvatarGroup
+        kidName={item.name}
+        avatarUrl={item.avatarUrl ?? null}
+        parentNames={item.parentNames ?? []}
+      />
       <View style={s.rowBody}>
         <View style={s.rowTop}>
           <Text style={s.kidName} numberOfLines={1}>
@@ -223,6 +242,7 @@ export default function ChatListScreen({ navigation }: any) {
                 kidName: item.name,
                 parentNames: item.parentNames ?? [],
                 className: item.className ?? '',
+                avatarUrl: item.avatarUrl ?? null,
               })
             }
           />
@@ -272,7 +292,9 @@ const s = StyleSheet.create({
   kidAvatar: {
     width: 50, height: 50, borderRadius: 25,
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
+  kidAvatarImg: { width: '100%', height: '100%' },
   kidAvatarTxt: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
   parentStack: { position: 'absolute', bottom: 0, left: 4 },
 

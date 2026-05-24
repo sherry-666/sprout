@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity,
   ActivityIndicator, Alert, Keyboard, Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gql, useQuery, useMutation, useSubscription } from '@apollo/client';
 import { useIsFocused } from '@react-navigation/native';
@@ -204,11 +205,11 @@ const ms = StyleSheet.create({
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function KidChatScreen({ route, navigation }: any) {
-  const { kidId, kidName, parentNames = [], className = '' } = route.params;
+  const { kidId, kidName, parentNames = [], className = '', avatarUrl = null } = route.params;
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [inputText, setInputText] = useState('');
+  const [hasText, setHasText] = useState(false);
   const inputTextRef = useRef('');
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -263,8 +264,9 @@ export default function KidChatScreen({ route, navigation }: any) {
   const handleSend = useCallback(async () => {
     const text = inputTextRef.current.trim();
     if (!text || sending) return;
-    setInputText('');
+    inputRef.current?.clear();
     inputTextRef.current = '';
+    setHasText(false);
     try {
       const { data: d } = await sendMessage({ variables: { kidId, content: text } });
       const msg = d?.sendKidChat;
@@ -272,8 +274,9 @@ export default function KidChatScreen({ route, navigation }: any) {
       scrollRef.current?.scrollToEnd({ animated: true });
     } catch (e: any) {
       Alert.alert('Failed to send', e.message ?? 'Please try again');
-      setInputText(text);
+      inputRef.current?.setNativeProps({ text });
       inputTextRef.current = text;
+      setHasText(true);
     }
   }, [kidId, sending]);
 
@@ -299,9 +302,19 @@ export default function KidChatScreen({ route, navigation }: any) {
         </TouchableOpacity>
 
         <View style={s.headerCenter}>
-          {/* Kid avatar */}
+          {/* Kid avatar — photo if available, otherwise hue-based initials */}
           <View style={[s.headerKidAvatar, { backgroundColor: kidBg }]}>
-            <Text style={[s.headerKidAvatarTxt, { color: kidInk }]}>{kidInitials}</Text>
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={s.headerKidAvatarImg}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={0}
+              />
+            ) : (
+              <Text style={[s.headerKidAvatarTxt, { color: kidInk }]}>{kidInitials}</Text>
+            )}
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.headerName} numberOfLines={1}>{kidName}</Text>
@@ -359,8 +372,12 @@ export default function KidChatScreen({ route, navigation }: any) {
         <TextInput
           ref={inputRef}
           style={s.input}
-          value={inputText}
-          onChangeText={v => { setInputText(v); inputTextRef.current = v; }}
+          defaultValue=""
+          onChangeText={v => {
+            inputTextRef.current = v;
+            const next = v.trim().length > 0;
+            if (next !== hasText) setHasText(next);
+          }}
           placeholder={placeholder}
           placeholderTextColor="rgba(60,60,67,0.40)"
           multiline
@@ -368,9 +385,9 @@ export default function KidChatScreen({ route, navigation }: any) {
           returnKeyType="default"
         />
         <TouchableOpacity
-          style={[s.sendBtn, (!inputText.trim() || sending) && s.sendBtnOff]}
+          style={[s.sendBtn, (!hasText || sending) && s.sendBtnOff]}
           onPress={handleSend}
-          disabled={!inputText.trim() || sending}
+          disabled={!hasText || sending}
           activeOpacity={0.75}
         >
           {sending
@@ -402,7 +419,9 @@ const s = StyleSheet.create({
   headerKidAvatar: {
     width: 38, height: 38, borderRadius: 19,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    overflow: 'hidden',
   },
+  headerKidAvatarImg: { width: '100%', height: '100%' },
   headerKidAvatarTxt: { fontSize: 14, fontWeight: '700' },
   headerName: { fontSize: 16, fontWeight: '600', color: '#1d2a22' },
   headerSub: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
