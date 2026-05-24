@@ -18,6 +18,7 @@ from collections import defaultdict
 
 import strawberry
 from strawberry.types import Info
+from app.graphql.chat import _publish as _chat_publish
 
 from app.graphql.context import GraphQLContext
 from app.graphql.permissions import IsAuthenticated
@@ -474,6 +475,15 @@ class AgentsMutation:
             {"conversation_id": str(conversation_id), "kind": KIND_DRAFT_CARD}
         ).to_list(200)
 
+        # Build educator name once
+        viewer = info.context.viewer
+        p = (viewer.get("profile") or {}) if viewer else {}
+        educator_name = (
+            f"{p.get('firstName', '')} {p.get('lastName', '')}".strip()
+            or (viewer.get("email", "") if viewer else "Educator")
+        )
+        institution_id = info.context.viewer_institution_id
+
         created_count = 0
         for draft in drafts:
             content = (draft.get("content") or "").strip()
@@ -499,6 +509,19 @@ class AgentsMutation:
                 "detected_kid_ids": [],
                 "timestamp": datetime.utcnow(),
             })
+            # Mirror the update as a chat message so parents see it in the kid's thread
+            chat_doc = {
+                "_id": str(uuid.uuid4()),
+                "kid_id": str(kid_id),
+                "institution_id": institution_id,
+                "sender_id": viewer_id,
+                "sender_name": educator_name,
+                "sender_role": "educator",
+                "content": content,
+                "created_at": datetime.utcnow(),
+            }
+            await db.chat_messages.insert_one(chat_doc)
+            await _chat_publish(str(kid_id), chat_doc)
             created_count += 1
 
         await write_message(

@@ -261,7 +261,7 @@ export default function KidChatScreen({ route, navigation }: any) {
   }, [isFocused, kidId]);
 
   const handleSend = useCallback(async () => {
-    const text = inputText.trim();
+    const text = inputTextRef.current.trim();
     if (!text || sending) return;
     setInputText('');
     inputTextRef.current = '';
@@ -275,7 +275,7 @@ export default function KidChatScreen({ route, navigation }: any) {
       setInputText(text);
       inputTextRef.current = text;
     }
-  }, [kidId, inputText, sending]);
+  }, [kidId, sending]);
 
   // Kid avatar
   const kidHue = nameToHue(kidName);

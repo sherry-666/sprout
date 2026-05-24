@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Scr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { gql, useMutation } from '@apollo/client';
+import { setLanguage } from '../i18n';
 import { Colors, Radius, Shadow } from '../theme';
 
 const REGENERATE_EMBEDDINGS = gql`
@@ -11,9 +12,16 @@ const REGENERATE_EMBEDDINGS = gql`
   }
 `;
 
+const LANGUAGES = [
+  { code: 'en', key: 'language.en' },
+  { code: 'zh', key: 'language.zh' },
+  { code: 'fr', key: 'language.fr' },
+] as const;
+
 export default function SettingsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language;
   const [regenerate, { loading: regenerating }] = useMutation(REGENERATE_EMBEDDINGS);
 
   const handleRegenerate = async () => {
@@ -30,9 +38,8 @@ export default function SettingsScreen({ navigation }: any) {
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
-      {/* Header */}
+      {/* Header — no eyebrow, just the title */}
       <View style={s.header}>
-        <Text style={s.eyebrow}>PREFERENCES</Text>
         <Text style={s.title}>{t('settings.title')}</Text>
       </View>
 
@@ -48,6 +55,28 @@ export default function SettingsScreen({ navigation }: any) {
             <Text style={s.rowLabel}>{t('settings.myProfile')}</Text>
             <Text style={s.chevron}>›</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Language section */}
+        <Text style={[s.sectionLabel, { marginTop: 24 }]}>{t('settings.appSection').toUpperCase()}</Text>
+        <View style={s.card}>
+          <View style={s.langBlock}>
+            <Text style={s.rowLabel}>{t('settings.language')}</Text>
+            <View style={s.langPicker}>
+              {LANGUAGES.map(({ code, key }) => (
+                <TouchableOpacity
+                  key={code}
+                  style={[s.langBtn, currentLang === code && s.langBtnActive]}
+                  onPress={() => setLanguage(code)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.langBtnText, currentLang === code && s.langBtnTextActive]}>
+                    {t(key)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
 
         {/* Admin section */}
@@ -73,23 +102,17 @@ export default function SettingsScreen({ navigation }: any) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f6f4ec' },
 
-  // Header
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
-  eyebrow: {
-    fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
-    textTransform: 'uppercase', color: 'rgba(60,60,67,0.55)',
-  },
   title: {
     fontSize: 30, fontWeight: '600', letterSpacing: -0.6,
-    color: '#1d2a22', marginTop: 4, marginBottom: 4,
+    color: '#1d2a22', marginBottom: 4,
   },
 
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
 
   sectionLabel: {
     fontSize: 11, fontWeight: '600', letterSpacing: 1.1,
-    color: 'rgba(60,60,67,0.55)',
-    marginBottom: 8,
+    color: 'rgba(60,60,67,0.55)', marginBottom: 8,
   },
 
   card: {
@@ -106,4 +129,19 @@ const s = StyleSheet.create({
   rowLabel: { fontSize: 15, color: '#1d2a22', flex: 1 },
   chevron: { fontSize: 20, color: 'rgba(60,60,67,0.4)' },
 
+  langBlock: { paddingHorizontal: 16, paddingVertical: 14 },
+  langPicker: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  langBtn: {
+    flex: 1, paddingVertical: 10,
+    borderRadius: Radius.sm,
+    borderWidth: 1.5, borderColor: 'rgba(60,60,67,0.15)',
+    alignItems: 'center',
+    backgroundColor: '#f6f4ec',
+  },
+  langBtnActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+  },
+  langBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(60,60,67,0.6)' },
+  langBtnTextActive: { color: Colors.primary },
 });
