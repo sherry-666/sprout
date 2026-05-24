@@ -149,13 +149,13 @@ function SenderAvatar({ name, size = 28 }: { name: string; size?: number }) {
   );
 }
 
-// Trailing zero-width space forces Android's text layout to allocate room
-// past the last visible glyph, defeating the off-by-one clipping bug.
-const NBSP = '​';
+// Trailing spaces force Android's text layout to allocate real width past
+// the last typed character, defeating the bubble's right-edge clipping.
+const TAIL = '   ';
 
 function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
   const firstName = message.senderName.split(' ')[0];
-  const safeContent = message.content + NBSP;
+  const safeContent = message.content + TAIL;
 
   if (isOwn) {
     return (
@@ -167,7 +167,7 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
         >
           {safeContent}
         </Text>
-        <Text style={ms.ownTime} allowFontScaling={false}>{msgTime(message.createdAt) + NBSP}</Text>
+        <Text style={ms.ownTime} allowFontScaling={false}>{msgTime(message.createdAt) + TAIL}</Text>
       </View>
     );
   }
@@ -186,7 +186,7 @@ function MessageRow({ message, isOwn }: { message: ChatMsg; isOwn: boolean }) {
         >
           {safeContent}
         </Text>
-        <Text style={ms.otherTime} allowFontScaling={false}>{msgTime(message.createdAt) + NBSP}</Text>
+        <Text style={ms.otherTime} allowFontScaling={false}>{msgTime(message.createdAt) + TAIL}</Text>
       </View>
     </View>
   );
