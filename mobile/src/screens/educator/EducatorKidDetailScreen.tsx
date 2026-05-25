@@ -65,7 +65,11 @@ function formatDOB(dob: string): string {
 
 function formatTime(ts: string): string {
   const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  let h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, '0');
+  const period = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${period}`;
 }
 
 function dateSectionLabel(ts: string): string {
@@ -330,7 +334,7 @@ export default function EducatorKidDetailScreen({ route, navigation }: any) {
                     </View>
                   )}
                   <View style={{ flex: 1 }} />
-                  <Text style={s.sentLabel}>✓ Sent to parents</Text>
+                  <Text style={s.sentLabel} numberOfLines={1}>✓ Sent</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -425,7 +429,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 2,
   },
   aiChipTxt: { fontSize: 10, color: Colors.primary, fontWeight: '600' },
-  sentLabel: { fontSize: 11, color: Colors.textSecondary },
+  sentLabel: { fontSize: 11, color: Colors.textSecondary, flexShrink: 0 },
 
   empty: { alignItems: 'center', paddingVertical: 40 },
   emptyIcon: { fontSize: 40, marginBottom: 8 },

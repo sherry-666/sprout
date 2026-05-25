@@ -44,8 +44,11 @@ const TYPE_META: Record<string, { emoji: string; label: string; color: string }>
 function formatDateTime(ts: string): string {
   const d = new Date(ts);
   const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return `${date} at ${time}`;
+  let h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, '0');
+  const period = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${date} at ${h}:${m} ${period}`;
 }
 
 export default function ActivityDetailScreen({ route, navigation }: any) {
