@@ -25,6 +25,14 @@ async def connect_to_mongo():
     await db.db.conversations.create_index([("user_id", 1), ("updated_at", -1)])
     await db.db.messages.create_index([("conversation_id", 1), ("created_at", 1)])
     await db.db.jobs.create_index([("status", 1), ("created_at", 1)])
+    # Calendar integrations
+    await db.db.calendar_integrations.create_index(
+        [("user_id", 1), ("provider", 1)], unique=True
+    )
+    await db.db.calendar_events.create_index([("user_id", 1), ("start", 1)])
+    await db.db.calendar_events.create_index(
+        [("integration_id", 1), ("provider_event_id", 1)], unique=True
+    )
     print("Indexes ensured.")
 
 async def close_mongo_connection():

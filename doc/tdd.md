@@ -27,8 +27,8 @@ The system consists of a centralized Python backend service communicating with a
 
 ## 2. Tech Stack
 - **Database**: MongoDB (Atlas for managed cloud hosting, integrates easily with Railway).
-- **Backend**: Python 3.11+ with FastAPI. Uses Motor (async MongoDB driver) for database access. Strawberry GraphQL with subscription support via `graphql-transport-ws` over WebSocket. A lightweight MongoDB-backed job queue (`app/core/jobs.py`) with an in-process worker loop drives async AI workflows (no Redis/Celery yet — splitting the worker into its own service is a config change). Registered job handlers: `quick_log_analysis` (Phase 1 — face recognition), `quick_log_summarize` (Phase 2 — text generation), `chat_response` (free-form AI chat reply).
-- **Mobile App**: React Native (Expo SDK 54, RN 0.81.5) for cross-platform (iOS/Android). Apollo Client for GraphQL. `@react-navigation/native` v7 for navigation (bottom tabs + native stacks). `@react-native-async-storage/async-storage` for JWT storage and language persistence. `i18next` + `react-i18next` for EN/ZH/FR internationalisation (language saved under key `sprout_lang` in AsyncStorage).
+- **Backend**: Python 3.11+ with FastAPI. Uses Motor (async MongoDB driver) for database access. Strawberry GraphQL with subscription support via `graphql-transport-ws` over WebSocket. A lightweight MongoDB-backed job queue (`app/core/jobs.py`) with an in-process worker loop drives async AI workflows (no Redis/Celery yet — splitting the worker into its own service is a config change). Registered job handlers: `quick_log_analysis` (Phase 1 — face recognition), `quick_log_summarize` (Phase 2 — text generation), `chat_response` (free-form AI chat reply), `calendar_sync` (refresh + upsert calendar events for a linked integration).
+- **Mobile App**: React Native (Expo SDK 54, RN 0.81.5) for cross-platform (iOS/Android). Apollo Client for GraphQL. `@react-navigation/native` v7 for navigation (bottom tabs + native stacks). `@react-native-async-storage/async-storage` for JWT storage and language persistence. `i18next` + `react-i18next` for EN/ZH/FR internationalisation (language saved under key `sprout_lang` in AsyncStorage). `expo-calendar` (EventKit on iOS) for reading Apple Calendar events on-device. `expo-web-browser` for launching OAuth flows in the system browser.
 - **Web Admin**: React (Vite + TypeScript) with react-i18next for EN/ZH/FR internationalisation.
 - **AI/ML Libraries**:
   - `google-generativeai` — Gemini Flash model for audio transcription, transcript parsing, and vision scene description (wired into Quick Log pipeline).
@@ -216,6 +216,36 @@ sprout/
   - The `updates` doc is now inserted with an explicit string `_id` (`str(uuid.uuid4())`) so the chat card's `update_id` can be resolved via the new `update(id: ID!)` root query.
   - Old chat messages with no `kind` field default to `text` at read time — backward compatible.
 
+### 4.11 `calendar_integrations` Collection (new)
+- `_id`: String (UUID)
+- `user_id`: String (FK → users)
+- `provider`: Enum (`google`, `microsoft`, `apple`)
+- `provider_account_email`: String — display label (e.g. "jane@gmail.com"). For `apple`, set to `"This device"`.
+- `access_token`: String (nullable — null for `apple`)
+- `refresh_token`: String (nullable — null for `apple`)
+- `expires_at`: Date (nullable)
+- `scopes`: [String]
+- `last_synced_at`: Date (nullable)
+- `created_at`, `updated_at`: Date
+- Index: `(user_id, provider)` unique
+- **Note:** tokens stored as plaintext in v1. *(TODO §10: encryption-at-rest follow-up)*
+
+### 4.12 `calendar_events` Collection (new)
+- `_id`: String (UUID)
+- `user_id`: String (FK → users)
+- `integration_id`: String (FK → calendar_integrations)
+- `provider`: Enum (`google`, `microsoft`) — Apple events not stored server-side
+- `provider_event_id`: String — provider's event ID (for dedup on re-sync)
+- `title`: String
+- `start`: Date
+- `end`: Date
+- `all_day`: Boolean
+- `location`: String (optional)
+- `created_at`, `updated_at`: Date
+- Indexes:
+  - `(user_id, start)` — homepage query
+  - `(integration_id, provider_event_id)` unique — upsert key on each sync
+
 ### 4.9 Jobs Collection (background queue)
 - `_id`: String (UUID)
 - `type`: String (e.g. `quick_log_analysis`)
@@ -257,6 +287,24 @@ sprout/
 - `query classes → [Class]` — List all classes for the caller's institution (or all classes for `super_admin`).
 - `POST /api/kids` — Add a new kid.
 - `PUT /api/kids/{id}` — Update kid info.
+
+### Calendar APIs (authenticated users — primarily educators)
+
+**REST OAuth callbacks** (not GraphQL — used by the provider redirect, not the mobile client directly):
+- `GET /oauth/google/callback?code&state` — Verifies signed `state` JWT (CSRF protection), exchanges auth code for Google tokens, upserts `calendar_integrations` doc, enqueues an immediate `calendar_sync` job, and redirects to `sprout://oauth-success?provider=google`.
+- `GET /oauth/microsoft/callback?code&state` — Same pattern for Microsoft Graph.
+
+**GraphQL queries:**
+- `myCalendarIntegrations → [CalendarIntegration!]!` — List the viewer's linked calendar integrations (`CalendarIntegration { id, provider, providerAccountEmail, lastSyncedAt, createdAt }`).
+- `myCalendarEvents(fromDt: DateTime!, toDt: DateTime!) → [CalendarEvent!]!` — Fetch cached events in the given window, sorted by `start` asc. `CalendarEvent { id, provider, title, start, end, allDay, location }`. Only Google/Outlook events (Apple events are read on-device).
+
+**GraphQL mutations:**
+- `beginCalendarOAuth(provider: CalendarProvider!) → CalendarOAuthRedirect` — Builds a provider auth URL with a signed state JWT and returns `{ authorizationUrl }`. Mobile opens the URL via `expo-web-browser`. `CalendarProvider` enum: `google | microsoft | apple`.
+- `registerAppleCalendar → CalendarIntegration` — Creates a stub `calendar_integrations` doc (`provider=apple`, no tokens) so the UI knows Apple is linked.
+- `delinkCalendar(integrationId: ID!) → Boolean` — Deletes the integration doc and all `calendar_events` with that `integration_id`. For Apple, the mobile app also clears local state (no server events to delete).
+- `syncCalendarNow(integrationId: ID!) → CalendarIntegration` — Enqueues a `calendar_sync` background job and returns the current integration record immediately (fire-and-forget trigger for stale-check on home screen focus).
+
+**Sync trigger:** When the educator opens the home screen, the client calls `syncCalendarNow` (fire-and-forget) if `lastSyncedAt` is older than 15 minutes — no cron needed for v1.
 
 ### Educator APIs (GraphQL mutations)
 
@@ -409,7 +457,7 @@ The mobile app uses the same GraphQL endpoint as the web portal. JWT is stored i
   - `sprout-backend`: Python FastAPI service (Dockerfile-based deploy).
   - `sprout-web`: React (Vite) static site.
   - `MongoDB`: Railway managed MongoDB plugin or external MongoDB Atlas connected via `MONGODB_URL` env variable.
-- **Environment Variables**: `MONGODB_URL`, `DATABASE_NAME`, `JWT_SECRET`, `GEMINI_API_KEY`, `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `FRONTEND_URL`, `EMAIL_WHITELIST_ENABLED`, `EMAIL_WHITELIST`.
+- **Environment Variables**: `MONGODB_URL`, `DATABASE_NAME`, `JWT_SECRET`, `GEMINI_API_KEY`, `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `FRONTEND_URL`, `EMAIL_WHITELIST_ENABLED`, `EMAIL_WHITELIST`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_REDIRECT_URI`, `OAUTH_STATE_SECRET`.
 - **CI/CD**: GitHub integration with Railway. Pushes to `main` automatically trigger builds and deployments.
 - **File Storage**: Cloud storage (e.g., AWS S3 or Cloudflare R2) for photos and media. URLs stored in MongoDB. *(Not yet configured.)*
 

@@ -55,6 +55,15 @@ export default function SettingsScreen({ navigation }: any) {
             <Text style={s.rowLabel}>{t('settings.myProfile')}</Text>
             <Text style={s.chevron}>›</Text>
           </TouchableOpacity>
+          <View style={s.divider} />
+          <TouchableOpacity
+            style={s.row}
+            onPress={() => navigation.navigate('CalendarSettings')}
+            activeOpacity={0.7}
+          >
+            <Text style={s.rowLabel}>{t('calendar.linkedCalendars')}</Text>
+            <Text style={s.chevron}>›</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Language section */}
@@ -125,6 +134,11 @@ const s = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 15,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginLeft: 16,
   },
   rowLabel: { fontSize: 15, color: '#1d2a22', flex: 1 },
   chevron: { fontSize: 20, color: 'rgba(60,60,67,0.4)' },

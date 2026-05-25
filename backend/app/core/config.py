@@ -27,6 +27,19 @@ class Settings(BaseSettings):
     EMAIL_WHITELIST_ENABLED: bool = True
     EMAIL_WHITELIST: str = "csjingtao@gmail.com"
 
+    # Calendar OAuth — Google
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/oauth/google/callback"
+
+    # Calendar OAuth — Microsoft (Outlook)
+    MICROSOFT_CLIENT_ID: str = ""
+    MICROSOFT_CLIENT_SECRET: str = ""
+    MICROSOFT_REDIRECT_URI: str = "http://localhost:8000/oauth/microsoft/callback"
+
+    # Signed state token secret for OAuth CSRF protection
+    OAUTH_STATE_SECRET: str = "oauth_state_secret_change_in_prod"
+
     class Config:
         env_file = ".env"
 

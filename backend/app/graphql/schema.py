@@ -46,6 +46,7 @@ from app.graphql.errors import (
 from app.graphql.pagination import encode_cursor, decode_cursor
 from app.graphql.agents import AgentsQuery, AgentsMutation, AgentsSubscription
 from app.graphql.chat import ChatQuery, ChatMutation, ChatSubscription
+from app.graphql.calendar import CalendarQuery, CalendarMutation
 from app.models.user import UserInDB, UserProfile, UserRole as ModelUserRole, UserStatus as ModelUserStatus
 from app.models.institution import InstitutionInDB, InstitutionStatus as ModelInstStatus
 from app.models.invitation import InvitationToken
@@ -59,7 +60,7 @@ _ALLOWED_PHOTO_TYPES = frozenset({"image/jpeg", "image/jpg", "image/png", "image
 # ─── Query ────────────────────────────────────────────────────────────
 
 @strawberry.type
-class Query(AgentsQuery, ChatQuery):
+class Query(AgentsQuery, ChatQuery, CalendarQuery):
 
     @strawberry.field
     async def node(
@@ -326,7 +327,7 @@ class Query(AgentsQuery, ChatQuery):
 # ─── Mutation ─────────────────────────────────────────────────────────
 
 @strawberry.type
-class Mutation(AgentsMutation, ChatMutation):
+class Mutation(AgentsMutation, ChatMutation, CalendarMutation):
 
     # ── Auth ──────────────────────────────────────────────────────────
 

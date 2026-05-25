@@ -163,6 +163,24 @@ The educator app has three bottom tabs:
 - Tapping opens the Review screen: editable draft cards (avatar, name, photo strip, content textbox, Remove button).
 - A footer button "Send N updates to parents" submits every remaining draft in a single batch as `Update` documents. The educator can edit text inline or remove individual drafts before sending.
 
+### 4.1e Linked Calendars (Educator Mobile)
+**Purpose:** Let educators see their personal and work calendar events alongside their class schedule on the home screen.
+
+**Home screen — Today's Schedule:**
+- The "TODAY'S SCHEDULE" section above My Classes shows events from all linked calendars for the current day, sorted by start time.
+- Each event row shows a coloured dot (provider colour), event title, optional location, and start time (or "All day" for full-day events).
+- Empty state: "No events today — link a calendar in Settings."
+- Google and Outlook events are fetched from the backend (synced via OAuth); Apple Calendar events are read directly from the device.
+
+**Settings → Linked Calendars (`CalendarSettingsScreen`):**
+- Lists three provider rows: Google Calendar, Outlook Calendar, Apple Calendar.
+- **Connect** (Google/Outlook): launches OAuth in the system browser via `expo-web-browser`; on success the backend stores tokens and kicks off an immediate sync.
+- **Connect** (Apple): requests iOS EventKit permission; on grant, creates a stub integration record in the backend. Events are always read directly from the device — no tokens are stored.
+- **Disconnect**: removes the OAuth token and deletes all cached calendar events for that provider. A confirmation alert is shown before disconnecting.
+- Connected accounts show the linked email address (or "This device" for Apple) below the provider name.
+
+**Privacy:** OAuth tokens are stored server-side. Apple Calendar events never leave the device. Read-only access only — Sprout never writes to user calendars.
+
 ### 4.1b AI Tab (Educator Mobile)
 **Purpose:** Unified view of all AI conversations — both Quick Log tasks and free-form chat sessions.
 - Conversation list (recent first) with status badges (Working… / Review / Sent / Failed) and last-update timestamps.
@@ -252,7 +270,8 @@ These are first-class, native features of Sprout that differentiate it from comp
 
 ### Journey 3: The Classroom Experience (Educator)
 1. Educator opens the Sprout Mobile App on a tablet.
-2. Selects "Toddler Room A".
+2. Sees today's calendar events in "TODAY'S SCHEDULE" (if a calendar is linked in Settings).
+3. Selects "Toddler Room A".
 3. Takes a photo of 4 kids doing a painting activity.
 4. Sprout AI detects the faces of the 4 specific kids and tags them.
 5. Educator types "messy painting session".

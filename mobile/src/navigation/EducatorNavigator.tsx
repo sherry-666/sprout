@@ -14,6 +14,7 @@ import ChatListScreen from '../screens/chat/ChatListScreen';
 import KidChatScreen from '../screens/chat/KidChatScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import CalendarSettingsScreen from '../screens/educator/CalendarSettingsScreen';
 import { Colors } from '../theme';
 import { QuickLogProvider, useQuickLog } from '../contexts/QuickLogContext';
 import { HomeIcon, AIIcon, ChatIcon, SettingsIcon } from '../components/SproutIcons';
@@ -91,6 +92,7 @@ function SettingsStackNav() {
     <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
       <SettingsStack.Screen name="SettingsHome" component={SettingsScreen} />
       <SettingsStack.Screen name="Profile" component={ProfileScreen} />
+      <SettingsStack.Screen name="CalendarSettings" component={CalendarSettingsScreen} />
     </SettingsStack.Navigator>
   );
 }

@@ -14,6 +14,8 @@ from app.graphql.schema import graphql_router
 from app.jobs.quick_log_processor import register_quick_log_handler
 from app.jobs.quick_log_summarizer import register_quick_log_summarize_handler
 from app.jobs.chat_response_processor import register_chat_handler
+from app.jobs.calendar_sync_processor import register_calendar_sync_handler
+from app.routes.oauth import router as oauth_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,6 +23,7 @@ async def lifespan(app: FastAPI):
     register_quick_log_handler()
     register_quick_log_summarize_handler()
     register_chat_handler()
+    register_calendar_sync_handler()
     job_queue.start_worker()
     yield
     await job_queue.stop_worker()
@@ -44,6 +47,7 @@ app.add_middleware(
 )
 
 app.include_router(graphql_router, prefix="/graphql", tags=["graphql"])
+app.include_router(oauth_router)
 
 @app.get("/health")
 async def health_check():

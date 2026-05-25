@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Sprout uses speech recognition to transcribe your voice notes into text.",
-        "NSMicrophoneUsageDescription": "Sprout needs microphone access to record voice notes."
+        "NSMicrophoneUsageDescription": "Sprout needs microphone access to record voice notes.",
+        "NSCalendarsUsageDescription": "Sprout reads your calendar to show today's events on your home screen."
       },
       "bundleIdentifier": "com.anonymous.sprout"
     },
@@ -38,7 +39,14 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Sprout reads your calendar to show today's events on your home screen."
+        }
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

@@ -10,6 +10,8 @@ import { Colors, Shadow } from '../../theme';
 import { useQuickLog } from '../../contexts/QuickLogContext';
 import { MicIcon } from '../../components/SproutIcons';
 import ComposeSheet from './ComposeSheet';
+import TodayScheduleCard from '../../components/educator/TodayScheduleCard';
+import { MY_CALENDAR_INTEGRATIONS } from '../../lib/calendar/oauth';
 
 // ── GraphQL ────────────────────────────────────────────────────────────────
 
@@ -59,6 +61,8 @@ export default function ClassesScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { data, loading, refetch } = useQuery(HOME_QUERY, { fetchPolicy: 'cache-and-network' });
+  const { data: calData } = useQuery(MY_CALENDAR_INTEGRATIONS, { fetchPolicy: 'cache-and-network' });
+  const hasIntegrations = (calData?.myCalendarIntegrations?.length ?? 0) > 0;
   const { activeConversationId, setActiveConversationId } = useQuickLog();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetClassId, setSheetClassId] = useState<string | null>(null);
@@ -141,16 +145,10 @@ export default function ClassesScreen({ navigation }: any) {
         </View>
 
         {/* Today's Schedule */}
-        {/* TODO: Build calendar import feature — support importing from Google Calendar,
-            Apple Calendar, and other calendar apps so educators can see their schedule here. */}
         <View style={s.sectionRow}>
           <Text style={s.sectionEyebrow}>{t('home.todaySchedule').toUpperCase()}</Text>
         </View>
-        <View style={s.scheduleCard}>
-          <Text style={s.schedulePlaceholder}>
-            {t('home.calendarSoon')}{'\n'}{t('home.calendarImport')}
-          </Text>
-        </View>
+        <TodayScheduleCard hasIntegrations={hasIntegrations} />
 
         {/* My Classes */}
         <View style={[s.sectionRow, { marginTop: 22 }]}>
@@ -267,22 +265,6 @@ const s = StyleSheet.create({
   sectionEyebrow: {
     fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
     textTransform: 'uppercase', color: 'rgba(60,60,67,0.55)',
-  },
-
-  // Schedule card (placeholder)
-  scheduleCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16, padding: 28,
-    alignItems: 'center',
-    shadowColor: '#1a2820',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    elevation: 2,
-  },
-  schedulePlaceholder: {
-    fontSize: 13, color: 'rgba(60,60,67,0.55)',
-    textAlign: 'center', lineHeight: 20,
   },
 
   // Class rows
